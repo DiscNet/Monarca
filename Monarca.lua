@@ -16,7 +16,7 @@ local theme = {
     surface = Color3.fromRGB(22, 24, 32),
     card = Color3.fromRGB(30, 32, 42),
     border = Color3.fromRGB(51, 54, 66),
-    accent = Color3.fromRGB(234, 185, 110),
+    accent = Color3.fromRGB(183, 140, 248),
     text = Color3.fromRGB(244, 244, 248),
     muted = Color3.fromRGB(153, 157, 173),
     danger = Color3.fromRGB(214, 106, 106),
@@ -164,7 +164,7 @@ local main = new("Frame", {
     BackgroundColor3 = theme.background,
     ClipsDescendants = true,
 }, gui)
-rounded(main, 14)
+rounded(main, 12)
 outlined(main)
 
 local camera = workspace.CurrentCamera
@@ -173,7 +173,9 @@ local humanoid = player.Character and player.Character:FindFirstChildOfClass("Hu
 local originalWalk = humanoid and humanoid.WalkSpeed or 16
 local originalJump = humanoid and humanoid.JumpPower or 50
 local windowOffset = Vector2.zero
-local sidebarWidth = 115
+local HEADER_HEIGHT = 46
+local NAV_HEIGHT = 42
+local FOOTER_HEIGHT = 22
 local function viewport()
     camera = workspace.CurrentCamera
     return camera and camera.ViewportSize or Vector2.new(800, 600)
@@ -181,9 +183,9 @@ end
 local function layout()
     if destroyed then return end
     local vp = viewport()
-    local w = math.min(590, math.max(280, vp.X - 20))
-    local h = math.min(425, math.max(265, vp.Y - 24))
-    sidebarWidth = w < 400 and 92 or 124
+    -- Compact on wide screens; preserve a safe margin on portrait and landscape mobile.
+    local w = math.max(180, math.min(540, vp.X - 24))
+    local h = math.max(165, math.min(340, vp.Y - 36))
     main.Size = UDim2.fromOffset(w, h)
     local maxX = math.max(0, (vp.X - w) / 2)
     local maxY = math.max(0, (vp.Y - h) / 2)
@@ -193,74 +195,129 @@ local function layout()
     )
     main.Position = UDim2.new(0.5, windowOffset.X, 0.5, windowOffset.Y)
 end
-
 local header = new("Frame", {
-    Size = UDim2.new(1, 0, 0, 54),
+    Size = UDim2.new(1, 0, 0, HEADER_HEIGHT),
     BackgroundColor3 = theme.surface,
+    BorderSizePixel = 0,
     Active = true,
 }, main)
 new("Frame", {
-    Position = UDim2.fromOffset(13, 15),
-    Size = UDim2.fromOffset(4, 25),
+    Position = UDim2.fromOffset(12, 12),
+    Size = UDim2.fromOffset(3, 22),
     BackgroundColor3 = theme.accent,
     BorderSizePixel = 0,
 }, header)
 new("TextLabel", {
-    Position = UDim2.fromOffset(26, 10),
-    Size = UDim2.new(1, -112, 0, 21),
+    Position = UDim2.fromOffset(23, 6),
+    Size = UDim2.new(1, -107, 0, 20),
     BackgroundTransparency = 1,
     Text = "MONARCA",
     Font = Enum.Font.GothamBold,
     TextColor3 = theme.text,
-    TextSize = 17,
+    TextSize = 15,
     TextXAlignment = Enum.TextXAlignment.Left,
 }, header)
 new("TextLabel", {
-    Position = UDim2.fromOffset(26, 31),
-    Size = UDim2.new(1, -112, 0, 15),
+    Position = UDim2.fromOffset(23, 26),
+    Size = UDim2.new(1, -107, 0, 12),
     BackgroundTransparency = 1,
     Text = "SCRIPT HUB  /  V0.1",
     Font = Enum.Font.Gotham,
     TextColor3 = theme.muted,
-    TextSize = 10,
+    TextSize = 9,
     TextXAlignment = Enum.TextXAlignment.Left,
 }, header)
 
-local floating = button(gui, "M", UDim2.fromOffset(15, 100), UDim2.fromOffset(49, 49), nil, true)
+-- Small independent floating launcher, visible while the window is minimized.
+local floating = button(gui, "M", UDim2.fromOffset(14, 92), UDim2.fromOffset(38, 38), nil, true)
+floating.Name = "MonarcaFloatingLauncher"
 floating.Visible = false
-rounded(floating, 13)
+floating.ZIndex = 20
+floating.TextSize = 14
+floating.Active = true
+local floatingCorner = floating:FindFirstChildOfClass("UICorner")
+if floatingCorner then floatingCorner.CornerRadius = UDim.new(1, 0) end
+new("UIStroke", {
+    Color = Color3.fromRGB(213, 185, 255),
+    Thickness = 1.4,
+    Transparency = 0.2,
+}, floating)
 local function minimize()
     main.Visible = false
     floating.Visible = true
 end
-button(header, "–", UDim2.new(1, -78, 0, 12), UDim2.fromOffset(30, 30), minimize)
-local closeButton = button(header, "×", UDim2.new(1, -41, 0, 12), UDim2.fromOffset(30, 30))
+button(header, "–", UDim2.new(1, -73, 0, 8), UDim2.fromOffset(28, 28), minimize)
+local closeButton = button(header, "×", UDim2.new(1, -40, 0, 8), UDim2.fromOffset(28, 28))
 closeButton.TextColor3 = theme.danger
+
+-- A drag never accidentally opens the launcher when released on touch devices.
+local floatingDragInput, floatingDragStart, floatingStart
+local floatingDragged = false
+local ignoreFloatActivationUntil = 0
+floating.InputBegan:Connect(function(input)
+    if input.UserInputType ~= Enum.UserInputType.Touch
+        and input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+    floatingDragInput = input
+    floatingDragStart = Vector2.new(input.Position.X, input.Position.Y)
+    floatingStart = Vector2.new(floating.Position.X.Offset, floating.Position.Y.Offset)
+    floatingDragged = false
+end)
+connect(Services.UserInputService.InputChanged, function(input)
+    if not floatingDragInput then return end
+    if input ~= floatingDragInput and not (
+        floatingDragInput.UserInputType == Enum.UserInputType.MouseButton1
+        and input.UserInputType == Enum.UserInputType.MouseMovement
+    ) then return end
+    local delta = Vector2.new(input.Position.X, input.Position.Y) - floatingDragStart
+    if delta.Magnitude > 6 then floatingDragged = true end
+    if not floatingDragged then return end
+    local vp = viewport()
+    floating.Position = UDim2.fromOffset(
+        math.clamp(floatingStart.X + delta.X, 4, math.max(4, vp.X - 42)),
+        math.clamp(floatingStart.Y + delta.Y, 4, math.max(4, vp.Y - 42))
+    )
+end)
+connect(Services.UserInputService.InputEnded, function(input)
+    if input ~= floatingDragInput and not (
+        floatingDragInput and floatingDragInput.UserInputType == Enum.UserInputType.MouseButton1
+        and input.UserInputType == Enum.UserInputType.MouseButton1
+    ) then return end
+    if floatingDragged then ignoreFloatActivationUntil = os.clock() + 0.25 end
+    floatingDragInput = nil
+end)
 floating.Activated:Connect(function()
+    if floatingDragInput or os.clock() < ignoreFloatActivationUntil then return end
     floating.Visible = false
     main.Visible = true
 end)
 
+-- Horizontal navigation leaves the full panel width available on mobile.
 local sidebar = new("Frame", {
-    Position = UDim2.fromOffset(0, 54),
+    Name = "TabBar",
+    Position = UDim2.fromOffset(0, HEADER_HEIGHT),
+    Size = UDim2.new(1, 0, 0, NAV_HEIGHT),
     BackgroundColor3 = theme.surface,
+    BorderSizePixel = 0,
 }, main)
-local navLayout = new("UIListLayout", {
-    Padding = UDim.new(0, 7),
+new("UIListLayout", {
+    FillDirection = Enum.FillDirection.Horizontal,
+    HorizontalAlignment = Enum.HorizontalAlignment.Center,
+    VerticalAlignment = Enum.VerticalAlignment.Center,
+    Padding = UDim.new(0, 4),
     SortOrder = Enum.SortOrder.LayoutOrder,
 }, sidebar)
 new("UIPadding", {
-    PaddingTop = UDim.new(0, 11),
     PaddingLeft = UDim.new(0, 8),
     PaddingRight = UDim.new(0, 8),
 }, sidebar)
 local area = new("Frame", {
     BackgroundTransparency = 1,
-    Position = UDim2.fromOffset(124, 54),
+    Position = UDim2.fromOffset(0, HEADER_HEIGHT + NAV_HEIGHT),
 }, main)
+
 local footer = new("TextLabel", {
-    Position = UDim2.new(0, 12, 1, -25),
-    Size = UDim2.new(1, -24, 0, 20),
+    Position = UDim2.new(0, 14, 1, -21),
+    Size = UDim2.new(1, -28, 0, 16),
     BackgroundTransparency = 1,
     TextColor3 = theme.muted,
     Text = "Monarca pronto",
@@ -287,16 +344,16 @@ local function page(name)
     }, area)
     local stack = new("UIListLayout", {
         SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 9),
+        Padding = UDim.new(0, 7),
     }, scroller)
     new("UIPadding", {
-        PaddingTop = UDim.new(0, 12),
-        PaddingLeft = UDim.new(0, 10),
-        PaddingRight = UDim.new(0, 12),
-        PaddingBottom = UDim.new(0, 12),
+        PaddingTop = UDim.new(0, 9),
+        PaddingLeft = UDim.new(0, 13),
+        PaddingRight = UDim.new(0, 13),
+        PaddingBottom = UDim.new(0, 9),
     }, scroller)
     connect(stack:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-        scroller.CanvasSize = UDim2.fromOffset(0, stack.AbsoluteContentSize.Y + 25)
+        scroller.CanvasSize = UDim2.fromOffset(0, stack.AbsoluteContentSize.Y + 18)
     end)
     pages[name] = scroller
     return scroller
@@ -311,37 +368,37 @@ local function switch(name)
 end
 for index, name in ipairs({"Home", "Scripts", "Player", "Settings"}) do
     page(name)
-    local b = button(sidebar, name, nil, UDim2.new(1, 0, 0, 38), function() switch(name) end)
+    local b = button(sidebar, name, nil, UDim2.new(0.25, -7, 0, 29), function() switch(name) end)
     b.Font = Enum.Font.Gotham
     b.LayoutOrder = index
     b.TextXAlignment = Enum.TextXAlignment.Center
     navButtons[name] = b
 end
 local function title(section, heading, detail)
-    label(section, heading, 19, theme.text, 29).Font = Enum.Font.GothamBold
-    label(section, detail, 12, theme.muted, 35)
+    label(section, heading, 17, theme.text, 24).Font = Enum.Font.GothamBold
+    label(section, detail, 11, theme.muted, 26)
 end
 local function card(section, height)
     local frame = new("Frame", {
-        Size = UDim2.new(1, -2, 0, height or 75),
+        Size = UDim2.new(1, -2, 0, height or 70),
         BackgroundColor3 = theme.surface,
     }, section)
     ordered(section, frame)
-    rounded(frame, 10)
+    rounded(frame, 9)
     outlined(frame)
     return frame
 end
 local function cardText(frame, heading, detail, extraRight)
-    local t = label(frame, heading, 14, theme.text, 25)
-    t.Position = UDim2.fromOffset(12, 8)
-    t.Size = UDim2.new(1, -(extraRight or 24), 0, 25)
+    local t = label(frame, heading, 13, theme.text, 21)
+    t.Position = UDim2.fromOffset(12, 7)
+    t.Size = UDim2.new(1, -(extraRight or 24), 0, 21)
     t.Font = Enum.Font.GothamBold
-    local d = label(frame, detail, 11, theme.muted, 34)
-    d.Position = UDim2.fromOffset(12, 33)
-    d.Size = UDim2.new(1, -24, 0, 34)
+    local d = label(frame, detail, 11, theme.muted, 30)
+    d.Position = UDim2.fromOffset(12, 29)
+    d.Size = UDim2.new(1, -24, 0, 30)
 end
 local function toggle(section, heading, detail, value, changed)
-    local row = card(section, 62)
+    local row = card(section, 60)
     local t = label(row, heading, 13, theme.text, 21)
     t.Position = UDim2.fromOffset(12, 8)
     t.Size = UDim2.new(1, -82, 0, 21)
@@ -368,7 +425,7 @@ local function toggle(section, heading, detail, value, changed)
     return row
 end
 local function slider(section, heading, minimum, maximum, initial, changed)
-    local row = card(section, 70)
+    local row = card(section, 66)
     local t = label(row, heading, 13, theme.text, 20)
     t.Position = UDim2.fromOffset(12, 6)
     t.Size = UDim2.new(1, -90, 0, 20)
@@ -377,7 +434,7 @@ local function slider(section, heading, minimum, maximum, initial, changed)
     number.Size = UDim2.fromOffset(55, 20)
     number.TextXAlignment = Enum.TextXAlignment.Right
     local track = new("Frame", {
-        Position = UDim2.new(0, 13, 0, 46),
+        Position = UDim2.new(0, 13, 0, 43),
         Size = UDim2.new(1, -26, 0, 5),
         BackgroundColor3 = theme.border,
         BorderSizePixel = 0,
@@ -442,14 +499,12 @@ end
 
 local home = pages.Home
 title(home, "Bem-vindo ao Monarca", "Seu painel pessoal para ferramentas locais e visuais.")
-local overview = card(home, 85)
-cardText(overview, "MONARCA  /  HUB", "Controle seus módulos, preferências e ajustes locais em um só lugar.")
-local homeCard = card(home, 95)
+local homeCard = card(home, 92)
 cardText(homeCard, "Scripts modulares", "Os scripts são obtidos deste repositório GitHub. Abra Scripts para ativá-los.")
 button(homeCard, "VER SCRIPTS", UDim2.new(0, 12, 1, -33), UDim2.fromOffset(118, 26), function()
     switch("Scripts")
 end, true)
-local homeInfo = card(home, 72)
+local homeInfo = card(home, 70)
 cardText(homeInfo, "Compatibilidade", "Modificações locais podem ser substituídas pelo jogo. O salvamento depende do executor.")
 
 local playerPage = pages.Player
@@ -532,10 +587,10 @@ end)
 
 local scriptsPage = pages.Scripts
 title(scriptsPage, "Scripts", "Módulos locais, organizados por categoria.")
-local controls = card(scriptsPage, 113)
+local controls = card(scriptsPage, 82)
 local search = new("TextBox", {
-    Position = UDim2.fromOffset(10, 10),
-    Size = UDim2.new(1, -20, 0, 30),
+    Position = UDim2.fromOffset(10, 8),
+    Size = UDim2.new(1, -20, 0, 28),
     BackgroundColor3 = theme.card,
     TextColor3 = theme.text,
     PlaceholderColor3 = theme.muted,
@@ -549,8 +604,8 @@ rounded(search, 8)
 new("UIPadding", {PaddingLeft = UDim.new(0, 9), PaddingRight = UDim.new(0, 9)}, search)
 local category = "Todos"
 local renderModules
-local filterButton = button(controls, "TODOS  ▾", UDim2.fromOffset(10, 49), UDim2.new(0.5, -14, 0, 29))
-local updateButton = button(controls, "ATUALIZAR", UDim2.new(0.5, 4, 0, 49), UDim2.new(0.5, -14, 0, 29), nil, true)
+local filterButton = button(controls, "TODOS  ▾", UDim2.fromOffset(10, 44), UDim2.new(0.5, -14, 0, 28))
+local updateButton = button(controls, "ATUALIZAR", UDim2.new(0.5, 4, 0, 44), UDim2.new(0.5, -14, 0, 28), nil, true)
 local dropdown = card(scriptsPage, 103)
 dropdown.Visible = false
 for index, name in ipairs({"Todos", "Visual", "Utilidades"}) do
@@ -571,7 +626,7 @@ local moduleArea = new("Frame", {
     AutomaticSize = Enum.AutomaticSize.Y,
     BackgroundTransparency = 1,
 }, scriptsPage)
-new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 9)}, moduleArea)
+new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 7)}, moduleArea)
 
 local function fetch(path)
     local url = repository .. path .. "?t=" .. tostring(os.time())
@@ -617,7 +672,7 @@ renderModules = function()
             or info.description:lower():find(query, 1, true)
         if matching and (category == "Todos" or info.category == category) then
             count = count + 1
-            local frame = card(moduleArea, 108)
+            local frame = card(moduleArea, 100)
             cardText(frame, info.name, info.description)
             local active = activeModules[info.id] == true
             local action = button(frame, active and "DESATIVAR" or "ATIVAR",
@@ -637,7 +692,7 @@ renderModules = function()
                 end, not active)
             if active then action.TextColor3 = theme.muted end
             local badge = label(frame, string.upper(info.category), 10, theme.accent, 18)
-            badge.Position = UDim2.fromOffset(12, 83)
+            badge.Position = UDim2.fromOffset(12, 78)
             badge.Size = UDim2.new(1, -110, 0, 18)
         end
     end
@@ -719,9 +774,14 @@ closeButton.Activated:Connect(destroy)
 env.MONARCA_HUB = {destroy = destroy}
 local function updateLayout()
     layout()
-    sidebar.Size = UDim2.new(0, sidebarWidth, 1, -83)
-    area.Position = UDim2.fromOffset(sidebarWidth, 54)
-    area.Size = UDim2.new(1, -sidebarWidth, 1, -83)
+    sidebar.Size = UDim2.new(1, 0, 0, NAV_HEIGHT)
+    area.Position = UDim2.fromOffset(0, HEADER_HEIGHT + NAV_HEIGHT)
+    area.Size = UDim2.new(1, 0, 1, -(HEADER_HEIGHT + NAV_HEIGHT + FOOTER_HEIGHT))
+    local vp = viewport()
+    floating.Position = UDim2.fromOffset(
+        math.clamp(floating.Position.X.Offset, 4, math.max(4, vp.X - 42)),
+        math.clamp(floating.Position.Y.Offset, 4, math.max(4, vp.Y - 42))
+    )
 end
 if camera then
     connect(camera:GetPropertyChangedSignal("ViewportSize"), updateLayout)
