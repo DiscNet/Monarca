@@ -12,10 +12,10 @@ if not player then return end
 local repository = "https://raw.githubusercontent.com/DiscNet/Monarca/main/"
 local settingsPath = "Monarca/settings.json"
 local theme = {
-    background = Color3.fromRGB(13, 14, 19),
-    surface = Color3.fromRGB(22, 24, 32),
-    card = Color3.fromRGB(30, 32, 42),
-    border = Color3.fromRGB(51, 54, 66),
+    background = Color3.fromRGB(10, 9, 17),
+    surface = Color3.fromRGB(17, 16, 29),
+    card = Color3.fromRGB(27, 24, 42),
+    border = Color3.fromRGB(80, 68, 107),
     accent = Color3.fromRGB(183, 140, 248),
     text = Color3.fromRGB(244, 244, 248),
     muted = Color3.fromRGB(153, 157, 173),
@@ -121,7 +121,7 @@ local function button(parent, value, position, size, action, accent)
         Font = Enum.Font.GothamBold,
         AutoButtonColor = false,
     }, parent)
-    rounded(b, 8)
+    rounded(b, 12)
     if action then b.Activated:Connect(action) end
     return b
 end
@@ -162,10 +162,26 @@ local main = new("Frame", {
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5),
     BackgroundColor3 = theme.background,
+    BackgroundTransparency = 0.16,
     ClipsDescendants = true,
 }, gui)
-rounded(main, 12)
+rounded(main, 20)
 outlined(main)
+
+-- BlurEffect softens the 3D scene while the Hub is open.
+-- Roblox does not provide per-panel background blur via an ordinary Frame.
+local hubBlur
+pcall(function()
+    hubBlur = new("BlurEffect", {
+        Name = "MonarcaWindowBlur",
+        Enabled = true,
+        Size = 0,
+    }, game:GetService("Lighting"))
+end)
+local function setBlur(enabled)
+    if not hubBlur or not hubBlur.Parent then return end
+    tween(hubBlur, {Size = enabled and 9 or 0}, 0.2)
+end
 
 local camera = workspace.CurrentCamera
 local originalFov = camera and camera.FieldOfView or 70
@@ -198,6 +214,7 @@ end
 local header = new("Frame", {
     Size = UDim2.new(1, 0, 0, HEADER_HEIGHT),
     BackgroundColor3 = theme.surface,
+    BackgroundTransparency = 0.16,
     BorderSizePixel = 0,
     Active = true,
 }, main)
@@ -234,33 +251,41 @@ floating.Name = "MonarcaFloatingLauncher"
 floating.Visible = false
 floating.ZIndex = 20
 floating.TextSize = 14
+floating.TextColor3 = theme.text
 floating.Active = true
 local floatingCorner = floating:FindFirstChildOfClass("UICorner")
 if floatingCorner then floatingCorner.CornerRadius = UDim.new(1, 0) end
 new("UIStroke", {
     Color = Color3.fromRGB(213, 185, 255),
     Thickness = 1.4,
-    Transparency = 0.2,
+    Transparency = 0.15,
 }, floating)
 local function minimize()
     main.Visible = false
     floating.Visible = true
+    setBlur(false)
 end
 button(header, "–", UDim2.new(1, -73, 0, 8), UDim2.fromOffset(28, 28), minimize)
 local closeButton = button(header, "×", UDim2.new(1, -40, 0, 8), UDim2.fromOffset(28, 28))
 closeButton.TextColor3 = theme.danger
 
--- A drag never accidentally opens the launcher when released on touch devices.
+-- Open on pointer release instead of Activated: Activated can fire before
+-- InputEnded on touch devices, leaving the previous drag guard stuck.
 local floatingDragInput, floatingDragStart, floatingStart
-local floatingDragged = false
-local ignoreFloatActivationUntil = 0
+local floatingMoved = false
+local function showWindow()
+    if destroyed or main.Visible then return end
+    floating.Visible = false
+    main.Visible = true
+    setBlur(true)
+end
 floating.InputBegan:Connect(function(input)
     if input.UserInputType ~= Enum.UserInputType.Touch
         and input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
     floatingDragInput = input
     floatingDragStart = Vector2.new(input.Position.X, input.Position.Y)
     floatingStart = Vector2.new(floating.Position.X.Offset, floating.Position.Y.Offset)
-    floatingDragged = false
+    floatingMoved = false
 end)
 connect(Services.UserInputService.InputChanged, function(input)
     if not floatingDragInput then return end
@@ -269,8 +294,8 @@ connect(Services.UserInputService.InputChanged, function(input)
         and input.UserInputType == Enum.UserInputType.MouseMovement
     ) then return end
     local delta = Vector2.new(input.Position.X, input.Position.Y) - floatingDragStart
-    if delta.Magnitude > 6 then floatingDragged = true end
-    if not floatingDragged then return end
+    if delta.Magnitude > 6 then floatingMoved = true end
+    if not floatingMoved then return end
     local vp = viewport()
     floating.Position = UDim2.fromOffset(
         math.clamp(floatingStart.X + delta.X, 4, math.max(4, vp.X - 42)),
@@ -278,17 +303,23 @@ connect(Services.UserInputService.InputChanged, function(input)
     )
 end)
 connect(Services.UserInputService.InputEnded, function(input)
+    if not floatingDragInput then return end
     if input ~= floatingDragInput and not (
-        floatingDragInput and floatingDragInput.UserInputType == Enum.UserInputType.MouseButton1
+        floatingDragInput.UserInputType == Enum.UserInputType.MouseButton1
         and input.UserInputType == Enum.UserInputType.MouseButton1
     ) then return end
-    if floatingDragged then ignoreFloatActivationUntil = os.clock() + 0.25 end
+    local wasTap = not floatingMoved
     floatingDragInput = nil
+    floatingDragStart = nil
+    floatingStart = nil
+    floatingMoved = false
+    if wasTap then showWindow() end
 end)
-floating.Activated:Connect(function()
-    if floatingDragInput or os.clock() < ignoreFloatActivationUntil then return end
-    floating.Visible = false
-    main.Visible = true
+-- Retain keyboard/gamepad support without routing touch/mouse through Activated.
+floating.Activated:Connect(function(inputObject)
+    if inputObject and inputObject.UserInputType == Enum.UserInputType.Gamepad1 then
+        showWindow()
+    end
 end)
 
 -- Horizontal navigation leaves the full panel width available on mobile.
@@ -297,6 +328,7 @@ local sidebar = new("Frame", {
     Position = UDim2.fromOffset(0, HEADER_HEIGHT),
     Size = UDim2.new(1, 0, 0, NAV_HEIGHT),
     BackgroundColor3 = theme.surface,
+    BackgroundTransparency = 0.18,
     BorderSizePixel = 0,
 }, main)
 new("UIListLayout", {
@@ -384,7 +416,8 @@ local function card(section, height)
         BackgroundColor3 = theme.surface,
     }, section)
     ordered(section, frame)
-    rounded(frame, 9)
+    frame.BackgroundTransparency = 0.16
+    rounded(frame, 15)
     outlined(frame)
     return frame
 end
@@ -600,7 +633,7 @@ local search = new("TextBox", {
     Font = Enum.Font.Gotham,
     ClearTextOnFocus = false,
 }, controls)
-rounded(search, 8)
+rounded(search, 12)
 new("UIPadding", {PaddingLeft = UDim.new(0, 9), PaddingRight = UDim.new(0, 9)}, search)
 local category = "Todos"
 local renderModules
@@ -765,6 +798,10 @@ end)
 local function destroy()
     if destroyed then return end
     disableAll()
+    if hubBlur then
+        pcall(function() hubBlur:Destroy() end)
+        hubBlur = nil
+    end
     destroyed = true
     for _, connection in ipairs(connections) do connection:Disconnect() end
      if env.MONARCA_HUB then env.MONARCA_HUB = nil end
@@ -791,5 +828,6 @@ connect(workspace:GetPropertyChangedSignal("CurrentCamera"), function()
 end)
 updateLayout()
 switch("Home")
+setBlur(true)
 if playerAdjusted then applyPlayer() end
 task.spawn(refresh)
