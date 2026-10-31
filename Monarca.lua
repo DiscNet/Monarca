@@ -161,7 +161,8 @@ local main = new("Frame", {
     Name = "Window",
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5),
-    BackgroundColor3 = theme.background,
+    -- White base lets UIGradient retain the intended dark violet colors.
+    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
     BackgroundTransparency = 0.16,
     ClipsDescendants = true,
 }, gui)
@@ -530,7 +531,7 @@ heading.Font = Enum.Font.GothamBold
 local profileCard = card(home, 169)
 local avatar = new("ImageLabel", {
     Name = "Avatar",
-    Position = UDim2.new(0, 12, 0.5, -45),
+    Position = UDim2.fromOffset(12, 24),
     Size = UDim2.fromOffset(90, 90),
     BackgroundColor3 = theme.card,
     BorderSizePixel = 0,
@@ -545,7 +546,7 @@ new("UIStroke", {
     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 }, avatar)
 local avatarCaption = new("TextLabel", {
-    Position = UDim2.fromOffset(12, 127),
+    Position = UDim2.fromOffset(12, 124),
     Size = UDim2.fromOffset(90, 20),
     BackgroundTransparency = 1,
     Text = "ROBLOX",
@@ -593,8 +594,8 @@ local function updateProfileLayout()
     local side = compact and 73 or 90
     local margin = compact and 10 or 12
     avatar.Size = UDim2.fromOffset(side, side)
-    avatar.Position = UDim2.new(0, margin, 0.5, -math.floor(side / 2))
-    avatarCaption.Position = UDim2.fromOffset(margin, 127)
+    avatar.Position = UDim2.fromOffset(margin, compact and 31 or 24)
+    avatarCaption.Position = UDim2.fromOffset(margin, 124)
     avatarCaption.Size = UDim2.fromOffset(side, 20)
     local left = margin + side + 12
     details.Position = UDim2.fromOffset(left, 10)
