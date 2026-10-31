@@ -1,0 +1,43 @@
+name: Validate Lua source
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Lua parser
+        run: python -m pip install luaparser==4.2.0
+      - name: Parse all Lua files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from luaparser import ast
+          files = sorted(Path('.').rglob('*.lua'))
+          assert files, 'No Lua files found'
+          for file in files:
+              try:
+                  ast.parse(file.read_text(encoding='utf-8'))
+              except Exception as error:
+                  raise SystemExit(f'Syntax error in {file}: {error}')
+              print('OK', file)
+          print(f'Validated {len(files)} Lua files')
+          PY
+      - name: Verify local module files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for path in ('Monarca.lua', 'manifest.lua', 'modules/fullbright.lua',
+                       'modules/lowgraphics.lua', 'modules/crosshair.lua'):
+              assert Path(path).is_file(), f'Missing {path}'
+          print('All expected files present')
+          PY
