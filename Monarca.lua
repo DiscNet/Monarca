@@ -525,124 +525,124 @@ local function slider(section, heading, minimum, maximum, initial, changed)
 end
 
 local home = pages.Home
-local heading = label(home, "PERFIL DO JOGADOR", 17, theme.text, 27)
-heading.Font = Enum.Font.GothamBold
 
-local profileCard = card(home, 230)
-local avatar = new("ImageLabel", {
-    Name = "Avatar",
-    Position = UDim2.fromOffset(12, 32),
-    Size = UDim2.fromOffset(132, 132),
-    BackgroundColor3 = theme.card,
+-- Borderless profile hero inspired by information-first mobile profile layouts.
+-- No profile card, backing rectangles, frames, badges or avatar borders.
+local profile = ordered(home, new("Frame", {
+    Name = "PlayerProfile",
+    Size = UDim2.new(1, -2, 0, 212),
+    BackgroundTransparency = 1,
     BorderSizePixel = 0,
-    ScaleType = Enum.ScaleType.Crop,
+}, home))
+
+local avatar = new("ImageLabel", {
+    Name = "PlayerAvatar",
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    Position = UDim2.fromOffset(4, 8),
+    Size = UDim2.fromOffset(180, 196),
+    ScaleType = Enum.ScaleType.Fit,
     Image = "",
-}, profileCard)
-rounded(avatar, 8)
-new("UIStroke", {
-    Color = theme.border,
-    Transparency = 0.4,
-    Thickness = 1,
-    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-}, avatar)
-local avatarCaption = new("TextLabel", {
-    Position = UDim2.fromOffset(12, 174),
-    Size = UDim2.fromOffset(132, 23),
-    BackgroundTransparency = 1,
-    Text = "ROBLOX",
-    TextSize = 13,
-    Font = Enum.Font.GothamBold,
-    TextColor3 = theme.accent,
-    TextXAlignment = Enum.TextXAlignment.Center,
-}, profileCard)
+}, profile)
+
 local details = new("Frame", {
-    Name = "ProfileDetails",
-    Position = UDim2.fromOffset(155, 15),
-    Size = UDim2.new(1, -167, 1, -30),
+    Name = "ProfileInformation",
+    Position = UDim2.fromOffset(194, 10),
+    Size = UDim2.new(1, -200, 0, 194),
     BackgroundTransparency = 1,
-}, profileCard)
-new("UIListLayout", {
+    BorderSizePixel = 0,
+}, profile)
+
+local infoLayout = new("UIListLayout", {
     SortOrder = Enum.SortOrder.LayoutOrder,
-    Padding = UDim.new(0, 3),
+    Padding = UDim.new(0, 2),
 }, details)
 
-local function profileField(order, title, value)
+local function profileLabel(order, value, font, color, height, fontSize)
     return new("TextLabel", {
-        Name = "Field" .. tostring(order),
+        Name = "ProfileLine" .. tostring(order),
         LayoutOrder = order,
-        Size = UDim2.new(1, 0, 0, 30),
+        Size = UDim2.new(1, 0, 0, height),
         BackgroundTransparency = 1,
-        Font = Enum.Font.GothamMedium,
-        TextSize = 15,
-        TextColor3 = theme.text,
-        Text = title .. ":  " .. tostring(value),
+        BorderSizePixel = 0,
+        Text = tostring(value),
+        TextSize = fontSize,
+        Font = font,
+        TextColor3 = color,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Center,
         TextWrapped = false,
         TextTruncate = Enum.TextTruncate.AtEnd,
     }, details)
 end
-local nickLabel = profileField(1, "Nick", "@" .. player.Name)
-nickLabel.Font = Enum.Font.GothamBold
-nickLabel.TextColor3 = theme.accent
-profileField(2, "Apelido", player.DisplayName)
-profileField(3, "ID", player.UserId)
-local createdLabel = profileField(4, "Criação", "carregando...")
-local dateLabel = profileField(5, "Hoje", "--/--/----")
-local timeLabel = profileField(6, "Hora", "--:--:--")
+
+local eyebrow = profileLabel(1, "PERFIL DO JOGADOR", Enum.Font.GothamBold, theme.muted, 16, 11)
+local displayNameLabel = profileLabel(2, player.DisplayName, Enum.Font.GothamBold, theme.text, 28, 22)
+local nickLabel = profileLabel(3, "@" .. player.Name, Enum.Font.GothamMedium, theme.accent, 24, 18)
+local idLabel = profileLabel(4, "ID  " .. tostring(player.UserId), Enum.Font.GothamMedium, theme.text, 26, 17)
+local createdLabel = profileLabel(5, "Criação: carregando...", Enum.Font.GothamMedium, theme.text, 26, 17)
+local dateLabel = profileLabel(6, "Hoje: --/--/----", Enum.Font.GothamMedium, theme.text, 26, 17)
+local timeLabel = profileLabel(7, "Hora: --:--:--", Enum.Font.GothamMedium, theme.text, 26, 17)
 
 local function updateProfileLayout()
-    -- Keep the photo on the left and reserve readable space for all six rows.
-    -- The smaller breakpoints are reserved for unusually narrow viewports.
-    local availableWidth = profileCard.AbsoluteSize.X
-    local side, fontSize
-    if availableWidth < 340 then
-        side, fontSize = 94, 13
-    elseif availableWidth < 440 then
-        side, fontSize = 110, 14
+    -- Expand the player photo wherever possible, without squeezing the metadata.
+    -- On exceptionally narrow windows, stack content rather than truncate everything.
+    local width = profile.AbsoluteSize.X
+    if width <= 0 then return end
+    if width < 285 then
+        profile.Size = UDim2.new(1, -2, 0, 375)
+        avatar.Size = UDim2.fromOffset(154, 166)
+        avatar.Position = UDim2.new(0.5, -77, 0, 2)
+        details.Position = UDim2.fromOffset(10, 177)
+        details.Size = UDim2.new(1, -20, 0, 195)
     else
-        side, fontSize = 132, 15
-    end
-    local margin = availableWidth < 340 and 10 or 12
-    local imageY = math.floor((230 - side - 30) / 2)
-    avatar.Size = UDim2.fromOffset(side, side)
-    avatar.Position = UDim2.fromOffset(margin, imageY)
-    avatarCaption.Position = UDim2.fromOffset(margin, imageY + side + 8)
-    avatarCaption.Size = UDim2.fromOffset(side, 24)
-    avatarCaption.TextSize = availableWidth < 340 and 11 or 13
-
-    local left = margin + side + 12
-    details.Position = UDim2.fromOffset(left, 15)
-    details.Size = UDim2.new(1, -left - 12, 1, -30)
-    for _, field in ipairs(details:GetChildren()) do
-        if field:IsA("TextLabel") then
-            field.TextSize = fontSize
+        profile.Size = UDim2.new(1, -2, 0, 212)
+        local imageWidth
+        if width < 350 then
+            imageWidth = 126
+        elseif width < 455 then
+            imageWidth = 158
+        else
+            imageWidth = 192
         end
+        avatar.Size = UDim2.fromOffset(imageWidth, 200)
+        avatar.Position = UDim2.fromOffset(0, 5)
+        local left = imageWidth + 10
+        details.Position = UDim2.fromOffset(left, 10)
+        details.Size = UDim2.new(1, -left - 5, 0, 194)
+    end
+    -- Main values stay readable on small phones; larger widths get stronger type.
+    local compact = width < 350
+    eyebrow.TextSize = compact and 10 or 11
+    displayNameLabel.TextSize = compact and 19 or 23
+    nickLabel.TextSize = compact and 16 or 19
+    for _, info in ipairs({idLabel, createdLabel, dateLabel, timeLabel}) do
+        info.TextSize = compact and 15 or 17
     end
 end
-connect(profileCard:GetPropertyChangedSignal("AbsoluteSize"), updateProfileLayout)
+connect(profile:GetPropertyChangedSignal("AbsoluteSize"), updateProfileLayout)
 updateProfileLayout()
 
--- Roblox avatar thumbnail; only the logged-in player's own public data.
+-- Bust thumbnail shows the character more prominently than a tiny headshot.
 task.spawn(function()
     local ok, image = pcall(function()
         return Services.Players:GetUserThumbnailAsync(
-            player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420
+            player.UserId, Enum.ThumbnailType.AvatarBust, Enum.ThumbnailSize.Size420x420
         )
     end)
     if destroyed then return end
     if ok and type(image) == "string" and image ~= "" then
         avatar.Image = image
     else
-        avatar.Image = "rbxthumb://type=AvatarHeadShot&id=" ..
-            tostring(player.UserId) .. "&w=150&h=150"
+        avatar.Image = "rbxthumb://type=AvatarBust&id=" ..
+            tostring(player.UserId) .. "&w=420&h=420"
     end
 end)
 
--- Exact date from public Roblox profile when available; labeled estimate otherwise.
+-- Get exact profile creation date where possible; label fallback as approximate.
 task.spawn(function()
     local estimated = DateTime.fromUnixTimestamp(os.time() - math.max(0, player.AccountAge) * 86400)
-    local date = estimated:FormatLocalTime("DD/MM/YYYY", "pt-br") .. " (aprox.)"
+    local date = "~" .. estimated:FormatLocalTime("DD/MM/YYYY", "pt-br")
     local ok, value = pcall(function()
         local raw = game:HttpGet("https://users.roblox.com/v1/users/" .. tostring(player.UserId))
         local parsed = Services.HttpService:JSONDecode(raw)
@@ -652,22 +652,22 @@ task.spawn(function()
         return nil
     end)
     if ok and type(value) == "string" then date = value end
-    if not destroyed then createdLabel.Text = "Criação:  " .. date end
+    if not destroyed then createdLabel.Text = "Criação: " .. date end
 end)
 
--- Live local clock updates while the Home page is being shown.
+-- Day and local time refresh without rebuilding or shifting the profile layout.
 task.spawn(function()
     while not destroyed do
         if home.Visible and main.Visible then
             local now = DateTime.now()
             local okDate, d = pcall(function()
-                return now:FormatLocalTime("ddd, DD/MM/YYYY", "pt-br")
+                return now:FormatLocalTime("DD/MM/YYYY", "pt-br")
             end)
             local okTime, t = pcall(function()
                 return now:FormatLocalTime("HH:mm:ss", "pt-br")
             end)
-            if okDate then dateLabel.Text = "Hoje:  " .. d end
-            if okTime then timeLabel.Text = "Hora:  " .. t end
+            if okDate then dateLabel.Text = "Hoje: " .. d end
+            if okTime then timeLabel.Text = "Hora: " .. t end
         end
         task.wait(1)
     end
