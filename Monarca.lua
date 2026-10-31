@@ -525,14 +525,14 @@ local function slider(section, heading, minimum, maximum, initial, changed)
 end
 
 local home = pages.Home
-local heading = label(home, "PERFIL DO JOGADOR", 15, theme.text, 24)
+local heading = label(home, "PERFIL DO JOGADOR", 17, theme.text, 27)
 heading.Font = Enum.Font.GothamBold
 
-local profileCard = card(home, 169)
+local profileCard = card(home, 230)
 local avatar = new("ImageLabel", {
     Name = "Avatar",
-    Position = UDim2.fromOffset(12, 24),
-    Size = UDim2.fromOffset(90, 90),
+    Position = UDim2.fromOffset(12, 32),
+    Size = UDim2.fromOffset(132, 132),
     BackgroundColor3 = theme.card,
     BorderSizePixel = 0,
     ScaleType = Enum.ScaleType.Crop,
@@ -546,34 +546,34 @@ new("UIStroke", {
     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 }, avatar)
 local avatarCaption = new("TextLabel", {
-    Position = UDim2.fromOffset(12, 124),
-    Size = UDim2.fromOffset(90, 20),
+    Position = UDim2.fromOffset(12, 174),
+    Size = UDim2.fromOffset(132, 23),
     BackgroundTransparency = 1,
     Text = "ROBLOX",
-    TextSize = 10,
+    TextSize = 13,
     Font = Enum.Font.GothamBold,
     TextColor3 = theme.accent,
     TextXAlignment = Enum.TextXAlignment.Center,
 }, profileCard)
 local details = new("Frame", {
     Name = "ProfileDetails",
-    Position = UDim2.fromOffset(114, 10),
-    Size = UDim2.new(1, -126, 1, -20),
+    Position = UDim2.fromOffset(155, 15),
+    Size = UDim2.new(1, -167, 1, -30),
     BackgroundTransparency = 1,
 }, profileCard)
 new("UIListLayout", {
     SortOrder = Enum.SortOrder.LayoutOrder,
-    Padding = UDim.new(0, 2),
+    Padding = UDim.new(0, 3),
 }, details)
 
 local function profileField(order, title, value)
     return new("TextLabel", {
         Name = "Field" .. tostring(order),
         LayoutOrder = order,
-        Size = UDim2.new(1, 0, 0, 23),
+        Size = UDim2.new(1, 0, 0, 30),
         BackgroundTransparency = 1,
-        Font = Enum.Font.Gotham,
-        TextSize = 11,
+        Font = Enum.Font.GothamMedium,
+        TextSize = 15,
         TextColor3 = theme.text,
         Text = title .. ":  " .. tostring(value),
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -582,7 +582,9 @@ local function profileField(order, title, value)
         TextTruncate = Enum.TextTruncate.AtEnd,
     }, details)
 end
-profileField(1, "Nick", "@" .. player.Name)
+local nickLabel = profileField(1, "Nick", "@" .. player.Name)
+nickLabel.Font = Enum.Font.GothamBold
+nickLabel.TextColor3 = theme.accent
 profileField(2, "Apelido", player.DisplayName)
 profileField(3, "ID", player.UserId)
 local createdLabel = profileField(4, "Criação", "carregando...")
@@ -590,16 +592,33 @@ local dateLabel = profileField(5, "Hoje", "--/--/----")
 local timeLabel = profileField(6, "Hora", "--:--:--")
 
 local function updateProfileLayout()
-    local compact = profileCard.AbsoluteSize.X < 320
-    local side = compact and 73 or 90
-    local margin = compact and 10 or 12
+    -- Keep the photo on the left and reserve readable space for all six rows.
+    -- The smaller breakpoints are reserved for unusually narrow viewports.
+    local availableWidth = profileCard.AbsoluteSize.X
+    local side, fontSize
+    if availableWidth < 340 then
+        side, fontSize = 94, 13
+    elseif availableWidth < 440 then
+        side, fontSize = 110, 14
+    else
+        side, fontSize = 132, 15
+    end
+    local margin = availableWidth < 340 and 10 or 12
+    local imageY = math.floor((230 - side - 30) / 2)
     avatar.Size = UDim2.fromOffset(side, side)
-    avatar.Position = UDim2.fromOffset(margin, compact and 31 or 24)
-    avatarCaption.Position = UDim2.fromOffset(margin, 124)
-    avatarCaption.Size = UDim2.fromOffset(side, 20)
+    avatar.Position = UDim2.fromOffset(margin, imageY)
+    avatarCaption.Position = UDim2.fromOffset(margin, imageY + side + 8)
+    avatarCaption.Size = UDim2.fromOffset(side, 24)
+    avatarCaption.TextSize = availableWidth < 340 and 11 or 13
+
     local left = margin + side + 12
-    details.Position = UDim2.fromOffset(left, 10)
-    details.Size = UDim2.new(1, -left - 10, 1, -20)
+    details.Position = UDim2.fromOffset(left, 15)
+    details.Size = UDim2.new(1, -left - 12, 1, -30)
+    for _, field in ipairs(details:GetChildren()) do
+        if field:IsA("TextLabel") then
+            field.TextSize = fontSize
+        end
+    end
 end
 connect(profileCard:GetPropertyChangedSignal("AbsoluteSize"), updateProfileLayout)
 updateProfileLayout()
