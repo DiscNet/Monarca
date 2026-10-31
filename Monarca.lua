@@ -88,8 +88,16 @@ end
 local function outlined(object)
     new("UIStroke", {Color = theme.border, Thickness = 1, Transparency = 0.2}, object)
 end
+local layoutCounters = setmetatable({}, {__mode = "k"})
+local function ordered(parent, object)
+    if parent:IsA("ScrollingFrame") or parent.Name == "ModuleArea" then
+        layoutCounters[parent] = (layoutCounters[parent] or 0) + 1
+        object.LayoutOrder = layoutCounters[parent]
+    end
+    return object
+end
 local function label(parent, value, size, color, height)
-    return new("TextLabel", {
+    return ordered(parent, new("TextLabel", {
         Size = UDim2.new(1, 0, 0, height or 22),
         BackgroundTransparency = 1,
         Text = value,
@@ -99,7 +107,7 @@ local function label(parent, value, size, color, height)
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Center,
         TextWrapped = true,
-    }, parent)
+    }, parent))
 end
 local function button(parent, value, position, size, action, accent)
     local b = new("TextButton", {
@@ -300,10 +308,11 @@ local function switch(name)
         b.TextColor3 = key == name and theme.accent or theme.muted
     end
 end
-for _, name in ipairs({"Home", "Scripts", "Player", "Settings"}) do
+for index, name in ipairs({"Home", "Scripts", "Player", "Settings"}) do
     page(name)
     local b = button(sidebar, name, nil, UDim2.new(1, 0, 0, 38), function() switch(name) end)
     b.Font = Enum.Font.Gotham
+    b.LayoutOrder = index
     b.TextXAlignment = Enum.TextXAlignment.Center
     navButtons[name] = b
 end
@@ -316,6 +325,7 @@ local function card(section, height)
         Size = UDim2.new(1, -2, 0, height or 75),
         BackgroundColor3 = theme.surface,
     }, section)
+    ordered(section, frame)
     rounded(frame, 10)
     outlined(frame)
     return frame
@@ -426,7 +436,7 @@ local function slider(section, heading, minimum, maximum, initial, changed)
         end
     end)
     paint(initial)
-    return row
+    return row, paint
 end
 
 local home = pages.Home
@@ -456,31 +466,37 @@ local function applyPlayer()
         end)
     end
 end
-slider(playerPage, "Campo de visão (FOV)", 60, 110, settings.fieldOfView, function(v)
+local playerAdjusted = false
+local _, paintFov = slider(playerPage, "Campo de visão (FOV)", 60, 110, settings.fieldOfView, function(v)
     settings.fieldOfView = v
+    playerAdjusted = true
     applyPlayer()
     save()
 end)
-slider(playerPage, "Velocidade local", 8, 32, settings.walkSpeed, function(v)
+local _, paintWalk = slider(playerPage, "Velocidade local", 8, 32, settings.walkSpeed, function(v)
     settings.walkSpeed = v
+    playerAdjusted = true
     applyPlayer()
     save()
 end)
-slider(playerPage, "Força de salto", 25, 100, settings.jumpPower, function(v)
+local _, paintJump = slider(playerPage, "Força de salto", 25, 100, settings.jumpPower, function(v)
     settings.jumpPower = v
+    playerAdjusted = true
     applyPlayer()
     save()
 end)
 local resetPlayer = card(playerPage, 57)
 button(resetPlayer, "RESTAURAR PADRÕES", UDim2.fromOffset(11, 12), UDim2.new(1, -22, 0, 33), function()
     settings.fieldOfView, settings.walkSpeed, settings.jumpPower = 70, 16, 50
+    paintFov(70); paintWalk(16); paintJump(50)
+    playerAdjusted = true
     applyPlayer()
     save()
-    status("Padrões restaurados; reabra Player para atualizar os sliders.")
+    status("Controles do Player restaurados.")
 end, true)
 connect(player.CharacterAdded, function()
     task.delay(0.8, function()
-        if not destroyed then applyPlayer() end
+        if not destroyed and playerAdjusted then applyPlayer() end
     end)
 end)
 
@@ -525,6 +541,7 @@ local search = new("TextBox", {
 rounded(search, 8)
 new("UIPadding", {PaddingLeft = UDim.new(0, 9), PaddingRight = UDim.new(0, 9)}, search)
 local category = "Todos"
+local renderModules
 local filterButton = button(controls, "TODOS  ▾", UDim2.fromOffset(10, 49), UDim2.new(0.5, -14, 0, 29))
 local updateButton = button(controls, "ATUALIZAR", UDim2.new(0.5, 4, 0, 49), UDim2.new(0.5, -14, 0, 29), nil, true)
 local dropdown = card(scriptsPage, 103)
@@ -534,13 +551,15 @@ for index, name in ipairs({"Todos", "Visual", "Utilidades"}) do
         category = name
         filterButton.Text = string.upper(name) .. "  ▾"
         dropdown.Visible = false
-        if _G.MonarcaRender then _G.MonarcaRender() end
+        if renderModules then renderModules() end
     end)
 end
 filterButton.Activated:Connect(function()
     dropdown.Visible = not dropdown.Visible
 end)
 local moduleArea = new("Frame", {
+    Name = "ModuleArea",
+    LayoutOrder = 1000,
     Size = UDim2.new(1, -2, 0, 0),
     AutomaticSize = Enum.AutomaticSize.Y,
     BackgroundTransparency = 1,
@@ -580,7 +599,6 @@ local function enableModule(id)
     mod:enable()
     activeModules[id] = true
 end
-local renderModules
 renderModules = function()
     for _, child in ipairs(moduleArea:GetChildren()) do
         if child:IsA("GuiObject") then child:Destroy() end
@@ -656,9 +674,7 @@ local function refresh()
 end
 updateButton.Activated:Connect(refresh)
 search:GetPropertyChangedSignal("Text"):Connect(renderModules)
--- Closure direta: o seletor de categoria também chama renderModules.
-_G.MonarcaRender = renderModules
-
+ 
 local dragging, dragInput, dragStart, offsetStart = false, nil, nil, nil
 header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
@@ -689,8 +705,7 @@ local function destroy()
     disableAll()
     destroyed = true
     for _, connection in ipairs(connections) do connection:Disconnect() end
-    if _G.MonarcaRender == renderModules then _G.MonarcaRender = nil end
-    if env.MONARCA_HUB then env.MONARCA_HUB = nil end
+     if env.MONARCA_HUB then env.MONARCA_HUB = nil end
     pcall(function() gui:Destroy() end)
 end
 closeButton.Activated:Connect(destroy)
@@ -709,5 +724,4 @@ connect(workspace:GetPropertyChangedSignal("CurrentCamera"), function()
 end)
 updateLayout()
 switch("Home")
-applyPlayer()
 task.spawn(refresh)
