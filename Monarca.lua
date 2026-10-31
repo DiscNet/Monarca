@@ -24,6 +24,7 @@ local theme = {
 local defaults = {
     animations = true,
     notifications = true,
+    playerCustomized = false,
     fieldOfView = 70,
     walkSpeed = 16,
     jumpPower = 50,
@@ -466,21 +467,24 @@ local function applyPlayer()
         end)
     end
 end
-local playerAdjusted = false
+local playerAdjusted = settings.playerCustomized
 local _, paintFov = slider(playerPage, "Campo de visão (FOV)", 60, 110, settings.fieldOfView, function(v)
     settings.fieldOfView = v
+    settings.playerCustomized = true
     playerAdjusted = true
     applyPlayer()
     save()
 end)
 local _, paintWalk = slider(playerPage, "Velocidade local", 8, 32, settings.walkSpeed, function(v)
     settings.walkSpeed = v
+    settings.playerCustomized = true
     playerAdjusted = true
     applyPlayer()
     save()
 end)
 local _, paintJump = slider(playerPage, "Força de salto", 25, 100, settings.jumpPower, function(v)
     settings.jumpPower = v
+    settings.playerCustomized = true
     playerAdjusted = true
     applyPlayer()
     save()
@@ -489,7 +493,8 @@ local resetPlayer = card(playerPage, 57)
 button(resetPlayer, "RESTAURAR PADRÕES", UDim2.fromOffset(11, 12), UDim2.new(1, -22, 0, 33), function()
     settings.fieldOfView, settings.walkSpeed, settings.jumpPower = 70, 16, 50
     paintFov(70); paintWalk(16); paintJump(50)
-    playerAdjusted = true
+    settings.playerCustomized = false
+    playerAdjusted = false
     applyPlayer()
     save()
     status("Controles do Player restaurados.")
@@ -518,6 +523,8 @@ cardText(storage, "Persistência", type(writefile) == "function" and
 local resetSettings = card(settingsPage, 58)
 button(resetSettings, "REDEFINIR PREFERÊNCIAS", UDim2.fromOffset(10, 11), UDim2.new(1, -20, 0, 35), function()
     for k, v in pairs(defaults) do settings[k] = v end
+    playerAdjusted = false
+    paintFov(70); paintWalk(16); paintJump(50)
     applyPlayer()
     save()
     status("Preferências restauradas. Reabra o Hub para atualizar os controles.")
@@ -724,4 +731,5 @@ connect(workspace:GetPropertyChangedSignal("CurrentCamera"), function()
 end)
 updateLayout()
 switch("Home")
+if playerAdjusted then applyPlayer() end
 task.spawn(refresh)
