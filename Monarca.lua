@@ -84,10 +84,10 @@ local function new(class, props, parent)
     return object
 end
 local function rounded(object, radius)
-    new("UICorner", {CornerRadius = UDim.new(0, radius or 10)}, object)
+    new("UICorner", {CornerRadius = UDim.new(0, radius or 8)}, object)
 end
 local function outlined(object)
-    new("UIStroke", {Color = theme.border, Thickness = 1, Transparency = 0.2}, object)
+    new("UIStroke", {Color = theme.border, Thickness = 1, Transparency = 0.45, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, object)
 end
 local layoutCounters = setmetatable({}, {__mode = "k"})
 local function ordered(parent, object)
@@ -121,7 +121,7 @@ local function button(parent, value, position, size, action, accent)
         Font = Enum.Font.GothamBold,
         AutoButtonColor = false,
     }, parent)
-    rounded(b, 12)
+    rounded(b, 8)
     if action then b.Activated:Connect(action) end
     return b
 end
@@ -165,23 +165,18 @@ local main = new("Frame", {
     BackgroundTransparency = 0.16,
     ClipsDescendants = true,
 }, gui)
-rounded(main, 20)
+rounded(main, 8)
 outlined(main)
-
--- BlurEffect softens the 3D scene while the Hub is open.
--- Roblox does not provide per-panel background blur via an ordinary Frame.
-local hubBlur
-pcall(function()
-    hubBlur = new("BlurEffect", {
-        Name = "MonarcaWindowBlur",
-        Enabled = true,
-        Size = 0,
-    }, game:GetService("Lighting"))
-end)
-local function setBlur(enabled)
-    if not hubBlur or not hubBlur.Parent then return end
-    tween(hubBlur, {Size = enabled and 9 or 0}, 0.2)
-end
+-- A UIGradient paints only the panel surface, unlike BlurEffect (global 3D blur).
+-- Roblox Frame does not natively blur live content behind it.
+new("UIGradient", {
+    Rotation = 105,
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(31, 25, 47)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(18, 15, 32)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 9, 19)),
+    }),
+}, main)
 
 local camera = workspace.CurrentCamera
 local originalFov = camera and camera.FieldOfView or 70
@@ -254,7 +249,7 @@ floating.TextSize = 14
 floating.TextColor3 = theme.text
 floating.Active = true
 local floatingCorner = floating:FindFirstChildOfClass("UICorner")
-if floatingCorner then floatingCorner.CornerRadius = UDim.new(1, 0) end
+if floatingCorner then floatingCorner.CornerRadius = UDim.new(0, 8) end
 new("UIStroke", {
     Color = Color3.fromRGB(213, 185, 255),
     Thickness = 1.4,
@@ -263,7 +258,6 @@ new("UIStroke", {
 local function minimize()
     main.Visible = false
     floating.Visible = true
-    setBlur(false)
 end
 button(header, "–", UDim2.new(1, -73, 0, 8), UDim2.fromOffset(28, 28), minimize)
 local closeButton = button(header, "×", UDim2.new(1, -40, 0, 8), UDim2.fromOffset(28, 28))
@@ -277,7 +271,6 @@ local function showWindow()
     if destroyed or main.Visible then return end
     floating.Visible = false
     main.Visible = true
-    setBlur(true)
 end
 floating.InputBegan:Connect(function(input)
     if input.UserInputType ~= Enum.UserInputType.Touch
@@ -417,7 +410,7 @@ local function card(section, height)
     }, section)
     ordered(section, frame)
     frame.BackgroundTransparency = 0.16
-    rounded(frame, 15)
+    rounded(frame, 8)
     outlined(frame)
     return frame
 end
@@ -443,7 +436,7 @@ local function toggle(section, heading, detail, value, changed)
         Size = UDim2.fromOffset(19, 19),
         BackgroundColor3 = theme.text,
     }, b)
-    rounded(knob, 10)
+    rounded(knob, 8)
     local selected = value
     local function repaint()
         tween(b, {BackgroundColor3 = selected and theme.accent or theme.border})
@@ -486,7 +479,7 @@ local function slider(section, heading, minimum, maximum, initial, changed)
         Size = UDim2.fromOffset(15, 15),
         BackgroundColor3 = theme.accent,
     }, track)
-    rounded(knob, 9)
+    rounded(knob, 8)
     local current = initial
     local dragging, trackedInput = false, nil
     local function paint(value)
@@ -531,14 +524,134 @@ local function slider(section, heading, minimum, maximum, initial, changed)
 end
 
 local home = pages.Home
-title(home, "Bem-vindo ao Monarca", "Seu painel pessoal para ferramentas locais e visuais.")
-local homeCard = card(home, 92)
-cardText(homeCard, "Scripts modulares", "Os scripts são obtidos deste repositório GitHub. Abra Scripts para ativá-los.")
-button(homeCard, "VER SCRIPTS", UDim2.new(0, 12, 1, -33), UDim2.fromOffset(118, 26), function()
-    switch("Scripts")
-end, true)
-local homeInfo = card(home, 70)
-cardText(homeInfo, "Compatibilidade", "Modificações locais podem ser substituídas pelo jogo. O salvamento depende do executor.")
+local heading = label(home, "PERFIL DO JOGADOR", 15, theme.text, 24)
+heading.Font = Enum.Font.GothamBold
+
+local profileCard = card(home, 169)
+local avatar = new("ImageLabel", {
+    Name = "Avatar",
+    Position = UDim2.new(0, 12, 0.5, -45),
+    Size = UDim2.fromOffset(90, 90),
+    BackgroundColor3 = theme.card,
+    BorderSizePixel = 0,
+    ScaleType = Enum.ScaleType.Crop,
+    Image = "",
+}, profileCard)
+rounded(avatar, 8)
+new("UIStroke", {
+    Color = theme.border,
+    Transparency = 0.4,
+    Thickness = 1,
+    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+}, avatar)
+local avatarCaption = new("TextLabel", {
+    Position = UDim2.fromOffset(12, 127),
+    Size = UDim2.fromOffset(90, 20),
+    BackgroundTransparency = 1,
+    Text = "ROBLOX",
+    TextSize = 10,
+    Font = Enum.Font.GothamBold,
+    TextColor3 = theme.accent,
+    TextXAlignment = Enum.TextXAlignment.Center,
+}, profileCard)
+local details = new("Frame", {
+    Name = "ProfileDetails",
+    Position = UDim2.fromOffset(114, 10),
+    Size = UDim2.new(1, -126, 1, -20),
+    BackgroundTransparency = 1,
+}, profileCard)
+new("UIListLayout", {
+    SortOrder = Enum.SortOrder.LayoutOrder,
+    Padding = UDim.new(0, 2),
+}, details)
+
+local function profileField(order, title, value)
+    return new("TextLabel", {
+        Name = "Field" .. tostring(order),
+        LayoutOrder = order,
+        Size = UDim2.new(1, 0, 0, 23),
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Gotham,
+        TextSize = 11,
+        TextColor3 = theme.text,
+        Text = title .. ":  " .. tostring(value),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        TextWrapped = false,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+    }, details)
+end
+profileField(1, "Nick", "@" .. player.Name)
+profileField(2, "Apelido", player.DisplayName)
+profileField(3, "ID", player.UserId)
+local createdLabel = profileField(4, "Criação", "carregando...")
+local dateLabel = profileField(5, "Hoje", "--/--/----")
+local timeLabel = profileField(6, "Hora", "--:--:--")
+
+local function updateProfileLayout()
+    local compact = profileCard.AbsoluteSize.X < 320
+    local side = compact and 73 or 90
+    local margin = compact and 10 or 12
+    avatar.Size = UDim2.fromOffset(side, side)
+    avatar.Position = UDim2.new(0, margin, 0.5, -math.floor(side / 2))
+    avatarCaption.Position = UDim2.fromOffset(margin, 127)
+    avatarCaption.Size = UDim2.fromOffset(side, 20)
+    local left = margin + side + 12
+    details.Position = UDim2.fromOffset(left, 10)
+    details.Size = UDim2.new(1, -left - 10, 1, -20)
+end
+connect(profileCard:GetPropertyChangedSignal("AbsoluteSize"), updateProfileLayout)
+updateProfileLayout()
+
+-- Roblox avatar thumbnail; only the logged-in player's own public data.
+task.spawn(function()
+    local ok, image = pcall(function()
+        return Services.Players:GetUserThumbnailAsync(
+            player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420
+        )
+    end)
+    if destroyed then return end
+    if ok and type(image) == "string" and image ~= "" then
+        avatar.Image = image
+    else
+        avatar.Image = "rbxthumb://type=AvatarHeadShot&id=" ..
+            tostring(player.UserId) .. "&w=150&h=150"
+    end
+end)
+
+-- Exact date from public Roblox profile when available; labeled estimate otherwise.
+task.spawn(function()
+    local estimated = DateTime.fromUnixTimestamp(os.time() - math.max(0, player.AccountAge) * 86400)
+    local date = estimated:FormatLocalTime("DD/MM/YYYY", "pt-br") .. " (aprox.)"
+    local ok, value = pcall(function()
+        local raw = game:HttpGet("https://users.roblox.com/v1/users/" .. tostring(player.UserId))
+        local parsed = Services.HttpService:JSONDecode(raw)
+        if type(parsed) ~= "table" or type(parsed.created) ~= "string" then return nil end
+        local y, m, d = parsed.created:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)")
+        if y then return d .. "/" .. m .. "/" .. y end
+        return nil
+    end)
+    if ok and type(value) == "string" then date = value end
+    if not destroyed then createdLabel.Text = "Criação:  " .. date end
+end)
+
+-- Live local clock updates while the Home page is being shown.
+task.spawn(function()
+    while not destroyed do
+        if home.Visible and main.Visible then
+            local now = DateTime.now()
+            local okDate, d = pcall(function()
+                return now:FormatLocalTime("ddd, DD/MM/YYYY", "pt-br")
+            end)
+            local okTime, t = pcall(function()
+                return now:FormatLocalTime("HH:mm:ss", "pt-br")
+            end)
+            if okDate then dateLabel.Text = "Hoje:  " .. d end
+            if okTime then timeLabel.Text = "Hora:  " .. t end
+        end
+        task.wait(1)
+    end
+end)
 
 local playerPage = pages.Player
 title(playerPage, "Player", "Ajustes locais do personagem e da câmera.")
@@ -633,7 +746,7 @@ local search = new("TextBox", {
     Font = Enum.Font.Gotham,
     ClearTextOnFocus = false,
 }, controls)
-rounded(search, 12)
+rounded(search, 8)
 new("UIPadding", {PaddingLeft = UDim.new(0, 9), PaddingRight = UDim.new(0, 9)}, search)
 local category = "Todos"
 local renderModules
@@ -798,10 +911,6 @@ end)
 local function destroy()
     if destroyed then return end
     disableAll()
-    if hubBlur then
-        pcall(function() hubBlur:Destroy() end)
-        hubBlur = nil
-    end
     destroyed = true
     for _, connection in ipairs(connections) do connection:Disconnect() end
      if env.MONARCA_HUB then env.MONARCA_HUB = nil end
@@ -828,6 +937,5 @@ connect(workspace:GetPropertyChangedSignal("CurrentCamera"), function()
 end)
 updateLayout()
 switch("Home")
-setBlur(true)
 if playerAdjusted then applyPlayer() end
 task.spawn(refresh)
