@@ -1,4 +1,4 @@
--- MONARCA v0.8.6 - compact diagnostic bootstrap
+-- MONARCA v0.8.7 - compact diagnostic bootstrap
 -- Kept intentionally small: shows UI BEFORE downloading/compiling the hub core.
 -- Entrypoint: loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/Monarca.lua"))()
 
@@ -100,7 +100,7 @@ local status = element("TextLabel", {
     BackgroundTransparency = 1,
     Position = UDim2.fromOffset(14, 51),
     Size = UDim2.new(1, -28, 0, 71),
-    Text = "Iniciando carregador v0.8.6...",
+    Text = "Iniciando carregador v0.8.7...",
     Font = Enum.Font.Gotham,
     TextSize = 12,
     TextColor3 = secondary,
@@ -168,7 +168,7 @@ local function launch()
     end)
     task.spawn(function()
         local ok, source = pcall(function()
-            return game:HttpGet(repository .. "hub_core.lua?v=0.8.6-" .. tostring(os.time()))
+            return game:HttpGet(repository .. "hub_core.lua?v=0.8.7-" .. tostring(os.time()))
         end)
         if id ~= attempt or finished or not isCurrent() then return end
         if not ok then fail("download", source); return end
