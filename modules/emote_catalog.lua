@@ -202,7 +202,9 @@ local function playMarketplaceEmote(humanoid, animator, item, id)
         for name, ids in pairs(equipped) do
             if type(name) == "string" and type(ids) == "table" then
                 for _, asset in ipairs(ids) do
-                    if tostring(asset) == id then
+                    local assetId = type(asset) == "number"
+                        and string.format("%.0f", asset) or tostring(asset)
+                    if assetId == id then
                         existingName = name
                         break
                     end
@@ -228,6 +230,12 @@ local function playMarketplaceEmote(humanoid, animator, item, id)
     for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
         alreadyPlaying[track] = true
     end
+    -- Capture the actual track when Roblox starts the emote, rather than
+    -- assuming the catalog asset ID is its internal animation clip ID.
+    local observedTrack
+    local nativeConnection = animator.AnimationPlayed:Connect(function(track)
+        if not alreadyPlaying[track] then observedTrack = track end
+    end)
     local function tryNative()
         return pcall(function()
             return humanoid:PlayEmoteAsync(emoteName)
@@ -266,6 +274,7 @@ local function playMarketplaceEmote(humanoid, animator, item, id)
         end
     end
 
+    nativeConnection:Disconnect()
     if not ok or playedOrError ~= true then
         restoreTemporary()
         return false, "Roblox recusou este emote UGC. Ele pode exigir posse, " ..
@@ -273,10 +282,13 @@ local function playMarketplaceEmote(humanoid, animator, item, id)
             tostring(playedOrError)
     end
 
-    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-        if not alreadyPlaying[track] then
-            currentTrack = track
-            break
+    currentTrack = observedTrack
+    if not currentTrack then
+        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+            if not alreadyPlaying[track] then
+                currentTrack = track
+                break
+            end
         end
     end
     currentHumanoid = humanoid
