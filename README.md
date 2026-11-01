@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.9**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.0**.
 
 ## Executar
 
@@ -30,7 +30,8 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `modules/pose_666.lua` — animação R6 local aprimorada: postura menos inclinada, braços soltos, idle com respiração e oscilação, caminhada com passos mais expressivos e transição idle/walk gradual.
 - `modules/headless_local.lua` — controle independente `</>`: oculta apenas `Head` e decals/texturas do rosto no cliente por `LocalTransparencyModifier`, mantendo cabelos/acessórios e restaurando tudo ao desativar.
 - `modules/korblox_right_leg.lua` — opção alternável de prévia **local e reversível** da perna direita original do Korblox Deathspeaker (asset Roblox `139607718`). No R15 preserva o **tamanho nativo de cada `MeshPart`** da geometria Korblox (sem esticá-la até as dimensões da perna anterior) e alinha as peças por `RightHipRigAttachment`, `RightKneeRigAttachment` e `RightAnkleRigAttachment`. No R6 mantém `CharacterMesh`. Não concede propriedade do item e depende de o carregamento desse asset ser permitido pela experiência.
-- `modules/owner_tag.lua` — tag local projetada acima da cabeça pelo `WorldToViewportPoint` com `ScreenGui` e tamanho de 280×42 pixels fixos, mesmo ao aplicar zoom na câmera. Permite texto editável, RGB 0–255 e `UIGradient` que produz uma onda de cores suave (ciclo de ~5,6 segundos). A UI e o módulo restringem o uso a `LocalPlayer.Name == samulucas7419` (sem diferenciar maiúsculas); não é whitelist segura de servidor.
+- `modules/owner_tag.lua` — tag exclusiva projetada via `WorldToViewportPoint`, com `UIScale` controlado pela altura aparente do avatar: quando o personagem diminui na tela ao afastar a câmera, a tag também diminui, evitando o aparente crescimento desproporcional. RGB ONDA suave (~5,6 segundos por ciclo). Restrição visual/cliente ao username `samulucas7419`, não é whitelist segura de servidor.
+- `modules/radioactive_trail.lua` — rastro local verde neon na aba 666, com partículas, brilho limitado, manchas temporárias no chão, tingimento temporário de blocos pequenos e retorno progressivo à aparência original. Limite de 22 marcas simultâneas e baixa frequência de raycasts para reduzir custo no Android.
 - `server/MonarcaRigSwitch.server.lua` — integração **opcional** para experiências próprias; cria um novo personagem R6/R15 no servidor e retorna sucesso/erro ao painel.
 - `studio/GenerateZombieR6Animation.lua` — gera no Roblox Studio um `KeyframeSequence` original para publicação como asset de animação.
 
@@ -80,6 +81,13 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Ajuste da tag e rastro radioativo — v0.7.0
+
+- **Tamanho da tag:** manter dimensões totalmente fixas na tela causava impressão de crescimento quando o personagem ficava menor devido ao zoom. A tag agora reduz de maneira controlada o próprio `UIScale` de acordo com a altura projetada do personagem em pixels, com limite para zoom próximo e ocultação a distâncias excessivas. Assim, não aumenta em relação ao corpo quando a câmera se afasta.
+- **666 → Rastro radioativo:** novo botão alternável abaixo da perna Korblox. Quando o jogador se movimenta sobre o solo, `workspace:Raycast` identifica a superfície e deposita pequenas manchas `Neon` verde radioativo, com `ParticleEmitter` de faíscas e luz `PointLight` discreta. Em blocos de tamanho reduzido, a cor/material do bloco também pode ficar verde temporariamente no cliente. O efeito some gradualmente em aproximadamente **3,8 segundos** e a superfície é restaurada. O modo não altera permanentemente o mapa nem é FE.
+- **Desempenho:** no máximo 22 resíduos ao mesmo tempo, só os três últimos com iluminação ativa, um raycast a cada 0,19 segundo durante caminhada e vida curta das partículas. Não produz resíduos em pleno voo, sem contato próximo do solo. Desativar o controle remove as marcas restantes e restaura as cores originais dos blocos.
+- O rastro é **local**; outros jogadores só o veriam com uma implementação no servidor da experiência. A opção funciona separadamente dos emotes e do headless.
 
 ## Tag estável e RGB ONDA — v0.6.9
 
