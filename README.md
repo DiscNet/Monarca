@@ -1,6 +1,14 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.2**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.3**.
+
+## Aba 666 — Antifling: proteção local contra arremessos (v0.8.3)
+
+O botão **Antifling** da aba **666** ativa um módulo independente em `modules/antifling.lua`. Quando ligado, o cliente torna **não colidíveis localmente** as peças de outros personagens (jogadores e NPCs com `Humanoid`) e as peças **não ancoradas** do mapa, reduzindo arremessos físicos provocados por jogadores e objetos soltos.
+
+**Preservação do movimento:** as peças do próprio avatar, seu `HumanoidRootPart`, o `Terrain`, o chão e as paredes **ancorados** não são alterados. O módulo observa novas peças/avatares, detecta peças que se tornam soltas perto do personagem e reaplica as mudanças se outro script trocar `CanCollide`. Utiliza uma varredura inicial fatiada e rechecagens limitadas para reduzir carga em celulares. Permanece ligado após respawn, e **OFF**, fechar o hub e desativar o módulo restauram as propriedades armazenadas das peças alteradas.
+
+**Limitação técnica:** isso só atua no cliente; decisões físicas autoritativas do servidor, scripts que teleportam o personagem ou forças aplicadas diretamente ao avatar podem continuar provocando arremessos. A função não é uma proteção universal ou anti-cheat, nem modifica a simulação dos outros jogadores. Verifique no Roblox real, especialmente em experiências que alteram `CanCollide` com frequência.
 
 ## Animações independentes por movimento R15 — v0.8.2
 
