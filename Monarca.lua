@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.7.3 — fixed HUD invisibility toggle, synced with X?
+-- Monarca Script Hub v0.7.4 — 60-second Reverse flashback with tactile HUD icon
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -51,6 +51,7 @@ local function bootMonarca()
         ownerTagB = 255,
         ownerTagRainbowFast = false,
         invisibilityHudEnabled = false,
+        reverseHudEnabled = true,
     }
     local settings = {}
     for k, v in pairs(defaults) do settings[k] = v end
@@ -476,7 +477,7 @@ local function bootMonarca()
         Position = UDim2.fromOffset(26, 26),
         Size = UDim2.new(1, -110, 0, 12),
         BackgroundTransparency = 1,
-        Text = "VISUAL HUB  /  V0.7.3",
+        Text = "VISUAL HUB  /  V0.7.4",
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextSize = 9,
@@ -1685,7 +1686,7 @@ local function bootMonarca()
     local auxiliaryModules = {}
     local function loadAuxiliary(name)
         if auxiliaryModules[name] then return auxiliaryModules[name] end
-        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.7.3-" .. tostring(os.time()))
+        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.7.4-" .. tostring(os.time()))
         if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
         local compiled, err = loadstring(source, "Monarca/" .. name)
         if not compiled then error(err or "Módulo inválido.") end
@@ -2078,6 +2079,169 @@ local function bootMonarca()
         save()
     end)
     
+    -- Reverse / Flashback (original user-supplied E-held script, made mobile-safe).
+    -- A compact, tactile, ICON-ONLY HUD control remains visible when minimized.
+    local reverseShadow = new("Frame", {
+        Name = "ReverseHUDShadow",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -18, 0.54, 4),
+        Size = UDim2.fromOffset(48, 48),
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = 0.40,
+        BorderSizePixel = 0,
+        Visible = settings.reverseHudEnabled,
+        Active = false,
+        ZIndex = 34,
+    }, gui)
+    rounded(reverseShadow, 11)
+    local reverseButton = new("TextButton", {
+        Name = "MonarcaReverseHUD",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -18, 0.54, 0),
+        Size = UDim2.fromOffset(48, 48),
+        BackgroundColor3 = theme.card,
+        BackgroundTransparency = 0.02,
+        Text = "⟲", -- reverse symbol; NO letter/keyboard key
+        Font = Enum.Font.GothamBold,
+        TextSize = 32,
+        TextColor3 = theme.text,
+        AutoButtonColor = false,
+        BorderSizePixel = 0,
+        Active = true,
+        Visible = settings.reverseHudEnabled,
+        ZIndex = 36,
+    }, gui)
+    rounded(reverseButton, 11)
+    local reverseOutline = new("UIStroke", {
+        Color = theme.whiteLine, Thickness = 1.25, Transparency = 0.36,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, reverseButton)
+    local reverseGlow = new("UIStroke", {
+        Color = theme.accent, Thickness = 3, Transparency = 1,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, reverseButton)
+    local reverseTopLine = new("Frame", {
+        Name = "ReverseBevel",
+        Position = UDim2.fromOffset(9, 4),
+        Size = UDim2.new(1, -18, 0, 1),
+        BackgroundColor3 = theme.whiteLine,
+        BackgroundTransparency = 0.65,
+        BorderSizePixel = 0,
+        Active = false,
+        ZIndex = 37,
+    }, reverseButton)
+
+    local reversePressed = nil
+    local reverseLoading = false
+    local reverseClock = 0
+    local function repaintReverse()
+        local module = auxiliaryModules.player_reverse
+        local goingBack = module and module.isRewinding and module:isRewinding() or false
+        local pressed = reversePressed ~= nil or goingBack
+        reverseButton.Visible = settings.reverseHudEnabled and not destroyed
+        reverseShadow.Visible = reverseButton.Visible
+        reverseButton.Position = UDim2.new(1, -18, 0.54, pressed and 3 or 0)
+        reverseShadow.Position = UDim2.new(1, -18, 0.54, pressed and 4 or 4)
+        reverseButton.BackgroundColor3 = pressed and theme.primary or theme.card
+        reverseButton.TextColor3 = pressed and theme.background or theme.text
+        reverseOutline.Transparency = pressed and 0.02 or 0.36
+        reverseGlow.Transparency = pressed and 0.66 or 1
+        reverseTopLine.BackgroundTransparency = pressed and 0.88 or 0.65
+    end
+
+    local function ensureReverseModule()
+        local ok, success, message = pcall(function()
+            local module = loadAuxiliary("player_reverse")
+            local started, why = module:enable()
+            if not started then return false, why end
+            return true
+        end)
+        if not ok or not success then
+            return false, tostring(ok and message or success)
+        end
+        return true
+    end
+
+    -- GUI InputBegan/InputEnded accepts touch on Android and left mouse on PC.
+    -- It is a hold-to-rewind button rather than a tap toggle.
+    connect(reverseButton.InputBegan, function(input)
+        if destroyed or not settings.reverseHudEnabled or reversePressed then return end
+        if input.UserInputType ~= Enum.UserInputType.Touch
+            and input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+        reversePressed = input
+        repaintReverse()
+        if reverseLoading then return end
+        reverseLoading = true
+        task.spawn(function()
+            local started, reason = ensureReverseModule()
+            reverseLoading = false
+            if destroyed then return end
+            if not started then
+                status("Reverse indisponível: " .. tostring(reason))
+            elseif reversePressed == input and settings.reverseHudEnabled then
+                -- Avoid simultaneous physics constraints while rewinding.
+                stopFlyForTarget()
+                for _, targetMode in ipairs({"Headsit", "Backpack", "Follow"}) do
+                    if modes[targetMode] then setMode(targetMode, false) end
+                end
+                local module = auxiliaryModules.player_reverse
+                local ok, success, why = pcall(module.start, module)
+                if not ok or not success then
+                    status("Reverse: " .. tostring(ok and why or success))
+                end
+            end
+            repaintReverse()
+        end)
+    end)
+
+    local function releaseReverse(input)
+        if not reversePressed or (input and reversePressed ~= input) then return end
+        reversePressed = nil
+        local module = auxiliaryModules.player_reverse
+        if module then pcall(module.stop, module) end
+        repaintReverse()
+    end
+    connect(reverseButton.InputEnded, releaseReverse)
+    connect(Services.UserInputService.InputEnded, releaseReverse)
+    -- Keyboard E is handled by the module. Refresh visual state at low cost.
+    connect(game:GetService("RunService").Heartbeat, function(dt)
+        if destroyed then return end
+        reverseClock = reverseClock + math.min(dt, 0.1)
+        if reverseClock < 0.12 then return end
+        reverseClock = 0
+        if not reversePressed then repaintReverse() end
+    end)
+
+    toggle(playerPage, "Reverse no HUD",
+        "Segure o ícone ⟲ ou a tecla E · até 60 s",
+        settings.reverseHudEnabled, function(value)
+            settings.reverseHudEnabled = value
+            if value then
+                task.spawn(function()
+                    local ok, reason = ensureReverseModule()
+                    if not ok and not destroyed then
+                        status("Reverse indisponível: " .. tostring(reason))
+                    end
+                end)
+            else
+                releaseReverse()
+                local module = auxiliaryModules.player_reverse
+                if module then pcall(module.disable, module) end
+            end
+            repaintReverse()
+            save()
+        end)
+    repaintReverse()
+    if settings.reverseHudEnabled then
+        task.defer(function()
+            if destroyed or not settings.reverseHudEnabled then return end
+            local ok, reason = ensureReverseModule()
+            if not ok and not destroyed then
+                status("Falha ao inicializar Reverse: " .. tostring(reason))
+            end
+        end)
+    end
+
     -- Owner-only personal label controls. Hidden from all other usernames.
     -- This whitelist affects the local UI, not a permission granted by Roblox.
     local function initializeOwnerTag()
@@ -3192,7 +3356,7 @@ local function bootMonarca()
         if destroyed then return end
         stopAlvo()
         cleanupTargetTool()
-        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "server_invisibility", "clone_invisibility"}) do
+        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "server_invisibility", "clone_invisibility", "player_reverse"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
             end
