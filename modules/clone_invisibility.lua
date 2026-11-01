@@ -157,6 +157,17 @@ local function restoreWorldCharacter()
         cameraSubject = savedCameraSubject
     end
 
+    -- Prevent the still-present proxy from physically pushing the restored
+    -- character up/down for one simulation frame before the proxy is destroyed.
+    if proxy and proxy.Parent then
+        for _, item in ipairs(proxy:GetDescendants()) do
+            if item:IsA("BasePart") then
+                item.CanCollide = false
+                item.CanTouch = false
+            end
+        end
+    end
+
     local ok = changeCharacterWithCamera(real, cameraSubject, function()
         if real and real.Parent then
             if realRootPart and realRootPart.Parent and destination then
