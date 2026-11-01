@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.8.1 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.8.2 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
