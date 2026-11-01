@@ -6,6 +6,29 @@ local player = Players.LocalPlayer
 local Fly = {}
 local active, speed = false, 40
 local snapshot, connection, up, down = nil, nil, false, false
+local controls = nil
+pcall(function()
+    -- PlayerModule exposes analog movement for mobile virtual thumbsticks even
+    -- while the Humanoid is in PlatformStand.
+    local scripts = player:FindFirstChild("PlayerScripts")
+    local module = scripts and scripts:FindFirstChild("PlayerModule")
+    if module then controls = require(module):GetControls() end
+end)
+local function movementDirection(hum)
+    if controls and type(controls.GetMoveVector) == "function" then
+        local ok, vector = pcall(function() return controls:GetMoveVector() end)
+        local cam = workspace.CurrentCamera
+        if ok and typeof(vector) == "Vector3" and cam then
+            local cf = cam.CFrame
+            local forward = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+            local right = Vector3.new(cf.RightVector.X, 0, cf.RightVector.Z)
+            if forward.Magnitude > 0.01 and right.Magnitude > 0.01 then
+                return forward.Unit * (-vector.Z) + right.Unit * vector.X
+            end
+        end
+    end
+    return hum.MoveDirection
+end
 local ownAttachment, velocity, orientation
 
 local function stop()
@@ -90,7 +113,7 @@ function Fly:enable()
                 stop()
                 return
             end
-            local direction = hum.MoveDirection
+            local direction = movementDirection(hum)
             local vertical = (up and 1 or 0) - (down and 1 or 0)
             local movement = direction + Vector3.new(0, vertical, 0)
             if movement.Magnitude > 1 then movement = movement.Unit end
