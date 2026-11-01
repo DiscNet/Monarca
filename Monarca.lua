@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.5.0 — target tool, Fly and R6 emote
+-- Monarca Script Hub v0.5.1 — corrected Zombie R6 gait, FE animation and rig diagnostics
 -- Interface local. Os modulos sao carregados exclusivamente deste repositorio.
 local Services = {
     Players = game:GetService("Players"),
@@ -32,6 +32,7 @@ local defaults = {
     walkSpeed = 16,
     jumpPower = 50,
     flySpeed = 40,
+    zombieAnimationId = "",
 }
 local settings = {}
 for k, v in pairs(defaults) do settings[k] = v end
@@ -436,7 +437,7 @@ new("TextLabel", {
     Position = UDim2.fromOffset(26, 26),
     Size = UDim2.new(1, -110, 0, 12),
     BackgroundTransparency = 1,
-    Text = "VISUAL HUB  /  V0.5",
+    Text = "VISUAL HUB  /  V0.5.1",
     Font = Enum.Font.Gotham,
     TextColor3 = theme.muted,
     TextSize = 9,
@@ -1667,7 +1668,7 @@ end)
 -- R6/R15 is a real server-side respawn operation. These buttons send a request
 -- ONLY if the experience explicitly installs a supported RemoteEvent.
 local rigStatus = ordered(playerPage, new("TextLabel", {
-    Size = UDim2.new(1, 0, 0, 19),
+    Size = UDim2.new(1, 0, 0, 35),
     BackgroundTransparency = 1, Text = "Corpo atual: verificando...",
     TextSize = 11, Font = Enum.Font.GothamMedium,
     TextColor3 = theme.muted, TextXAlignment = Enum.TextXAlignment.Left,
@@ -1686,6 +1687,26 @@ local function updateRigUI()
         b.TextColor3 = name == rig and theme.background or theme.text
     end
 end
+-- The optional server script replies to confirm/fail a real respawn.
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local rigEventConnection
+local function bindRigResponses(remote)
+    if not remote or remote.Name ~= "MonarcaRigSwitch"
+        or not remote:IsA("RemoteEvent") or rigEventConnection then return end
+    rigEventConnection = connect(remote.OnClientEvent, function(rig, success, message)
+        if destroyed then return end
+        rigStatus.Text = (success and "Reiniciando como " or "Falha ao trocar para ")
+            .. tostring(rig) .. ": " .. tostring(message or "")
+        if not success then status(tostring(message or "Servidor recusou a troca.")) end
+        if success then
+            task.delay(0.6, function()
+                if not destroyed then updateRigUI() end
+            end)
+        end
+    end)
+end
+bindRigResponses(replicatedStorage:FindFirstChild("MonarcaRigSwitch"))
+connect(replicatedStorage.ChildAdded, bindRigResponses)
 for i, rig in ipairs({"R6","R15"}) do
     local b = button(rigRow, rig, UDim2.new((i - 1) * .5, i == 1 and 0 or 5, 0, 2),
         UDim2.new(.5, -5, 0, 30))
@@ -1696,14 +1717,22 @@ for i, rig in ipairs({"R6","R15"}) do
     }, b)
     rigButtons[rig] = b
     b.Activated:Connect(function()
-        local rep = game:GetService("ReplicatedStorage")
-        local service = rep:FindFirstChild("MonarcaRigSwitch")
+        local service = replicatedStorage:FindFirstChild("MonarcaRigSwitch")
         if not service or not service:IsA("RemoteEvent") then
-            status("Troca R6/R15 exige suporte do servidor desta experiência.")
+            rigStatus.Text = "R6/R15: servidor sem MonarcaRigSwitch."
+            status("Troca real exige instalar a integração no servidor do seu jogo.")
             return
         end
+        bindRigResponses(service)
+        local own = player.Character
+        local human = own and own:FindFirstChildOfClass("Humanoid")
+        if human and human.RigType.Name == rig then
+            status("Seu personagem já está em " .. rig .. ".")
+            return
+        end
+        rigStatus.Text = "Solicitando respawn em " .. rig .. "..."
         service:FireServer(rig)
-        status("Troca para " .. rig .. " solicitada ao servidor.")
+        -- Do not report success merely because FireServer returned.
     end)
 end
 updateRigUI()
@@ -1747,7 +1776,7 @@ local zombieTitle = new("TextLabel", {
 }, zombieRow)
 new("TextLabel", {
     Position = UDim2.fromOffset(10, 31), Size = UDim2.new(1, -94, 0, 20),
-    BackgroundTransparency = 1, Text = "Animação procedural • R6",
+    BackgroundTransparency = 1, Text = "R6 • FE se publicado / local",
     TextSize = 11, Font = Enum.Font.Gotham,
     TextColor3 = theme.muted, TextXAlignment = Enum.TextXAlignment.Left,
 }, zombieRow)
@@ -1768,15 +1797,76 @@ zombieButton.Activated:Connect(function()
         status("Emote encerrado.")
     else
         local ok, enabled, err = pcall(function()
-            return loadAuxiliary("zombie_r6"):enable()
+            local module = loadAuxiliary("zombie_r6")
+            module:setAnimationId(settings.zombieAnimationId)
+            return module:enable()
         end)
         zombieActive = ok and enabled == true
-        if zombieActive then status("Zumbi andando ativado.")
-        else status("Emote: " .. tostring(ok and err or enabled)) end
+        if zombieActive then
+            local mode = auxiliaryModules.zombie_r6:getMode()
+            if mode == "FE" then
+                status("Zumbi R6 FE: animação via Animator.")
+            else
+                status("Zumbi R6 local: FE precisa de animação publicada e autorizada.")
+            end
+        else
+            status("Emote: " .. tostring(ok and err or enabled))
+        end
     end
     repaintZombie()
 end)
 repaintZombie()
+
+local animationIdFrame = ordered(emotePage, new("Frame", {
+    Size = UDim2.new(1, 0, 0, 35),
+    BackgroundColor3 = theme.surface,
+    BorderSizePixel = 0,
+}, emotePage))
+rounded(animationIdFrame, 3)
+new("UIStroke", {
+    Color = theme.whiteLine,
+    Thickness = 1,
+    Transparency = 0.76,
+    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+}, animationIdFrame)
+local zombieAssetInput = new("TextBox", {
+    Position = UDim2.fromOffset(10, 0),
+    Size = UDim2.new(1, -20, 1, 0),
+    BackgroundTransparency = 1,
+    Text = settings.zombieAnimationId,
+    PlaceholderText = "ID da animação R6 publicada para FE",
+    PlaceholderColor3 = theme.muted,
+    TextColor3 = theme.text,
+    Font = Enum.Font.Gotham,
+    TextSize = 11,
+    ClearTextOnFocus = false,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, animationIdFrame)
+local emoteInfo = ordered(emotePage, new("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 44),
+    BackgroundTransparency = 1,
+    Text = "Sem ID: emote local corrigido. Para FE, publique a animação R6 em Studio e autorize a experiência.",
+    TextSize = 10,
+    TextWrapped = true,
+    TextColor3 = theme.muted,
+    Font = Enum.Font.Gotham,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top,
+}, emotePage))
+connect(zombieAssetInput.FocusLost, function()
+    local id = zombieAssetInput.Text:match("^(%d+)$") or
+        zombieAssetInput.Text:match("^rbxassetid://(%d+)$") or ""
+    if #id > 20 then id = "" end
+    settings.zombieAnimationId = id
+    zombieAssetInput.Text = id
+    save()
+    if zombieActive then
+        status("ID salvo. Desative e reative o emote para aplicar.")
+    elseif id ~= "" then
+        status("ID configurado. FE depende da permissão da experiência.")
+    end
+end)
+
 connect(player.CharacterAdded, function()
     if auxiliaryModules.zombie_r6 then
         pcall(auxiliaryModules.zombie_r6.disable, auxiliaryModules.zombie_r6)
