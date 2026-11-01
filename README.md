@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Settings** e layout adaptável ao Android. Versão atual: **0.4.0**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/Settings** e layout adaptável ao Android. Versão atual: **0.5.0**.
 
 ## Executar
 
@@ -25,6 +25,10 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `modules/esp.lua` — etiquetas com apelido e distância até outros personagens.
 - `modules/timecycle.lua` — ajuste local de horário (Dia/Noite/Padrão).
 - `modules/nofog.lua` — remoção local de neblina e névoa atmosférica.
+- `modules/player_fly.lua` — voo local com velocidade de 5–160 studs/s, controle analógico de movimento e comandos para subir/descer.
+- `modules/zombie_r6.lua` — emote procedural original para corpo R6, com braços estendidos e caminhada cambaleante.
+- `server/MonarcaRigSwitch.server.lua` — integração **opcional** para experiências próprias; não é executada pelo hub cliente.
+
 
 ## Identidade visual
 
@@ -47,14 +51,20 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - **Headsit**: acompanha o jogador acima da cabeça, com **mesma direção do rosto** do alvo; **Backpack**: mantém a posição nas costas, voltado para trás. Ambos usam `AlignPosition`/`AlignOrientation` entre attachments e não reposicionam mais o `HumanoidRootPart` manualmente a cada frame. Colisões do personagem local são temporariamente desligadas e restauradas ao desativar.
 - **Follow**: movimentação com `Humanoid:MoveTo` atualizada continuamente enquanto estiver habilitada; pode ser impedida por obstáculos.
 - **View**: usa `CameraType.Custom` e `CameraSubject` no Humanoid do alvo, com `CameraMode.Classic` e zoom de terceira pessoa entre 7 e 18 studs. Não reproduz a câmera particular do outro jogador; ao desativar, restaura câmera, foco, modo e limites de zoom anteriores.
-- **TP**: teletransporte pontual para perto do alvo. O botão conserva o estado ligado até ser desativado, mas não acompanha o jogador.
+- **TP**: **ação por clique**, teletransporte pontual para perto do alvo. Não é alternável nem permanece ativo.
 - Estados dos botões de Alvo: fundo preto e contorno branco quando desligados; branco com texto preto e halo discreto quando ligados; cantos de 2 px. Headsit/Follow/Backpack são mutuamente exclusivos. Trocar ou perder o alvo desativa os modos e restaura a câmera.
+- **Marcar Alvo por toque**: botão em Alvo entrega um Tool `Marcar Alvo` na mochila. Ao equipá-lo e clicar/tocar no personagem de outro jogador, ele é selecionado automaticamente, sem digitar nick. A seleção depende do personagem visível/atingido e pode não funcionar em jogos que substituem a mochila ou captura de input.
+
 - **Limitações físicas**: os novos constraints reduzem a oscilação causada pelo teletransporte a cada frame, mas a replicação do servidor e a latência ainda podem causar correções. O sistema desativa os modos ao trocar o alvo, quando ele sai ou quando o personagem reaparece.
 - Aba **Visual** com controles organizados por Personagens, Iluminação, Interface e Desempenho.
 - **X-Ray**: destaca personagens de outros jogadores através de obstáculos; **ESP**: exibe apelido e distância.
 - **Horário**: opções Padrão/Dia/Noite, com restauração ao desligar; Fullbright e Sem neblina são independentes.
 - **Mira roxa** e **Gráficos leves**, com ativação local e reversível.
-- Controles locais de FOV, velocidade e salto; mudanças podem ser revertidas pelo jogo/servidor.
+- **Player**: FOV e controles de velocidade `8–160` (10× o padrão 16) e pulo `25–500` (10× o padrão 50). Painel com menor espaçamento entre sliders.
+- **Fly**: velocidade ajustável de 5 a 160, toggle no Player, comandos SUBIR/DESCER na tela do celular e Space/Ctrl no teclado. Usa `LinearVelocity`, pode ser limitado pelo jogo e é desativado ao entrar em modos de Alvo.
+- **R6/R15**: botões mostram o rig atual e enviam pedidos a `ReplicatedStorage.MonarcaRigSwitch` **somente quando uma experiência instalar esse RemoteEvent no servidor**. Não alteram `Humanoid.RigType` localmente — isso quebraria os corpos. Para habilitar em um jogo próprio, coloque `server/MonarcaRigSwitch.server.lua` em `ServerScriptService` e teste a integração com as animações e scripts da experiência. Em jogos de terceiros, sem suporte do servidor, a troca não funciona.
+- **Emote**: primeira opção `Zumbi andando`, animação R6 procedural local baseada em `Motor6D.Transform`, alternável e com restauração ao desativar. Requer um personagem **R6 real**; em R15, exibe o motivo e não inicia o emote.
+- Ajustes locais podem ser revertidos pelo jogo/servidor; não há garantia de replicação da movimentação ou emotes em outras máquinas.
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
