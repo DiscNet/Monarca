@@ -62,7 +62,7 @@ jobs:
           assert main.index('gui.Parent = parent') < main.index('game:HttpGet(repository')
           assert 'local ok, failure = xpcall(bootMonarca' in core
           assert core.strip().endswith('return ok, failure')
-          assert 'hub_core.lua?v=0.8.0-' in main, 'Old core can be cached'
+          assert 'hub_core.lua?v=0.8.1-' in main, 'Old core can be cached'
           for marker in (
               'end -- Player/Emote/666 block: release its many UI locals.',
               'end -- Settings + Visual block: release temporary UI registers.',
@@ -92,7 +92,26 @@ jobs:
           assert 'loadAuxiliary("anim_packs")' in core
           assert '"clone_invisibility", "anim_packs", "player_reverse"' in core
           assert 'restoreButton:Activate()' not in core
-          print('Bootstrap, register scopes, Anim and invisibility validated')
+          anim = Path('modules/anim_packs.lua').read_text(encoding='utf-8')
+          import re
+          expected = (
+              'astronaut', 'bubbly', 'cartoony', 'elder', 'knight',
+              'levitation', 'mage', 'ninja', 'oldschool', 'pirate',
+              'robot', 'rthro', 'stylish', 'superhero', 'toy', 'vampire',
+              'werewolf', 'zombie'
+          )
+          for name in expected:
+              assert re.search(r'^    ' + name + r' = \\{', anim, re.M), f'Missing R15 pack: {name}'
+              assert ('id = "' + name + '", name = "') in core, f'Missing UI pack: {name}'
+          assert anim.count('title = "') == len(expected)
+          assert 'local previous = PRESETS[currentPreset]' in anim, 'Restore must use selected preset'
+          assert 'restoreCurrent()\\n    currentPreset = "default"' in anim
+          for marker in ('Name = "AnimationSearch"', 'Name = "AnimationPackList"',
+                         'local function filterChoices()', 'local requestPreset, requestLabel = selected, selectedLabel',
+                         'end -- Anim page: release temporary UI locals.'):
+              assert marker in core, f'Missing Anim search feature: {marker}'
+          assert 'rbxassetid://' in anim and '1083473930' in anim
+          print('Bootstrap, 18 R15 packs, dropdown search, restore and register scopes validated')
           PY
       - name: Verify local module files
         run: |
