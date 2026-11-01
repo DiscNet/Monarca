@@ -1,4 +1,4 @@
--- Monarca X? / stable viewpoint and root-aligned proxy (EXPERIMENTAL) v0.7.5
+-- Monarca X? / stable physics, camera and clone restoration (EXPERIMENTAL) v0.7.9
 -- Inspired by the publicly documented RealCharacter/FakeCharacter pattern.
 -- No exploit APIs, no remote code, no forced respawn, no permanent modification.
 -- IMPORTANT: The server may reject position updates or correct the character.
@@ -18,8 +18,10 @@ local accumulator = 0
 local savedRootCFrame
 local cameraEpoch = 0
 local CAMERA_BIND = "MonarcaInvisibleCameraSwitch_" .. tostring(player.UserId)
-local CHECK_INTERVAL = 1 / 25
+local CHECK_INTERVAL = 1 / 15
+local MAX_PARK_DRIFT = 4
 local OWNER = "samulucas7419"
+local parkedParts, parkAttachment, parkGravityForce, originallyEquipped
 
 local function disconnect(connection)
     if connection then pcall(function() connection:Disconnect() end) end
@@ -90,20 +92,64 @@ local function changeCharacterWithCamera(targetCharacter, targetSubject, operati
                     camera.CFrame = view
                     camera.Focus = focus
                     frames = frames + 1
-                    if frames >= 2 then
+                    if frames >= 5 then
                         pcall(function() RunService:UnbindFromRenderStep(CAMERA_BIND) end)
                     end
                 end
             )
             -- Safety fallback if the render loop stops before 2 frames.
-            task.delay(0.20, function()
-                if epoch == cameraEpoch and frames < 2 then complete() end
+            task.delay(0.45, function()
+                if epoch == cameraEpoch and frames < 5 then complete() end
             end)
         else
             complete()
         end
     end
     return ok, err
+end
+
+-- Keep the distant real body free of collisions and gravity disturbances.
+-- This avoids pushing the proxy and jumping when switching Character back.
+local function parkBody(realModel, root)
+    parkedParts = {}
+    for _, item in ipairs(realModel:GetDescendants()) do
+        if item:IsA("BasePart") then
+            parkedParts[item] = {item.CanCollide, item.CanTouch}
+            pcall(function()
+                item.CanCollide = false
+                item.CanTouch = false
+            end)
+        end
+    end
+    pcall(function()
+        parkAttachment = Instance.new("Attachment")
+        parkAttachment.Name = "MonarcaParkPoint"
+        parkAttachment.Parent = root
+        parkGravityForce = Instance.new("VectorForce")
+        parkGravityForce.Name = "MonarcaParkGravity"
+        parkGravityForce.Attachment0 = parkAttachment
+        parkGravityForce.RelativeTo = Enum.ActuatorRelativeTo.World
+        parkGravityForce.ApplyAtCenterOfMass = true
+        parkGravityForce.Force = Vector3.new(0, root.AssemblyMass * workspace.Gravity, 0)
+        parkGravityForce.Parent = root
+    end)
+end
+
+local function restoreBody()
+    if parkGravityForce then pcall(function() parkGravityForce:Destroy() end) end
+    if parkAttachment then pcall(function() parkAttachment:Destroy() end) end
+    parkGravityForce, parkAttachment = nil, nil
+    if parkedParts then
+        for item, values in pairs(parkedParts) do
+            if item and item.Parent then
+                pcall(function()
+                    item.CanCollide = values[1]
+                    item.CanTouch = values[2]
+                end)
+            end
+        end
+    end
+    parkedParts = nil
 end
 
 local function makeProxy(real)
@@ -152,7 +198,11 @@ local function restoreWorldCharacter()
     if fakeRootPart and fakeRootPart.Parent then
         destination = fakeRootPart.CFrame
     end
-    local cameraSubject = real and real:FindFirstChildOfClass("Humanoid")
+    local currentChar = player.Character
+    local currentHum = currentChar and currentChar:FindFirstChildOfClass("Humanoid")
+    local realIsAlive = real and real.Parent and realHumanoid and realHumanoid.Health > 0
+    local cameraSubject = realIsAlive and realHumanoid or
+        (currentChar ~= proxy and currentHum) or nil
     if not cameraSubject and savedCameraSubject and savedCameraSubject.Parent then
         cameraSubject = savedCameraSubject
     end
@@ -169,7 +219,7 @@ local function restoreWorldCharacter()
     end
 
     local ok = changeCharacterWithCamera(real, cameraSubject, function()
-        if real and real.Parent then
+        if realIsAlive and player.Character == proxy then
             if realRootPart and realRootPart.Parent and destination then
                 -- Prevent vertical fling caused by the real body falling while
                 -- kept far away. The proxy's ROOT position is the destination.
@@ -185,12 +235,21 @@ local function restoreWorldCharacter()
     -- Do not destroy the proxy if the character rebind failed: avoid leaving
     -- the player with no locally controlled character.
     if ok and proxy then pcall(function() proxy:Destroy() end) end
+    -- Restore original collisions only after the proxy is removed, to prevent
+    -- the two models from physically pushing each other in the same location.
+    restoreBody()
+    if realHumanoid and realHumanoid.Parent and player.Character == real
+        and originallyEquipped and originallyEquipped.Parent
+        and originallyEquipped.Parent:IsA("Backpack") then
+        pcall(function() realHumanoid:EquipTool(originallyEquipped) end)
+    end
     if real and real.Parent and savedArchivable ~= nil then
         pcall(function() real.Archivable = savedArchivable end)
     end
     realCharacter, fakeCharacter, realRoot, realHumanoid = nil, nil, nil, nil
     fakeHumanoid, savedCameraSubject, savedArchivable = nil, nil, nil
     savedPivot, remotePivot, savedRootCFrame = nil, nil, nil
+    originallyEquipped = nil
     restoring = false
 end
 
@@ -224,6 +283,8 @@ function CloneInvisible:enable()
     savedPivot = real:GetPivot()
     savedRootCFrame = root.CFrame
     savedCameraSubject = camera.CameraSubject
+    originallyEquipped = real:FindFirstChildOfClass("Tool")
+    local initialVelocity = root.AssemblyLinearVelocity
     -- Preserve root orientation, independent of Model pivot offset.
     remotePivot = savedRootCFrame + Vector3.new(2500, 1000, 2500)
 
@@ -231,6 +292,10 @@ function CloneInvisible:enable()
         hum:UnequipTools()
         proxy.Parent = workspace
         alignRoot(proxy, cloneRoot, savedRootCFrame)
+        -- The avatar clone inherits current motion instead of dropping from a
+        -- standing pose with zero momentum at the instant of the swap.
+        cloneRoot.AssemblyLinearVelocity = initialVelocity
+        cloneRoot.AssemblyAngularVelocity = Vector3.zero
         local changed, reason = changeCharacterWithCamera(
             proxy, cloneHum, function() player.Character = proxy end
         )
@@ -256,6 +321,7 @@ function CloneInvisible:enable()
         diedConnection = hum.Died:Connect(function()
             task.defer(restoreWorldCharacter)
         end)
+        parkBody(real, root)
         alignRoot(real, root, remotePivot)
         root.AssemblyLinearVelocity = Vector3.zero
         root.AssemblyAngularVelocity = Vector3.zero
@@ -276,14 +342,20 @@ function CloneInvisible:enable()
             accumulator = accumulator % CHECK_INTERVAL
             -- Client-side repositioning may replicate or be corrected by the
             -- server, depending on network ownership and game protections.
-            alignRoot(real, root, remotePivot)
+            -- Do not drive Jump/Move on the remote body: those movement
+            -- impulses made the avatar twitch and turn at every transition.
+            -- Reposition only if server/physics correction causes large drift.
+            if (root.Position - remotePivot.Position).Magnitude > MAX_PARK_DRIFT then
+                pcall(function() alignRoot(real, root, remotePivot) end)
+            end
+            if parkGravityForce and parkGravityForce.Parent then
+                pcall(function()
+                    parkGravityForce.Force = Vector3.new(
+                        0, root.AssemblyMass * workspace.Gravity, 0)
+                end)
+            end
             root.AssemblyLinearVelocity = Vector3.zero
             root.AssemblyAngularVelocity = Vector3.zero
-            -- Mirror basic state, without promising other clients will see it.
-            if cloneHum.Jump then
-                pcall(function() hum.Jump = true end)
-            end
-            pcall(function() hum:Move(cloneHum.MoveDirection, false) end)
         end)
     end)
     if not ok then
