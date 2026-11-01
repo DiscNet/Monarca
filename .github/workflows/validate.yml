@@ -167,7 +167,7 @@ jobs:
                           'animator:LoadAnimation(animation)', 'Enum.HumanoidRigType.R15',
                           'characterConnection:Disconnect()'):
               assert feature in catalog, f'Missing emote behavior: {feature}'
-          assert 'Instance.new("Animator")' not in catalog
+          assert 'Instance.new("Animator")' not in catalog, 'Must use server-created Animator'
           market = Path('modules/emote_marketplace.lua').read_text(encoding='utf-8')
           for marker in ('function Marketplace:search(query, nextPage)',
                          'function Marketplace:enable()', 'function Marketplace:disable()',
@@ -178,7 +178,7 @@ jobs:
                          'item.CreatorName'):
               assert marker in market, f'Missing UGC discovery behavior: {marker}'
           assert 'params.CreatorName = "Roblox"' not in market, 'Must not restrict to Roblox creators'
-          assert 'if item.marketplace then' in catalog, 'Must clarify UGC playback limitations', 'Must use server-created Animator'
+          assert 'if item.marketplace then' in catalog, 'Must clarify UGC playback limitations'
           assert 'type(module.enable) == "function"' in core, 'Loader contract must be explicit'
           assert 'restoreButton:Activate()' not in core
           anim = Path('modules/anim_packs.lua').read_text(encoding='utf-8')
