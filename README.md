@@ -4,11 +4,11 @@ Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/
 
 ## Animações independentes por movimento R15 — v0.8.2
 
-A aba **Anim** agora permite misturar animações dos **18 pacotes já disponíveis** sem substituir o pacote inteiro. É possível combinar, por exemplo, **Idle = Elder** com **Walk = Cartoony**, enquanto **Run = Vampire** ou qualquer outro pacote. Os controles disponíveis são **Idle, Walk, Run, Jump, Fall, Climb, Swim e Swim Idle**. O seletor de **Idle** atualiza tanto \`idle.Animation1\` como \`idle.Animation2\`, preservando as duas variações de repouso do pacote escolhido.
+A aba **Anim** agora permite misturar animações dos **18 pacotes já disponíveis** sem substituir o pacote inteiro. É possível combinar, por exemplo, **Idle = Elder** com **Walk = Cartoony**, enquanto **Run = Vampire** ou qualquer outro pacote. Os controles disponíveis são **Idle, Walk, Run, Jump, Fall, Climb, Swim e Swim Idle**. O seletor de **Idle** atualiza tanto `idle.Animation1` como `idle.Animation2`, preservando as duas variações de repouso do pacote escolhido.
 
 **Como usar:** na parte superior da aba, escolha um pacote base (ou **Padrão do mapa**); em **Personalizar movimentos**, toque no seletor de cada movimento, procure o pacote desejado e confirme. **Herdar pacote base** remove a substituição individual, enquanto **Padrão do mapa** usa a animação original apenas daquele movimento. Ao terminar, selecione **APLICAR MISTURA**. O botão **APLICAR** superior continua aplicando o pacote completo e limpa os campos de mistura; **RESTAURAR** devolve as animações originais; **LIMPAR CAMPOS** apenas limpa as opções do editor até a próxima aplicação.
 
-A API Luau expõe \`AnimPacks:enableMixed(basePreset, {idle = "elder", walk = "cartoony"})\` e mantém \`AnimPacks:enable("vampire")\` para pacotes completos. As configurações ativas são reaplicadas ao renascer, com restauração dos IDs originais ao desativar. Não são criados clones nem \`Animator\` locais. A reprodução para outros jogadores **não é garantida em todos os mapas**; depende de como o jogo gerencia \`Animate\`, o \`Animator\` e o acesso aos assets.
+A API Luau expõe `AnimPacks:enableMixed(basePreset, {idle = "elder", walk = "cartoony"})` e mantém `AnimPacks:enable("vampire")` para pacotes completos. As configurações ativas são reaplicadas ao renascer, com restauração dos IDs originais ao desativar. Não são criados clones nem `Animator` locais. A reprodução para outros jogadores **não é garantida em todos os mapas**; depende de como o jogo gerencia `Animate`, o `Animator` e o acesso aos assets.
 
 ## Ampliação da aba Anim: 18 pacotes R15 — v0.8.1
 
