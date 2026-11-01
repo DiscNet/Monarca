@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.3.0 — SkyNetApi visual system
+-- Monarca Script Hub v0.3.1 — spacious minimal UI + white line work
 -- Interface local. Os modulos sao carregados exclusivamente deste repositorio.
 local Services = {
     Players = game:GetService("Players"),
@@ -19,6 +19,8 @@ local theme = {
     border = Color3.fromRGB(37, 37, 41),
     accent = Color3.fromRGB(142, 130, 232),
     text = Color3.fromRGB(244, 244, 240),
+    whiteLine = Color3.fromRGB(244, 244, 240),
+    primary = Color3.fromRGB(244, 244, 240),
     muted = Color3.fromRGB(151, 151, 157),
     danger = Color3.fromRGB(235, 127, 136),
 }
@@ -88,7 +90,7 @@ local function rounded(object, radius)
     new("UICorner", {CornerRadius = UDim.new(0, radius or 8)}, object)
 end
 local function outlined(object)
-    new("UIStroke", {Color = theme.border, Thickness = 1, Transparency = 0.14, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, object)
+    new("UIStroke", {Color = theme.whiteLine, Thickness = 1, Transparency = 0.86, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, object)
 end
 local layoutCounters = setmetatable({}, {__mode = "k"})
 local function ordered(parent, object)
@@ -115,7 +117,7 @@ local function button(parent, value, position, size, action, accent)
     local b = new("TextButton", {
         Position = position or UDim2.new(),
         Size = size or UDim2.fromOffset(85, 30),
-        BackgroundColor3 = accent and theme.accent or theme.card,
+        BackgroundColor3 = accent and theme.primary or theme.card,
         TextColor3 = accent and theme.background or theme.text,
         Text = value,
         TextSize = 13,
@@ -414,7 +416,8 @@ local header = new("Frame", {
 new("Frame", {
     Position = UDim2.fromOffset(12, 13),
     Size = UDim2.fromOffset(2, 19),
-    BackgroundColor3 = theme.accent,
+    BackgroundColor3 = theme.whiteLine,
+    BackgroundTransparency = 0.10,
     BorderSizePixel = 0,
 }, header)
 new("TextLabel", {
@@ -431,7 +434,7 @@ new("TextLabel", {
     Position = UDim2.fromOffset(26, 26),
     Size = UDim2.new(1, -110, 0, 12),
     BackgroundTransparency = 1,
-    Text = "VISUAL HUB  /  V0.3",
+    Text = "VISUAL HUB  /  V0.3.1",
     Font = Enum.Font.Gotham,
     TextColor3 = theme.muted,
     TextSize = 9,
@@ -557,8 +560,8 @@ new("Frame", {
     Name = "TabsDivider",
     Position = UDim2.new(0, 0, 0, HEADER_HEIGHT + NAV_HEIGHT - 1),
     Size = UDim2.new(1, 0, 0, 1),
-    BackgroundColor3 = theme.border,
-    BackgroundTransparency = 0.2,
+    BackgroundColor3 = theme.whiteLine,
+    BackgroundTransparency = 0.88,
     BorderSizePixel = 0,
     ZIndex = 2,
 }, main)
@@ -585,6 +588,9 @@ end
 local pages, navButtons, navUnderlines = {}, {}, {}
 local currentTab = "Home"
 local function page(name)
+    -- Home retains its current compact profile composition.
+    -- Other tabs use a smaller control scale and larger section spacing.
+    local isHome = name == "Home"
     local scroller = new("ScrollingFrame", {
         Name = name,
         BackgroundTransparency = 1,
@@ -597,16 +603,16 @@ local function page(name)
     }, area)
     local stack = new("UIListLayout", {
         SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 8),
+        Padding = UDim.new(0, isHome and 8 or 15),
     }, scroller)
     new("UIPadding", {
-        PaddingTop = UDim.new(0, 12),
-        PaddingLeft = UDim.new(0, 15),
-        PaddingRight = UDim.new(0, 15),
-        PaddingBottom = UDim.new(0, 14),
+        PaddingTop = UDim.new(0, isHome and 12 or 17),
+        PaddingLeft = UDim.new(0, isHome and 15 or 17),
+        PaddingRight = UDim.new(0, isHome and 15 or 17),
+        PaddingBottom = UDim.new(0, isHome and 14 or 18),
     }, scroller)
     connect(stack:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-        scroller.CanvasSize = UDim2.fromOffset(0, stack.AbsoluteContentSize.Y + 28)
+        scroller.CanvasSize = UDim2.fromOffset(0, stack.AbsoluteContentSize.Y + (isHome and 28 or 35))
     end)
     pages[name] = scroller
     return scroller
@@ -633,15 +639,15 @@ for index, name in ipairs({"Home", "Visual", "Player", "Settings"}) do
         AutoButtonColor = false,
         Text = name,
         Font = Enum.Font.GothamMedium,
-        TextSize = 13,
+        TextSize = 12,
         TextColor3 = theme.muted,
         TextXAlignment = Enum.TextXAlignment.Center,
     }, sidebar)
     navUnderlines[name] = new("Frame", {
         Name = "SelectedUnderline",
         Position = UDim2.new(0.17, 0, 1, -3),
-        Size = UDim2.new(0.66, 0, 0, 2),
-        BackgroundColor3 = theme.accent,
+        Size = UDim2.new(0.66, 0, 0, 1),
+        BackgroundColor3 = theme.whiteLine,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ZIndex = 3,
@@ -651,8 +657,8 @@ for index, name in ipairs({"Home", "Visual", "Player", "Settings"}) do
 end
 
 local function title(section, heading, detail)
-    label(section, heading, 18, theme.text, 25).Font = Enum.Font.GothamBold
-    label(section, detail, 12, theme.muted, 27)
+    label(section, heading, 16, theme.text, 23).Font = Enum.Font.GothamBold
+    label(section, detail, 11, theme.muted, 22)
 end
 -- Borderless controls; muted divider lines replace stacked boxed cards.
 local function card(section, height)
@@ -666,40 +672,40 @@ local function card(section, height)
         Name = "RowDivider",
         Position = UDim2.new(0, 0, 1, -1),
         Size = UDim2.new(1, 0, 0, 1),
-        BackgroundColor3 = theme.border,
-        BackgroundTransparency = 0.25,
+        BackgroundColor3 = theme.whiteLine,
+        BackgroundTransparency = 0.91,
         BorderSizePixel = 0,
     }, frame)
     return frame
 end
 
 local function cardText(frame, heading, detail, extraRight)
-    local t = label(frame, heading, 14, theme.text, 21)
-    t.Position = UDim2.fromOffset(12, 7)
-    t.Size = UDim2.new(1, -(extraRight or 24), 0, 21)
+    local t = label(frame, heading, 13, theme.text, 20)
+    t.Position = UDim2.fromOffset(10, 7)
+    t.Size = UDim2.new(1, -(extraRight or 20), 0, 20)
     t.Font = Enum.Font.GothamBold
-    local d = label(frame, detail, 12, theme.muted, 30)
-    d.Position = UDim2.fromOffset(12, 29)
-    d.Size = UDim2.new(1, -24, 0, 30)
+    local d = label(frame, detail, 11, theme.muted, 37)
+    d.Position = UDim2.fromOffset(10, 28)
+    d.Size = UDim2.new(1, -20, 0, 37)
 end
 local function toggle(section, heading, detail, value, changed)
-    local row = card(section, 60)
-    local t = label(row, heading, 14, theme.text, 21)
-    t.Position = UDim2.fromOffset(12, 8)
-    t.Size = UDim2.new(1, -82, 0, 21)
-    local d = label(row, detail, 12, theme.muted, 23)
-    d.Position = UDim2.fromOffset(12, 30)
-    d.Size = UDim2.new(1, -82, 0, 23)
-    local b = button(row, "", UDim2.new(1, -61, 0, 18), UDim2.fromOffset(47, 25))
+    local row = card(section, 55)
+    local t = label(row, heading, 13, theme.text, 20)
+    t.Position = UDim2.fromOffset(10, 7)
+    t.Size = UDim2.new(1, -74, 0, 20)
+    local d = label(row, detail, 11, theme.muted, 22)
+    d.Position = UDim2.fromOffset(10, 28)
+    d.Size = UDim2.new(1, -74, 0, 22)
+    local b = button(row, "", UDim2.new(1, -55, 0, 16), UDim2.fromOffset(43, 23))
     local knob = new("Frame", {
-        Size = UDim2.fromOffset(19, 19),
+        Size = UDim2.fromOffset(17, 17),
         BackgroundColor3 = theme.text,
     }, b)
     rounded(knob, 8)
     local selected = value
     local function repaint()
         tween(b, {BackgroundColor3 = selected and theme.accent or theme.border})
-        tween(knob, {Position = UDim2.fromOffset(selected and 24 or 3, 3)})
+        tween(knob, {Position = UDim2.fromOffset(selected and 23 or 3, 3)})
     end
     b.Activated:Connect(function()
         selected = not selected
@@ -710,17 +716,17 @@ local function toggle(section, heading, detail, value, changed)
     return row
 end
 local function slider(section, heading, minimum, maximum, initial, changed)
-    local row = card(section, 66)
-    local t = label(row, heading, 14, theme.text, 20)
-    t.Position = UDim2.fromOffset(12, 6)
-    t.Size = UDim2.new(1, -90, 0, 20)
-    local number = label(row, tostring(initial), 13, theme.accent, 20)
-    number.Position = UDim2.new(1, -69, 0, 6)
-    number.Size = UDim2.fromOffset(55, 20)
+    local row = card(section, 61)
+    local t = label(row, heading, 13, theme.text, 19)
+    t.Position = UDim2.fromOffset(10, 7)
+    t.Size = UDim2.new(1, -83, 0, 19)
+    local number = label(row, tostring(initial), 12, theme.accent, 19)
+    number.Position = UDim2.new(1, -65, 0, 7)
+    number.Size = UDim2.fromOffset(53, 19)
     number.TextXAlignment = Enum.TextXAlignment.Right
     local track = new("Frame", {
-        Position = UDim2.new(0, 13, 0, 43),
-        Size = UDim2.new(1, -26, 0, 5),
+        Position = UDim2.new(0, 11, 0, 40),
+        Size = UDim2.new(1, -22, 0, 4),
         BackgroundColor3 = theme.border,
         BorderSizePixel = 0,
         Active = true,
@@ -735,7 +741,7 @@ local function slider(section, heading, minimum, maximum, initial, changed)
     local knob = new("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0, 0.5),
-        Size = UDim2.fromOffset(15, 15),
+        Size = UDim2.fromOffset(13, 13),
         BackgroundColor3 = theme.accent,
     }, track)
     rounded(knob, 8)
@@ -968,8 +974,8 @@ local _, paintJump = slider(playerPage, "Força de salto", 25, 100, settings.jum
     applyPlayer()
     save()
 end)
-local resetPlayer = card(playerPage, 57)
-button(resetPlayer, "RESTAURAR PADRÕES", UDim2.fromOffset(11, 12), UDim2.new(1, -22, 0, 33), function()
+local resetPlayer = card(playerPage, 49)
+button(resetPlayer, "RESTAURAR PADRÕES", UDim2.fromOffset(10, 10), UDim2.new(1, -20, 0, 29), function()
     settings.fieldOfView, settings.walkSpeed, settings.jumpPower = 70, 16, 50
     paintFov(70); paintWalk(16); paintJump(50)
     settings.playerCustomized = false
@@ -995,12 +1001,12 @@ toggle(settingsPage, "Notificações", "Mensagens de status na parte inferior", 
     footer.Text = v and "Notificações ativadas" or ""
     save()
 end)
-local storage = card(settingsPage, 80)
+local storage = card(settingsPage, 75)
 cardText(storage, "Persistência", type(writefile) == "function" and
     "O ambiente oferece writefile. Preferências podem ser gravadas em Monarca/settings.json." or
     "Sem writefile: as preferências valem somente nesta sessão.")
-local resetSettings = card(settingsPage, 58)
-button(resetSettings, "REDEFINIR PREFERÊNCIAS", UDim2.fromOffset(10, 11), UDim2.new(1, -20, 0, 35), function()
+local resetSettings = card(settingsPage, 49)
+button(resetSettings, "REDEFINIR PREFERÊNCIAS", UDim2.fromOffset(10, 10), UDim2.new(1, -20, 0, 29), function()
     for k, v in pairs(defaults) do settings[k] = v end
     playerAdjusted = false
     paintFov(70); paintWalk(16); paintJump(50)
@@ -1015,13 +1021,13 @@ title(visualPage, "Visual", "Ajustes visuais locais e reversíveis.")
 
 -- Minimal toolbar, with no large script cards or search controls.
 local visualToolbar = ordered(visualPage, new("Frame", {
-    Size = UDim2.new(1, -2, 0, 36),
+    Size = UDim2.new(1, -2, 0, 32),
     BackgroundTransparency = 1,
 }, visualPage))
 local updateButton = button(visualToolbar, "ATUALIZAR",
-    UDim2.new(0, 0, 0, 3), UDim2.new(0.5, -5, 0, 30), nil, true)
+    UDim2.new(0, 0, 0, 2), UDim2.new(0.5, -6, 0, 27), nil, true)
 local resetVisualButton = button(visualToolbar, "RESTAURAR",
-    UDim2.new(0.5, 5, 0, 3), UDim2.new(0.5, -5, 0, 30))
+    UDim2.new(0.5, 6, 0, 2), UDim2.new(0.5, -6, 0, 27))
 
 local moduleArea = new("Frame", {
     Name = "ModuleArea",
@@ -1032,7 +1038,7 @@ local moduleArea = new("Frame", {
 }, visualPage)
 new("UIListLayout", {
     SortOrder = Enum.SortOrder.LayoutOrder,
-    Padding = UDim.new(0, 4),
+    Padding = UDim.new(0, 10),
 }, moduleArea)
 local visualGroups = {"Personagens", "Iluminação", "Interface", "Desempenho"}
 local timeMode = "Padrão"
@@ -1076,11 +1082,11 @@ end
 local function headingFor(group)
     local h = ordered(moduleArea, new("TextLabel", {
         Name = "Section" .. group,
-        Size = UDim2.new(1, 0, 0, 27),
+        Size = UDim2.new(1, 0, 0, 29),
         BackgroundTransparency = 1,
         Text = string.upper(group),
         Font = Enum.Font.GothamBold,
-        TextSize = 12,
+        TextSize = 11,
         TextColor3 = theme.muted,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Bottom,
@@ -1092,34 +1098,34 @@ local function separator(row)
     new("Frame", {
         Position = UDim2.new(0, 0, 1, -1),
         Size = UDim2.new(1, 0, 0, 1),
-        BackgroundColor3 = theme.border,
-        BackgroundTransparency = 0.78,
+        BackgroundColor3 = theme.whiteLine,
+        BackgroundTransparency = 0.92,
         BorderSizePixel = 0,
     }, row)
 end
 
 local function optionRow(info)
     local row = ordered(moduleArea, new("Frame", {
-        Size = UDim2.new(1, 0, 0, 64),
+        Size = UDim2.new(1, 0, 0, 59),
         BackgroundTransparency = 1,
     }, moduleArea))
     new("TextLabel", {
-        Position = UDim2.fromOffset(1, 6),
-        Size = UDim2.new(1, -79, 0, 23),
+        Position = UDim2.fromOffset(1, 5),
+        Size = UDim2.new(1, -72, 0, 20),
         BackgroundTransparency = 1,
         Text = info.name,
-        TextSize = 15,
-        Font = Enum.Font.GothamBold,
+        TextSize = 13,
+        Font = Enum.Font.GothamMedium,
         TextColor3 = theme.text,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
     }, row)
     new("TextLabel", {
-        Position = UDim2.fromOffset(1, 29),
-        Size = UDim2.new(1, -79, 0, 26),
+        Position = UDim2.fromOffset(1, 27),
+        Size = UDim2.new(1, -72, 0, 24),
         BackgroundTransparency = 1,
         Text = info.description,
-        TextSize = 12,
+        TextSize = 11,
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -1128,11 +1134,11 @@ local function optionRow(info)
         TextTruncate = Enum.TextTruncate.AtEnd,
     }, row)
     local active = activeModules[info.id] == true
-    local toggleButton = button(row, "", UDim2.new(1, -61, 0, 17), UDim2.fromOffset(48, 27))
+    local toggleButton = button(row, "", UDim2.new(1, -55, 0, 16), UDim2.fromOffset(43, 23))
     toggleButton.BackgroundColor3 = active and theme.accent or theme.border
     local knob = new("Frame", {
-        Position = UDim2.fromOffset(active and 27 or 4, 4),
-        Size = UDim2.fromOffset(19, 19),
+        Position = UDim2.fromOffset(active and 23 or 3, 3),
+        Size = UDim2.fromOffset(17, 17),
         BackgroundColor3 = theme.text,
         BorderSizePixel = 0,
     }, toggleButton)
@@ -1157,25 +1163,25 @@ end
 
 local function timeRow(info)
     local row = ordered(moduleArea, new("Frame", {
-        Size = UDim2.new(1, 0, 0, 96),
+        Size = UDim2.new(1, 0, 0, 88),
         BackgroundTransparency = 1,
     }, moduleArea))
     new("TextLabel", {
         Position = UDim2.fromOffset(1, 5),
-        Size = UDim2.new(1, -2, 0, 21),
+        Size = UDim2.new(1, -2, 0, 20),
         BackgroundTransparency = 1,
         Text = info.name,
-        TextSize = 15,
+        TextSize = 13,
         Font = Enum.Font.GothamBold,
         TextColor3 = theme.text,
         TextXAlignment = Enum.TextXAlignment.Left,
     }, row)
     new("TextLabel", {
-        Position = UDim2.fromOffset(1, 27),
-        Size = UDim2.new(1, -2, 0, 19),
+        Position = UDim2.fromOffset(1, 26),
+        Size = UDim2.new(1, -2, 0, 18),
         BackgroundTransparency = 1,
         Text = info.description,
-        TextSize = 12,
+        TextSize = 11,
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -1184,10 +1190,10 @@ local function timeRow(info)
     for i, mode in ipairs({"Padrão", "Dia", "Noite"}) do
         local isSelected = timeMode == mode
         local b = button(row, mode,
-            UDim2.new((i - 1) / 3, 4, 0, 52),
-            UDim2.new(1 / 3, -8, 0, 31), nil, isSelected)
-        b.TextSize = 12
-        b.BackgroundColor3 = isSelected and theme.accent or theme.card
+            UDim2.new((i - 1) / 3, 4, 0, 51),
+            UDim2.new(1 / 3, -8, 0, 26), nil, isSelected)
+        b.TextSize = 11
+        b.BackgroundColor3 = isSelected and theme.primary or theme.card
         b.TextColor3 = isSelected and theme.background or theme.text
         b.Activated:Connect(function()
             local ok, err = pcall(function()
