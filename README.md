@@ -15,6 +15,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 ## Estrutura
 
 - `Monarca.lua` — interface principal, navegação, controles, animações, salvamento e ciclo de vida.
+- `assets/monarca-icon.jpg` — imagem oficial roxa do Monarca, adaptada para 128×128 px para a interface.
 - `manifest.lua` — catálogo de módulos remotos aprovados.
 - `modules/fullbright.lua` — iluminação ajustada apenas neste cliente.
 - `modules/lowgraphics.lua` — redução local de efeitos visuais pesados.
@@ -27,6 +28,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 ## Funcionalidades
 
 - Janela arrastável (mouse/toque), minimizável e que se ajusta à resolução.
+- Ícone oficial no cabeçalho e no botão flutuante. Quando disponíveis `writefile` e `getcustomasset` ou `getsynasset`, o Hub baixa e guarda automaticamente a imagem. Sem essas APIs, exibe a letra **M** como alternativa.
 - Aba **Visual** com controles organizados por Personagens, Iluminação, Interface e Desempenho.
 - **X-Ray**: destaca personagens de outros jogadores através de obstáculos; **ESP**: exibe apelido e distância.
 - **Horário**: opções Padrão/Dia/Noite, com restauração ao desligar; Fullbright e Sem neblina são independentes.
