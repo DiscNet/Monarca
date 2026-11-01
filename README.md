@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.5**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.6**.
 
 ## Executar
 
@@ -85,6 +85,13 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Correção de inicialização — v0.7.6
+
+- **Correção de travamento na abertura:** a v0.7.5 iniciava uma chamada síncrona a `game:HttpGet` para carregar o módulo Reverse *antes de montar o ScreenGui*. Se o executor demorasse ou interrompesse a requisição, o usuário veria "nada acontece", sem o painel e sem o aviso de erro. A inicialização do Reverse agora é disparada imediatamente em uma tarefa separada via `task.spawn`. Assim o histórico começa tão cedo quanto o módulo é carregado, mas a abertura do painel não espera pela rede.
+- **Carregamento serializado:** a abertura automática e o toque rápido do botão Reverse não podem iniciar duas cópias do módulo e registrar listeners duplicados. Quando há carregamento em curso, a segunda solicitação espera o mesmo resultado.
+- **Isolamento de falhas:** se a construção da aba X? falhar por incompatibilidade da API gráfica, essa falha não deve interromper a criação das outras abas. A advertência fica no console/rodapé.
+- **Verificação pendente:** execução no Roblox Android ainda precisa ser confirmada; compilação Luau valida sintaxe e bytecode, mas não simula a interface, o executor ou requisições HTTP.
 
 ## Câmera estável, HUD menor e histórico imediato — v0.7.5
 
