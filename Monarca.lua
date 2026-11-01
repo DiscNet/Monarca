@@ -181,6 +181,65 @@ local function loadMonarcaIcon(onLoaded)
     end)
 end
 
+-- Play the supplied Arise intro only on initial execution.
+-- This requires an executor that supports writefile and getcustomasset/getsynasset.
+-- A missing/blocked local sound must never prevent the hub from opening.
+local startupSound = nil
+local function playStartupAudio()
+    task.spawn(function()
+        local resolver = type(getcustomasset) == "function" and getcustomasset
+            or (type(getsynasset) == "function" and getsynasset or nil)
+        if not resolver then return end
+        local path = "Monarca/arise-intro-v1.mp3"
+        local exists = false
+        if type(isfile) == "function" then
+            local ok, value = pcall(isfile, path)
+            exists = ok and value
+        end
+        if not exists and type(writefile) == "function" then
+            local ok, data = pcall(function()
+                return game:HttpGet(repository .. "assets/arise-intro.mp3")
+            end)
+            if ok and type(data) == "string" and #data > 1000
+                and #data < 300000 and
+                (data:sub(1, 3) == "ID3"
+                    or (data:byte(1) == 255 and data:byte(2) >= 224)) then
+                pcall(function()
+                    if type(makefolder) == "function" then
+                        if type(isfolder) ~= "function" or not isfolder("Monarca") then
+                            makefolder("Monarca")
+                        end
+                    end
+                    writefile(path, data)
+                    exists = true
+                end)
+            end
+        end
+        if not exists and type(isfile) == "function" then return end
+        local ok, asset = pcall(resolver, path)
+        if not ok or type(asset) ~= "string" or asset == "" or destroyed then return end
+        local sound = new("Sound", {
+            Name = "MonarcaAriseIntro",
+            SoundId = asset,
+            Volume = 0.8,
+            PlaybackSpeed = 1,
+            Looped = false,
+        }, game:GetService("SoundService"))
+        if destroyed then sound:Destroy(); return end
+        startupSound = sound
+        local played = pcall(function() sound:Play() end)
+        if not played then
+            sound:Destroy()
+            startupSound = nil
+            return
+        end
+        task.delay(5, function()
+            if sound and sound.Parent then pcall(function() sound:Destroy() end) end
+            if startupSound == sound then startupSound = nil end
+        end)
+    end)
+end
+
 local gui = new("ScreenGui", {
     Name = "MonarcaHubV1",
     ResetOnSpawn = false,
@@ -201,8 +260,110 @@ if not pcall(function() gui.Parent = parent end) then
     gui.Parent = player:WaitForChild("PlayerGui")
 end
 
+-- Lightweight, 8px-radius startup scene with a real initialization progress bar.
+local introBackdrop = new("Frame", {
+    Name = "MonarcaStartup",
+    Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = Color3.fromRGB(9, 7, 18),
+    BackgroundTransparency = 0.25,
+    BorderSizePixel = 0,
+    ZIndex = 100,
+}, gui)
+local introPanel = new("Frame", {
+    Name = "StartupPanel",
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.fromScale(0.5, 0.5),
+    Size = UDim2.fromOffset(308, 166),
+    BackgroundColor3 = Color3.fromRGB(18, 14, 31),
+    BorderSizePixel = 0,
+    ZIndex = 101,
+}, introBackdrop)
+rounded(introPanel, 8)
+new("UIStroke", {
+    Color = theme.border, Transparency = 0.4, Thickness = 1,
+}, introPanel)
+local introScale = new("UIScale", {Scale = 0.9}, introPanel)
+local introTitle = new("TextLabel", {
+    Position = UDim2.fromOffset(19, 18),
+    Size = UDim2.new(1, -38, 0, 34),
+    BackgroundTransparency = 1,
+    Text = "MONARCA",
+    TextSize = 27,
+    TextColor3 = theme.text,
+    Font = Enum.Font.GothamBold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 103,
+}, introPanel)
+local introAccent = new("Frame", {
+    Position = UDim2.fromOffset(19, 61),
+    Size = UDim2.fromOffset(35, 3),
+    BackgroundColor3 = theme.accent,
+    BorderSizePixel = 0,
+    ZIndex = 103,
+}, introPanel)
+rounded(introAccent, 2)
+local introText = new("TextLabel", {
+    Position = UDim2.fromOffset(19, 77),
+    Size = UDim2.new(1, -75, 0, 20),
+    BackgroundTransparency = 1,
+    Text = "INICIALIZANDO...",
+    TextSize = 11,
+    Font = Enum.Font.GothamMedium,
+    TextColor3 = theme.muted,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 103,
+}, introPanel)
+local introPercent = new("TextLabel", {
+    Position = UDim2.new(1, -62, 0, 77),
+    Size = UDim2.fromOffset(43, 20),
+    BackgroundTransparency = 1,
+    Text = "0%",
+    TextSize = 12,
+    Font = Enum.Font.GothamBold,
+    TextColor3 = theme.accent,
+    TextXAlignment = Enum.TextXAlignment.Right,
+    ZIndex = 103,
+}, introPanel)
+local introTrack = new("Frame", {
+    Position = UDim2.fromOffset(19, 114),
+    Size = UDim2.new(1, -38, 0, 6),
+    BackgroundColor3 = Color3.fromRGB(45, 37, 62),
+    BorderSizePixel = 0,
+    ClipsDescendants = true,
+    ZIndex = 103,
+}, introPanel)
+rounded(introTrack, 3)
+local introFill = new("Frame", {
+    Size = UDim2.fromScale(0, 1),
+    BackgroundColor3 = Color3.fromRGB(190, 98, 255),
+    BorderSizePixel = 0,
+    ZIndex = 104,
+}, introTrack)
+rounded(introFill, 3)
+local introFooter = new("TextLabel", {
+    Position = UDim2.fromOffset(19, 131),
+    Size = UDim2.new(1, -38, 0, 15),
+    BackgroundTransparency = 1,
+    Text = "Criando sua experiência visual",
+    Font = Enum.Font.Gotham,
+    TextSize = 10,
+    TextColor3 = theme.muted,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 103,
+}, introPanel)
+local function introProgress(fraction, message)
+    if destroyed or not introPanel.Parent then return end
+    local f = math.clamp(fraction, 0, 1)
+    introText.Text = message
+    introPercent.Text = tostring(math.floor(f * 100 + 0.5)) .. "%"
+    tween(introFill, {Size = UDim2.fromScale(f, 1)}, 0.19)
+end
+tween(introScale, {Scale = 1}, 0.36)
+playStartupAudio()
+
 local main = new("Frame", {
     Name = "Window",
+    Visible = false,
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5),
     -- White base lets UIGradient retain the intended dark violet colors.
@@ -1132,7 +1293,9 @@ local function destroy()
     disableAll()
     destroyed = true
     for _, connection in ipairs(connections) do connection:Disconnect() end
-     if env.MONARCA_HUB then env.MONARCA_HUB = nil end
+    if startupSound then pcall(function() startupSound:Destroy() end); startupSound = nil end
+    if introBackdrop and introBackdrop.Parent then introBackdrop:Destroy() end
+    if env.MONARCA_HUB then env.MONARCA_HUB = nil end
     pcall(function() gui:Destroy() end)
 end
 closeButton.Activated:Connect(destroy)
@@ -1157,4 +1320,40 @@ end)
 updateLayout()
 switch("Home")
 if playerAdjusted then applyPlayer() end
-task.spawn(refresh)
+
+-- Animate actual setup phases; catalogue fetch determines when the final stage
+-- completes. A timeout keeps the panel usable if the network is unavailable.
+task.spawn(function()
+    if destroyed then return end
+    introProgress(0.15, "PREPARANDO INTERFACE")
+    task.wait(0.22)
+    if destroyed then return end
+    introProgress(0.36, "CARREGANDO CONFIGURAÇÕES")
+    task.wait(0.26)
+    if destroyed then return end
+    introProgress(0.58, "SINCRONIZANDO VISUAL")
+    local finished = false
+    task.spawn(function()
+        pcall(refresh)
+        finished = true
+    end)
+    local deadline = os.clock() + 5
+    local progress = 0.58
+    while not finished and os.clock() < deadline and not destroyed do
+        progress = math.min(0.90, progress + 0.013)
+        introProgress(progress, "SINCRONIZANDO VISUAL")
+        task.wait(0.085)
+    end
+    if destroyed then return end
+    introProgress(1, "PRONTO")
+    task.wait(0.27)
+    if destroyed then return end
+    main.Visible = true
+    local mainScale = new("UIScale", {Scale = 0.95}, main)
+    tween(mainScale, {Scale = 1}, 0.25)
+    tween(introBackdrop, {BackgroundTransparency = 1}, 0.22)
+    tween(introPanel, {BackgroundTransparency = 1}, 0.22)
+    task.wait(0.23)
+    if introBackdrop and introBackdrop.Parent then introBackdrop:Destroy() end
+    if mainScale and mainScale.Parent then mainScale:Destroy() end
+end)
