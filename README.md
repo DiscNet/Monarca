@@ -1,14 +1,14 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.4**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.5**.
 
-## Aba 666 — Fling privado e consentido (v0.8.4)
+## Aba 666 — Fling em servidores públicos e privados (v0.8.5)
 
 A aba **666** agora traz os controles **Fling** e **Aceitar Fling**. Em uma experiência Roblox sob seu controle, instale `server/MonarcaTouchBounce.server.lua` em `ServerScriptService`. Sem essa instalação, o botão sinaliza que a integração está ausente; o script cliente não consegue arremessar outros jogadores sozinho.
 
-Em **Roblox Studio ou servidor privado** desse jogo, ativar **Fling** permite empurrar peças soltas e leves ao encostar. Para tocar e empurrar outro jogador, ele precisa ativar **Aceitar Fling** no próprio Monarca. Essa preferência é individual e inicialmente desligada. NPCs precisam receber o atributo `MonarcaBounceTarget = true` no Model para participar. Peças ancoradas e partes pesadas são ignoradas.
+Em **servidores públicos ou privados de uma experiência com a integração instalada**, ativar **Fling** permite empurrar peças soltas e leves ao encostar. A exigência de sessão privada foi removida. Para tocar e empurrar outro jogador, ele precisa ativar **Aceitar Fling** no próprio Monarca. Essa preferência é individual e inicialmente desligada. NPCs precisam receber o atributo `MonarcaBounceTarget = true` no Model para participar. Peças ancoradas e partes pesadas são ignoradas.
 
-O servidor valida contatos e proximidade antes de aplicar impulso limitado e intervalo por alvo, sem causar dano diretamente. O estado pode continuar após respawn. Fechar o Monarca desativa Fling e a autorização de receber impactos. **Não funciona como exploit FE universal em servidores de terceiros** nem interfere em usuários que não autorizaram a brincadeira.
+O servidor valida contatos e proximidade antes de aplicar impulso limitado e intervalo por alvo, sem causar dano diretamente. O estado pode continuar após respawn. Fechar o Monarca desativa Fling e a autorização de receber impactos. **Não funciona como exploit FE universal em servidores de terceiros**: exige integração instalada pelo desenvolvedor e não interfere em usuários que não autorizaram a brincadeira.
 
 ## Aba 666 — Antifling: proteção local contra arremessos (v0.8.3)
 
