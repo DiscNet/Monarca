@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.8.4 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.8.5 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -3345,10 +3345,10 @@ local function bootMonarca()
                 end)
                 repaint()
             end
-            addFlingControl("Fling", "Empurrar ao tocar · partida privada", "sending")
+            addFlingControl("Fling", "Empurrar ao tocar · jogo integrado", "sending")
             addFlingControl("Aceitar Fling", "Permite ser empurrado por amigos", "receiving")
             local hint = label(mysteryPage,
-                "Fling exige integração no servidor do seu jogo. Participantes precisam aceitar Fling.",
+                "Fling: servidores públicos ou privados com integração no jogo. Participantes precisam aceitar Fling.",
                 11, theme.muted, 49)
             hint.TextWrapped = true
         end
