@@ -56,7 +56,8 @@ jobs:
           from pathlib import Path
           for path in ('Monarca.lua', 'manifest.lua', 'modules/fullbright.lua',
                        'modules/lowgraphics.lua', 'modules/crosshair.lua',
-                       'modules/player_fly.lua', 'modules/zombie_r6.lua',
+                       'modules/player_fly.lua', 'modules/player_reverse.lua',
+                       'modules/zombie_r6.lua',
                        'modules/pose_666.lua', 'modules/headless_local.lua',
                        'modules/korblox_right_leg.lua', 'modules/owner_tag.lua',
                        'modules/radioactive_trail.lua',
