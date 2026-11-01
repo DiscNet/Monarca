@@ -62,7 +62,20 @@ jobs:
           assert main.index('gui.Parent = parent') < main.index('game:HttpGet(repository')
           assert 'local ok, failure = xpcall(bootMonarca' in core
           assert core.strip().endswith('return ok, failure')
-          print('Diagnostic bootstrap, retry and separate boot result validated')
+          assert 'hub_core.lua?v=0.7.8-' in main, 'Old core can be cached'
+          for marker in (
+              'end -- Player/Emote/666 block: release its many UI locals.',
+              'end -- Settings + Visual block: release temporary UI registers.',
+              'end -- drag-only locals',
+              'local applyPlayer, playerAdjusted, paintFov, paintWalk, paintJump',
+              'local disableAll, refresh',
+          ):
+              assert marker in core, f'Missing register-safe scope: {marker}'
+          assert core.index('end -- Player/Emote/666 block:') < core.index(
+              'end -- Settings + Visual block:')
+          assert core.index('end -- Settings + Visual block:') < core.index(
+              'local dragging, dragInput, dragStart, offsetStart')
+          print('Bootstrap and scoped-register refactor validated')
           PY
       - name: Verify local module files
         run: |
