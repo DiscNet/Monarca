@@ -1,7 +1,7 @@
 -- Monarca / 666 / Korblox Deathspeaker Right Leg (139607718)
 -- Cosmetic local preview of the ACTUAL Roblox body-part asset, not a fake
 -- approximation or ownership bypass. Availability depends on asset loading.
--- In R15, overlay source rig meshes on the player's current RIGHT leg.
+-- In R15, preserve each donor mesh's native proportions and align by joints.
 -- In R6, transfer donor CharacterMesh RightLeg to the client character.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -65,59 +65,111 @@ local function getActualKorbloxModel(character)
     return model
 end
 
+-- An R15 package deliberately uses different source sizes for thigh, shin
+-- and foot. Forcing Size = player's old limb Size stretches Korblox into a
+-- thick/long mesh. Preserve the actual package dimensions instead.
+--
+-- Match the incoming package's joint attachment to the live rig joint.
+-- The source CFrame and old CFrame centers need not coincide, especially for
+-- small stylized limbs and invisible foot segments.
+local R15_SEGMENTS = {
+    {name = "RightUpperLeg", attachment = "RightHipRigAttachment"},
+    {name = "RightLowerLeg", attachment = "RightKneeRigAttachment"},
+    {name = "RightFoot", attachment = "RightAnkleRigAttachment"},
+}
+local function rigAttachment(part, name)
+    local attachment = part:FindFirstChild(name, true)
+    if attachment and attachment:IsA("Attachment") then
+        return attachment
+    end
+    return nil
+end
+
 local function applyR15(character, generated, states)
-    local count = 0
-    local geometryChanged = false
-    for _, name in ipairs({"RightUpperLeg", "RightLowerLeg", "RightFoot"}) do
-        local original = character:FindFirstChild(name)
-        local actual = generated:FindFirstChild(name)
-        if original and original:IsA("BasePart")
-            and actual and actual:IsA("BasePart") then
-            if original:IsA("MeshPart") and actual:IsA("MeshPart") then
-                if original.MeshId ~= actual.MeshId
-                    or original.TextureID ~= actual.TextureID then
-                    geometryChanged = true
-                end
-            end
-            -- A source limb from the actual catalog-generated rig is cloned
-            -- as a local visual; existing joints/physics remain untouched.
-            local visual = actual:Clone()
-            visual.Name = "MonarcaKorblox_" .. name
-            for _, child in ipairs(visual:GetDescendants()) do
-                if child:IsA("JointInstance") or child:IsA("Constraint")
-                    or child:IsA("Script") or child:IsA("LocalScript") then
-                    child:Destroy()
-                end
-            end
-            visual.Anchored = false
-            visual.CanCollide = false
-            visual.CanTouch = false
-            visual.CanQuery = false
-            visual.Massless = true
-            visual.Size = original.Size
-            visual.CFrame = original.CFrame
-            visual.Parent = character
-            local weld = Instance.new("WeldConstraint")
-            weld.Name = "MonarcaKorbloxWeld"
-            weld.Part0 = original
-            weld.Part1 = visual
-            weld.Parent = visual
-            table.insert(states, {
-                part = original,
-                visual = visual,
-                transparency = original.LocalTransparencyModifier
-            })
-            original.LocalTransparencyModifier = 1
-            count = count + 1
+    local verified = {}
+    local changed = false
+
+    -- Resolve all three segments first; never leave a half-equipped leg.
+    for _, segment in ipairs(R15_SEGMENTS) do
+        local original = character:FindFirstChild(segment.name)
+        local actual = generated:FindFirstChild(segment.name)
+        if not original or not original:IsA("BasePart")
+            or not actual or not actual:IsA("BasePart") then
+            return false, "Parte R15 ausente: " .. segment.name
         end
+        local targetAttachment = rigAttachment(original, segment.attachment)
+        local sourceAttachment = rigAttachment(actual, segment.attachment)
+        if not targetAttachment or not sourceAttachment then
+            return false, "Encaixe R15 indisponível: " .. segment.attachment
+        end
+
+        if original:IsA("MeshPart") and actual:IsA("MeshPart") then
+            if original.MeshId ~= actual.MeshId
+                or original.TextureID ~= actual.TextureID then
+                changed = true
+            end
+        else
+            changed = true
+        end
+
+        table.insert(verified, {
+            original = original,
+            actual = actual,
+            originalAttachment = targetAttachment,
+            sourceAttachment = sourceAttachment,
+            name = segment.name,
+        })
     end
-    if count ~= 3 then
-        return false, "Não foi possível obter as três partes da perna R15."
+
+    if not changed then
+        return false, "O Roblox não aplicou uma geometria diferente."
     end
-    -- If model appearance did not change, do not hide the original.
-    if not geometryChanged then
-        return false, "O Roblox retornou a mesma perna; asset não aplicado."
+
+    for _, entry in ipairs(verified) do
+        local original = entry.original
+        local actual = entry.actual
+        local visual = actual:Clone()
+        visual.Name = "MonarcaKorblox_" .. entry.name
+        for _, child in ipairs(visual:GetDescendants()) do
+            if child:IsA("JointInstance") or child:IsA("Constraint")
+                or child:IsA("Script") or child:IsA("LocalScript") then
+                child:Destroy()
+            end
+        end
+
+        -- IMPORTANT: Do NOT assign visual.Size = original.Size.
+        -- Clone retains the true Korblox MeshPart.Size and shape.
+        visual.Anchored = false
+        visual.CanCollide = false
+        visual.CanTouch = false
+        visual.CanQuery = false
+        visual.Massless = true
+
+        -- Align joint origins, rather than forcing the small Korblox mesh's
+        -- center to the center of the previous, potentially bulkier leg.
+        local sourceJoint = rigAttachment(visual, entry.sourceAttachment.Name)
+        if not sourceJoint then
+            visual:Destroy()
+            return false, "Encaixe de visualização ausente: " .. entry.name
+        end
+        local goal = original.CFrame * entry.originalAttachment.CFrame
+        visual.CFrame = goal * sourceJoint.CFrame:Inverse()
+        visual.Parent = character
+
+        local weld = Instance.new("WeldConstraint")
+        weld.Name = "MonarcaKorbloxWeld"
+        weld.Part0 = original
+        weld.Part1 = visual
+        weld.Parent = visual
+
+        table.insert(states, {
+            part = original,
+            visual = visual,
+            transparency = original.LocalTransparencyModifier,
+        })
+        original.LocalTransparencyModifier = 1
     end
+
     return true
 end
 
