@@ -81,9 +81,10 @@ local function changeCharacterWithCamera(targetCharacter, targetSubject, operati
             -- The camera module may update its own transform immediately after
             -- Character is replaced. Reapply the pre-toggle view post-camera.
             camera.CameraType = previousType
-            RunService:BindToRenderStep(
-                CAMERA_BIND, Enum.RenderPriority.Camera.Value + 1,
-                function()
+            local bound, bindError = pcall(function()
+                RunService:BindToRenderStep(
+                    CAMERA_BIND, Enum.RenderPriority.Camera.Value + 1,
+                    function()
                     if epoch ~= cameraEpoch then return end
                     if workspace.CurrentCamera ~= camera then
                         complete()
@@ -95,9 +96,13 @@ local function changeCharacterWithCamera(targetCharacter, targetSubject, operati
                     if frames >= 5 then
                         pcall(function() RunService:UnbindFromRenderStep(CAMERA_BIND) end)
                     end
-                end
-            )
-            -- Safety fallback if the render loop stops before 2 frames.
+                    end
+                )
+            end)
+            if not bound then
+                warn("[Monarca] Camera bind unavailable: " .. tostring(bindError))
+            end
+            -- Safety fallback if the render loop stops before five frames.
             task.delay(0.45, function()
                 if epoch == cameraEpoch and frames < 5 then complete() end
             end)
@@ -182,7 +187,7 @@ local function makeProxy(real)
 end
 
 local function restoreWorldCharacter()
-    if restoring then return end
+    if restoring then return false, "Restauração já em andamento." end
     restoring = true
     active = false
     disconnect(heartbeatConnection)
@@ -212,8 +217,10 @@ local function restoreWorldCharacter()
     if proxy and proxy.Parent then
         for _, item in ipairs(proxy:GetDescendants()) do
             if item:IsA("BasePart") then
-                item.CanCollide = false
-                item.CanTouch = false
+                pcall(function()
+                    item.CanCollide = false
+                    item.CanTouch = false
+                end)
             end
         end
     end
@@ -232,11 +239,22 @@ local function restoreWorldCharacter()
             if player.Character == proxy then player.Character = real end
         end
     end)
-    -- Do not destroy the proxy if the character rebind failed: avoid leaving
-    -- the player with no locally controlled character.
-    if ok and proxy then pcall(function() proxy:Destroy() end) end
+    -- If the callback failed after the world-space reposition, make one
+    -- direct attempt to restore Character. Keep the proxy if still controlled.
+    if not ok and realIsAlive and player.Character == proxy then
+        pcall(function() player.Character = real end)
+    end
+    local isProxyControlled = player.Character == proxy
+    if not isProxyControlled and proxy then
+        pcall(function() proxy:Destroy() end)
+    end
     -- Restore original collisions only after the proxy is removed, to prevent
     -- the two models from physically pushing each other in the same location.
+    if isProxyControlled then
+        -- Avoid abandoning the player in a disabled model after a failed swap.
+        restoring = false
+        return false, "Não foi possível restaurar o avatar; tente desativar novamente."
+    end
     restoreBody()
     if realHumanoid and realHumanoid.Parent and player.Character == real
         and originallyEquipped and originallyEquipped.Parent
@@ -251,6 +269,7 @@ local function restoreWorldCharacter()
     savedPivot, remotePivot, savedRootCFrame = nil, nil, nil
     originallyEquipped = nil
     restoring = false
+    return true, "Personagem restaurado."
 end
 
 function CloneInvisible:enable()
@@ -366,8 +385,7 @@ function CloneInvisible:enable()
 end
 
 function CloneInvisible:disable()
-    restoreWorldCharacter()
-    return true, "Personagem original restaurado."
+    return restoreWorldCharacter()
 end
 function CloneInvisible:isActive() return active end
 return CloneInvisible
