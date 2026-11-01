@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.4**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.5**.
 
 ## Executar
 
@@ -86,13 +86,21 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
 
+## Câmera estável, HUD menor e histórico imediato — v0.7.5
+
+- **Invisibilidade X? experimental:** a transição entre personagem real e proxy agora salva `Camera.CFrame` e `Camera.Focus` antes da troca de `CameraSubject`. Aplica `CameraType.Scriptable` durante a mudança e restaura o tipo original, com duas atualizações curtas após o script padrão da câmera, tentando manter a orientação e o zoom em vez de girar na direção do avatar. A solução é uma mitigação local e depende do comportamento da câmera da experiência.
+- **Posição do personagem:** a transferência do corpo real passou a alinhar `HumanoidRootPart.CFrame` exatamente com a raiz do proxy, em vez de alinhar os pivôs dos modelos. Isso evita diferenças de deslocamento/altura entre os dois. Na volta, zera a velocidade linear/angular residual do corpo real, reduzindo o pulo, queda ou `fling` causados pelo posicionamento distante. O servidor ainda pode corrigir posições.
+- **Botão Invisível do HUD:** o controle anterior de 94×38 px e texto `INVIS ON/OFF` virou botão compacto **48×48 px**, alinhado ao Reverse, com ícone de olho desenhado com elementos vetoriais. Quando ativo, aparece um traço diagonal sobre o olho. Mantém borda branca, acabamento físico, mudança de cor e posição fixa no canto direito (38% da altura), sem texto no botão.
+- **Reverse automático:** `modules/player_reverse.lua` é carregado e habilitado durante o início da execução do `Monarca.lua`, **antes do painel e animação de entrada serem construídos**. O histórico não precisa de primeiro toque no botão e grava até 60 segundos. A opção **Reverse no HUD** agora apenas mostra ou esconde o botão, sem interromper a gravação nem apagar os frames já registrados. O histórico é limpo por segurança em morte/troca do personagem, ou ao encerrar o Hub. A tecla E permanece disponível quando o botão está oculto.
+- **Teste:** confirmar ao vivo no Roblox Android que câmera, distância visual e posição real não mudem inesperadamente ao ativar/desativar; não é possível garantir ausência de correções pelo servidor somente com compilação.
+
 ## Reverse / Flashback com botão físico — v0.7.4
 
-- **Local:** aba **Player**, controle **Reverse no HUD** (ativado por padrão). Quando habilitado, inicia a gravação do histórico de movimento e mantém um botão fixo no canto lateral direito, aproximadamente a 54% da altura da tela, sem depender da janela aberta.
+- **Local:** aba **Player**, controle **Reverse no HUD** (ativado por padrão). A gravação começa ao executar o Monarca, antes da UI. Esse controle só define se o botão fixo fica visível, aproximadamente a 54% da altura da tela.
 - **Ícone:** seta circular de Reverse desenhada com segmentos vetoriais da própria interface Roblox (`Frame`, sem letra e sem dependência de fonte ou imagem externa); controle compacto de **48×48 px**, cantos de 11 px, borda branca, brilho violeta discreto e sombra deslocada para dar sensação de botão físico. Ao pressionar, o controle afunda 3 px e inverte as cores da seta e do fundo. Ao soltar, retorna à posição e encerra o Reverse.
 - **Ativação:** pressione e segure o botão no Android ou a tecla **E** no teclado. Não é um alternável de um toque: ao soltar, a reprodução retroativa para. O mesmo módulo responde aos dois meios de entrada.
 - **Base original:** o script fornecido grava `CFrame`, `Velocity`, estado do `Humanoid`, `PlatformStand` e `Tool` equipado. A adaptação preserva esses campos, substitui `Velocity` por `AssemblyLinearVelocity`, usa buffer circular (até **1.800 estados**, ~60 segundos a 30 Hz) para evitar `table.remove(frames, 1)` e previne leitura de frames inexistentes.
-- **Segurança operacional:** o Reverse restaura o estado ancorado, `AutoRotate` e `PlatformStand` ao soltar, interrompe em morte ou troca de personagem, desconecta os listeners ao encerrar o hub, impede concorrência com Fly ativo e não tenta rebobinar o clone experimental de invisibilidade. Ao desativar a opção no Player, apaga o histórico e remove o botão. A preferência é salva quando disponível.
+- **Segurança operacional:** o Reverse restaura o estado ancorado, `AutoRotate` e `PlatformStand` ao soltar, interrompe em morte ou troca de personagem, desconecta os listeners ao encerrar o hub, impede concorrência com Fly ativo e não tenta rebobinar o clone experimental de invisibilidade. Ao ocultar o botão, o histórico e a gravação continuam disponíveis; o módulo é desligado ao encerrar o hub. A preferência é salva quando disponível.
 - **Limitação:** trata-se de um efeito de posição e estados do avatar no cliente. Não restaura pontos de vida, itens destruídos, outras pessoas nem o tempo do servidor. Servidores podem recusar ou corrigir posições; ferramentas/estados antigos podem deixar de existir. Precisa de teste dentro do Roblox Android para confirmar a suavidade e o posicionamento do controle.
 
 ## Botão fixo para invisibilidade no HUD — v0.7.3
