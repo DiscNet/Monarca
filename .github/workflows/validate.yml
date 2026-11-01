@@ -62,7 +62,7 @@ jobs:
           assert main.index('gui.Parent = parent') < main.index('game:HttpGet(repository')
           assert 'local ok, failure = xpcall(bootMonarca' in core
           assert core.strip().endswith('return ok, failure')
-          assert 'hub_core.lua?v=0.8.9-' in main, 'Old core can be cached'
+          assert 'hub_core.lua?v=0.9.0-' in main, 'Old core can be cached'
           for marker in (
               'end -- Player/Emote/666 block: release its many UI locals.',
               'end -- Settings + Visual block: release temporary UI registers.',
@@ -136,7 +136,7 @@ jobs:
           assert 'loadAuxiliary("emote_catalog"):getCatalog()' in core
           assert 'loadAuxiliary("emote_catalog"):play(choice)' in core
           assert '(item.catalogId or "")' in core, 'Search must include original Marketplace IDs'
-          assert '".lua?v=0.8.9-" .. tostring(os.time())' in core, 'Auxiliary module cache was not bumped'
+          assert '".lua?v=0.9.0-" .. tostring(os.time())' in core, 'Auxiliary module cache was not bumped'
           assert '"antifling", "emote_catalog", "emote_marketplace", "server_invisibility"' in core
           catalog = Path('modules/emote_catalog.lua').read_text(encoding='utf-8')
           import re
@@ -178,7 +178,21 @@ jobs:
                          'item.CreatorName'):
               assert marker in market, f'Missing UGC discovery behavior: {marker}'
           assert 'params.CreatorName = "Roblox"' not in market, 'Must not restrict to Roblox creators'
-          assert 'if item.marketplace then' in catalog, 'Must clarify UGC playback limitations'
+          # UGC entries are EmoteAnimation assets and cannot be passed to Animator directly.
+          for marker in ('if item.marketplace == true then',
+                         'return playMarketplaceEmote(humanoid, animator, item, id)',
+                         'humanoid:FindFirstChildOfClass("HumanoidDescription")',
+                         'description:GetEmotes()', 'description:AddEmote(emoteName, tonumber(id))',
+                         'humanoid:PlayEmoteAsync(emoteName)',
+                         'description:RemoveEmote(saved.name)',
+                         'description:SetEquippedEmotes(saved.equipped)',
+                         'restoreTemporary()', 'local function releaseTrack()'):
+              assert marker in catalog, f'Missing UGC native playback safeguard: {marker}'
+          assert catalog.index('if item.marketplace == true then') < catalog.index(
+              'local animation = Instance.new("Animation")'), 'UGC must not reach raw animation loader'
+          assert 'o ID do item UGC não fornece uma sequência reproduzível' not in catalog
+          assert 'while track.Length <= 0' in catalog, 'Classic emote loading check missing'
+          assert 'local replacement = {}' in catalog, 'Temporary emote must not overwrite equipped slots'
           assert 'type(module.enable) == "function"' in core, 'Loader contract must be explicit'
           assert 'restoreButton:Activate()' not in core
           anim = Path('modules/anim_packs.lua').read_text(encoding='utf-8')
