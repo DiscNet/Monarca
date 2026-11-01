@@ -10,14 +10,12 @@ function module:enable()
         OutdoorAmbient = Lighting.OutdoorAmbient,
         Brightness = Lighting.Brightness,
         GlobalShadows = Lighting.GlobalShadows,
-        ClockTime = Lighting.ClockTime,
         ExposureCompensation = Lighting.ExposureCompensation,
     }
     Lighting.Ambient = Color3.fromRGB(210, 210, 210)
     Lighting.OutdoorAmbient = Color3.fromRGB(210, 210, 210)
     Lighting.Brightness = 2
     Lighting.GlobalShadows = false
-    Lighting.ClockTime = 12
     Lighting.ExposureCompensation = 0
 end
 
