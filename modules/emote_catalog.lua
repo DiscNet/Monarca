@@ -1,6 +1,8 @@
--- Monarca / Emote catalog v0.8.7
--- Curated R15 emote animations. Catalog IDs are references, NOT ownership bypass.
--- Sources: Roblox /e defaults and curated avatar marketplace asset IDs.
+-- Monarca / Emote catalog v0.8.8
+-- Curated R15 animation sequence IDs (not Marketplace item IDs).
+-- Catalog IDs from earlier versions are kept in catalogId for search only.
+-- Non-classic animation IDs cross-checked against Eazvy/Public-Scripts.
+-- Emote asset access and replication remain subject to Roblox restrictions.
 -- Playback uses the player's pre-existing server-created Animator.
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -14,49 +16,49 @@ local STATIC = {
     {name = "Dance 1", id = "507771019", group = "Clássicos", aliases = "danca dance"},
     {name = "Dance 2", id = "507776043", group = "Clássicos", aliases = "danca dance2"},
     {name = "Dance 3", id = "507777268", group = "Clássicos", aliases = "danca dance3"},
-    {name = "Point2", id = "3576823880", group = "Gratuitos", aliases = "apontar 2"},
-    {name = "Shrug", id = "3576968026", group = "Gratuitos", aliases = "ombros duvida"},
-    {name = "Hello", id = "3576686446", group = "Gratuitos", aliases = "ola acenar"},
-    {name = "Stadium", id = "3360686498", group = "Gratuitos", aliases = "estadio comemorar"},
-    {name = "Salute", id = "3360689775", group = "Gratuitos", aliases = "saudar continencia"},
-    {name = "Tilt", id = "3360692915", group = "Gratuitos", aliases = "inclinar"},
-    {name = "Applaud", id = "5915779043", group = "Gratuitos", aliases = "aplaudir palmas"},
-    {name = "Floating Aura", id = "79795305221612", group = "Catálogo", aliases = "flutuar aura"},
-    {name = "Monkey", id = "3716636630", group = "Catálogo", aliases = "macaco"},
-    {name = "Curtsy", id = "4646306583", group = "Catálogo", aliases = "reverencia"},
-    {name = "Godlike", id = "3823158750", group = "Catálogo", aliases = "deus"},
-    {name = "Helicopter", id = "110553756436163", group = "Catálogo", aliases = "helicoptero"},
-    {name = "Happy", id = "4849499887", group = "Catálogo", aliases = "feliz"},
-    {name = "Rat Dance", id = "83606297144428", group = "Catálogo", aliases = "rato"},
-    {name = "Sleep", id = "4689362868", group = "Catálogo", aliases = "dormir sono"},
-    {name = "Hero Landing", id = "5104377791", group = "Catálogo", aliases = "super heroi pouso"},
-    {name = "Shy", id = "3576717965", group = "Catálogo", aliases = "timido"},
-    {name = "Floss Dance", id = "5917570207", group = "Catálogo", aliases = "danca floss"},
-    {name = "Quiet Waves", id = "7466046574", group = "Catálogo", aliases = "acenar"},
-    {name = "Baby Dance", id = "4272484885", group = "Catálogo", aliases = "danca bebe"},
-    {name = "Top Rock", id = "3570535774", group = "Catálogo", aliases = "break dance"},
-    {name = "Bored", id = "5230661597", group = "Catálogo", aliases = "entediado"},
-    {name = "Take The L", id = "75633408126191", group = "Catálogo", aliases = "danca"},
-    {name = "Twirl", id = "3716633898", group = "Catálogo", aliases = "girar"},
-    {name = "Fashionable", id = "3576745472", group = "Catálogo", aliases = "moda pose"},
-    {name = "Line Dance", id = "4049646104", group = "Catálogo", aliases = "danca linha"},
-    {name = "Cower", id = "4940597758", group = "Catálogo", aliases = "medo"},
-    {name = "High Wave", id = "5915776835", group = "Catálogo", aliases = "acenar"},
-    {name = "Worm", id = "108956933782219", group = "Catálogo", aliases = "minhoca danca"},
-    {name = "Dolphin Dance", id = "5938365243", group = "Catálogo", aliases = "golfinho"},
-    {name = "Celebrate", id = "3994127840", group = "Catálogo", aliases = "celebrar"},
-    {name = "Side to Side", id = "3762641826", group = "Catálogo", aliases = "lado a lado"},
-    {name = "Dorky Dance", id = "4212499637", group = "Catálogo", aliases = "danca"},
-    {name = "Shuffle", id = "4391208058", group = "Catálogo", aliases = "danca shuffle"},
-    {name = "Fancy Feet", id = "3934988903", group = "Catálogo", aliases = "pes danca"},
-    {name = "Dizzy", id = "3934986896", group = "Catálogo", aliases = "tonto"},
-    {name = "Bodybuilder", id = "3994130516", group = "Catálogo", aliases = "musculos fisiculturista"},
-    {name = "Sad", id = "4849502101", group = "Catálogo", aliases = "triste"},
-    {name = "Break Dance", id = "5915773992", group = "Catálogo", aliases = "danca break"},
-    {name = "Samba", id = "6869813008", group = "Catálogo", aliases = "samba danca"},
-    {name = "Zombie", id = "4212496830", group = "Catálogo", aliases = "zumbi"},
-    {name = "Greatest", id = "3762654854", group = "Catálogo", aliases = "melhor"},
-    {name = "Haha", id = "4102315500", group = "Catálogo", aliases = "risada"},
+    {name = "Point2", id = "3344585679", group = "Gratuitos", aliases = "apontar 2", catalogId = "3576823880"},
+    {name = "Shrug", id = "3334392772", group = "Gratuitos", aliases = "ombros duvida", catalogId = "3576968026"},
+    {name = "Hello", id = "3344650532", group = "Gratuitos", aliases = "ola acenar", catalogId = "3576686446"},
+    {name = "Stadium", id = "3338055167", group = "Gratuitos", aliases = "estadio comemorar", catalogId = "3360686498"},
+    {name = "Salute", id = "3333474484", group = "Gratuitos", aliases = "saudar continencia", catalogId = "3360689775"},
+    {name = "Tilt", id = "3334538554", group = "Gratuitos", aliases = "inclinar", catalogId = "3360692915"},
+    {name = "Applaud", id = "5915693819", group = "Gratuitos", aliases = "aplaudir palmas", catalogId = "5915779043"},
+    {name = "Agree", id = "4841397952", group = "Extras", aliases = "concordar sim"},
+    {name = "Monkey", id = "3333499508", group = "Catálogo", aliases = "macaco", catalogId = "3716636630"},
+    {name = "Curtsy", id = "4555816777", group = "Catálogo", aliases = "reverencia", catalogId = "4646306583"},
+    {name = "Godlike", id = "3337994105", group = "Catálogo", aliases = "deus", catalogId = "3823158750"},
+    {name = "Confused", id = "4940561610", group = "Extras", aliases = "confuso duvida"},
+    {name = "Happy", id = "4841405708", group = "Catálogo", aliases = "feliz", catalogId = "4849499887"},
+    {name = "Air Guitar", id = "3695300085", group = "Extras", aliases = "guitarra ar"},
+    {name = "Sleep", id = "4686925579", group = "Catálogo", aliases = "dormir sono", catalogId = "4689362868"},
+    {name = "Hero Landing", id = "5104344710", group = "Catálogo", aliases = "super heroi pouso", catalogId = "5104377791"},
+    {name = "Shy", id = "3337978742", group = "Catálogo", aliases = "timido", catalogId = "3576717965"},
+    {name = "Floss Dance", id = "5917459365", group = "Catálogo", aliases = "danca floss", catalogId = "5917570207"},
+    {name = "Quiet Waves", id = "7465981288", group = "Catálogo", aliases = "acenar", catalogId = "7466046574"},
+    {name = "Baby Dance", id = "4265725525", group = "Catálogo", aliases = "danca bebe", catalogId = "4272484885"},
+    {name = "Top Rock", id = "3361276673", group = "Catálogo", aliases = "break dance", catalogId = "3570535774"},
+    {name = "Bored", id = "5230599789", group = "Catálogo", aliases = "entediado", catalogId = "5230661597"},
+    {name = "Jumping Cheer", id = "5895324424", group = "Extras", aliases = "pular celebrar"},
+    {name = "Twirl", id = "3334968680", group = "Catálogo", aliases = "girar", catalogId = "3716633898"},
+    {name = "Fashionable", id = "3333331310", group = "Catálogo", aliases = "moda pose", catalogId = "3576745472"},
+    {name = "Line Dance", id = "4049037604", group = "Catálogo", aliases = "danca linha", catalogId = "4049646104"},
+    {name = "Cower", id = "4940563117", group = "Catálogo", aliases = "medo", catalogId = "4940597758"},
+    {name = "High Wave", id = "5915690960", group = "Catálogo", aliases = "acenar", catalogId = "5915776835"},
+    {name = "Robot", id = "3338025566", group = "Extras", aliases = "robo robot"},
+    {name = "Dolphin Dance", id = "5918726674", group = "Catálogo", aliases = "golfinho", catalogId = "5938365243"},
+    {name = "Celebrate", id = "3338097973", group = "Catálogo", aliases = "celebrar", catalogId = "3994127840"},
+    {name = "Side to Side", id = "3333136415", group = "Catálogo", aliases = "lado a lado", catalogId = "3762641826"},
+    {name = "Dorky Dance", id = "4212455378", group = "Catálogo", aliases = "danca", catalogId = "4212499637"},
+    {name = "Shuffle", id = "4349242221", group = "Catálogo", aliases = "danca shuffle", catalogId = "4391208058"},
+    {name = "Fancy Feet", id = "3333432454", group = "Catálogo", aliases = "pes danca", catalogId = "3934988903"},
+    {name = "Dizzy", id = "3361426436", group = "Catálogo", aliases = "tonto", catalogId = "3934986896"},
+    {name = "Bodybuilder", id = "3333387824", group = "Catálogo", aliases = "musculos fisiculturista", catalogId = "3994130516"},
+    {name = "Sad", id = "4841407203", group = "Catálogo", aliases = "triste", catalogId = "4849502101"},
+    {name = "Break Dance", id = "5915648917", group = "Catálogo", aliases = "danca break", catalogId = "5915773992"},
+    {name = "Samba", id = "6869766175", group = "Catálogo", aliases = "samba danca", catalogId = "6869813008"},
+    {name = "Zombie", id = "4210116953", group = "Catálogo", aliases = "zumbi", catalogId = "4212496830"},
+    {name = "Greatest", id = "3338042785", group = "Catálogo", aliases = "melhor", catalogId = "3762654854"},
+    {name = "Haha", id = "3337966527", group = "Catálogo", aliases = "risada", catalogId = "4102315500"},
 }
 local currentTrack
 local currentHumanoid
@@ -219,7 +221,21 @@ function Catalog:play(item)
     end
     currentTrack = track
     currentHumanoid = humanoid
-    return true, "Reprodução solicitada; disponibilidade e replicação dependem do jogo e do asset."
+    -- Roblox may return an AnimationTrack and report IsPlaying=true even when
+    -- its requested asset cannot load. Length stays 0 in that case.
+    local deadline = os.clock() + 3
+    while track.Length <= 0 and os.clock() < deadline and
+        currentTrack == track and humanoid.Parent do
+        task.wait(0.1)
+    end
+    if currentTrack ~= track then
+        return false, "A reprodução foi interrompida."
+    end
+    if track.Length <= 0 then
+        releaseTrack()
+        return false, "Animação não carregada pelo Roblox. O ativo pode não estar disponível ou autorizado neste jogo."
+    end
+    return true, "Emote carregado. A replicação ainda depende do jogo."
 end
 
 function Catalog:isPlaying()
