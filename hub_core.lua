@@ -3188,7 +3188,7 @@ local function bootMonarca()
     bootStage = "Construindo Anim"
     do
         local animPage = pages.Anim
-        title(animPage, "Anim", "Pacotes de animação para personagem R15.")
+        title(animPage, "Anim", "Pacote completo ou animações individuais · R15.")
 
         local choices = {
             {id = "vampire", name = "Vampire Animation Pack", short = "Vampire"},
@@ -3335,10 +3335,11 @@ local function bootMonarca()
             UDim2.new(0.5, 6, 0, 10),
             UDim2.new(0.5, -15, 0, 30))
         local info = label(animPage,
-            "FE: usa o Animator original replicado. É necessário R15 e um Animate compatível.",
+            "R15: usa Animate/Animator existentes. Visibilidade para outros depende do jogo e dos assets.",
             11, theme.muted, 54)
         info.TextWrapped = true
         local busy = false
+        local resetOverrides = function() end
         local function updateInfo(textValue, success)
             info.Text = textValue
             info.TextColor3 = success and theme.accent or theme.muted
@@ -3355,6 +3356,7 @@ local function bootMonarca()
             if ok and worked then
                 selected, selectedLabel, selectedShort =
                     "default", "Padrão do mapa", "Padrão"
+                resetOverrides()
                 repaintSelection()
                 updateInfo("Padrão do mapa restaurado.", true)
                 status("Anim: pacote restaurado.")
@@ -3384,6 +3386,7 @@ local function bootMonarca()
                 busy = false
                 applyButton.Text = "APLICAR"
                 if ok and applied then
+                    resetOverrides()
                     updateInfo("Ativo: " .. requestLabel .. " · R15. Confirme FE com outro jogador.", true)
                     status("Anim: " .. requestLabel .. " aplicado ao seu personagem.")
                 else
@@ -3394,6 +3397,199 @@ local function bootMonarca()
             end)
         end)
         restoreButton.Activated:Connect(restoreSelected)
+
+        -- Mix-and-match editor: each movement can use a different pack.
+        -- Only one bounded picker opens at once, to keep the mobile list compact.
+        title(animPage, "Personalizar movimentos",
+            "Ex.: Idle Elder + Walk Cartoony. Herda o pacote base quando não definido.")
+        local movements = {
+            {id = "idle", name = "Idle · Parado"},
+            {id = "walk", name = "Walk · Andando"},
+            {id = "run", name = "Run · Correndo"},
+            {id = "jump", name = "Jump · Pulando"},
+            {id = "fall", name = "Fall · Caindo"},
+            {id = "climb", name = "Climb · Escalando"},
+            {id = "swim", name = "Swim · Nadando"},
+            {id = "swimidle", name = "Swim Idle · Na água"},
+        }
+        local overrides = {}
+        local refreshButtons = {}
+        local closePicker
+        local pickerChoices = {{id = "inherit", name = "Herdar pacote base", short = "Herdar"}}
+        for _, choice in ipairs(choices) do
+            table.insert(pickerChoices, choice)
+        end
+        for _, movement in ipairs(movements) do
+            local row = card(animPage, 47)
+            local movementLabel = label(row, movement.name, 12, theme.text, 31)
+            movementLabel.Position = UDim2.fromOffset(10, 7)
+            movementLabel.Size = UDim2.new(1, -174, 0, 31)
+            movementLabel.TextTruncate = Enum.TextTruncate.AtEnd
+            local moveButton = button(row, "Herdar  ▾",
+                UDim2.new(1, -166, 0, 7), UDim2.fromOffset(155, 31))
+            moveButton.TextSize = 12
+            moveButton.TextTruncate = Enum.TextTruncate.AtEnd
+            local picker = ordered(animPage, new("Frame", {
+                Name = "AnimPicker_" .. movement.id,
+                Size = UDim2.new(1, -2, 0, 0),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                ClipsDescendants = true,
+                Visible = false,
+            }, animPage))
+            local search = new("TextBox", {
+                Position = UDim2.fromOffset(6, 4),
+                Size = UDim2.new(1, -12, 0, 31),
+                BackgroundColor3 = theme.card,
+                TextColor3 = theme.text,
+                PlaceholderColor3 = theme.muted,
+                PlaceholderText = "Buscar animação...",
+                ClearTextOnFocus = false,
+                Text = "",
+                TextSize = 12,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Font = Enum.Font.Gotham,
+            }, picker)
+            rounded(search, 6)
+            new("UIPadding", {
+                PaddingLeft = UDim.new(0, 9),
+                PaddingRight = UDim.new(0, 9),
+            }, search)
+            local entries = new("ScrollingFrame", {
+                Position = UDim2.fromOffset(6, 42),
+                Size = UDim2.new(1, -12, 0, 145),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                ScrollBarThickness = 3,
+                ScrollBarImageColor3 = theme.accent,
+                ScrollingDirection = Enum.ScrollingDirection.Y,
+                CanvasSize = UDim2.fromOffset(0, 0),
+            }, picker)
+            new("UIListLayout", {
+                Padding = UDim.new(0, 4),
+                SortOrder = Enum.SortOrder.LayoutOrder,
+            }, entries)
+            local entryButtons = {}
+            local function selectedName()
+                local value = overrides[movement.id]
+                if not value then return "Herdar" end
+                for _, choice in ipairs(choices) do
+                    if choice.id == value then return choice.short end
+                end
+                return "Herdar"
+            end
+            local function paintButton()
+                moveButton.Text = selectedName() .. (picker.Visible and "  ▴" or "  ▾")
+                moveButton.BackgroundColor3 = picker.Visible and theme.primary or theme.card
+                moveButton.TextColor3 = picker.Visible and theme.background or theme.text
+            end
+            refreshButtons[movement.id] = paintButton
+            local function closeThis()
+                picker.Visible = false
+                picker.Size = UDim2.new(1, -2, 0, 0)
+                paintButton()
+            end
+            for j, choice in ipairs(pickerChoices) do
+                local entry = button(entries, choice.name,
+                    UDim2.new(), UDim2.new(1, -8, 0, 32))
+                entry.LayoutOrder = j
+                entry.TextXAlignment = Enum.TextXAlignment.Left
+                entry.TextTruncate = Enum.TextTruncate.AtEnd
+                entry.TextSize = 12
+                entryButtons[j] = entry
+                entry.Activated:Connect(function()
+                    if busy then return end
+                    overrides[movement.id] = choice.id ~= "inherit" and choice.id or nil
+                    closeThis()
+                    closePicker = nil
+                    search.Text = ""
+                end)
+            end
+            local function filterPicker()
+                local term = string.lower(search.Text)
+                local count = 0
+                for j, choice in ipairs(pickerChoices) do
+                    local show = term == ""
+                        or string.find(string.lower(choice.name), term, 1, true) ~= nil
+                        or string.find(choice.id, term, 1, true) ~= nil
+                    entryButtons[j].Visible = show
+                    if show then count = count + 1 end
+                end
+                entries.CanvasSize = UDim2.fromOffset(0, count * 36 + 4)
+                entries.CanvasPosition = Vector2.zero
+            end
+            connect(search:GetPropertyChangedSignal("Text"), filterPicker)
+            moveButton.Activated:Connect(function()
+                if busy then return end
+                local wasOpen = picker.Visible
+                if closePicker then closePicker() end
+                closePicker = nil
+                if not wasOpen then
+                    picker.Visible = true
+                    picker.Size = UDim2.new(1, -2, 0, 193)
+                    search.Text = ""
+                    filterPicker()
+                    closePicker = closeThis
+                end
+                paintButton()
+            end)
+            filterPicker()
+            paintButton()
+        end
+        resetOverrides = function()
+            for movement in pairs(overrides) do overrides[movement] = nil end
+            if closePicker then closePicker() end
+            closePicker = nil
+            for _, repaint in pairs(refreshButtons) do repaint() end
+        end
+        local mixActions = card(animPage, 52)
+        local mixApply = button(mixActions, "APLICAR MISTURA",
+            UDim2.fromOffset(9, 10), UDim2.new(0.5, -15, 0, 32), nil, true)
+        mixApply.TextSize = 12
+        local mixClear = button(mixActions, "LIMPAR CAMPOS",
+            UDim2.new(0.5, 6, 0, 10), UDim2.new(0.5, -15, 0, 32))
+        mixClear.TextSize = 12
+        local mixInfo = label(animPage,
+            "Pacote base acima + alterações individuais. Use APLICAR MISTURA para ativar.",
+            11, theme.muted, 53)
+        mixInfo.TextWrapped = true
+        mixClear.Activated:Connect(function()
+            if busy then return end
+            resetOverrides()
+            mixInfo.Text = "Campos limpos. A animação ativa não foi alterada."
+            mixInfo.TextColor3 = theme.muted
+        end)
+        mixApply.Activated:Connect(function()
+            if busy then return end
+            busy = true
+            local base = selected
+            local mixture = {}
+            for id, value in pairs(overrides) do mixture[id] = value end
+            mixApply.Text = "APLICANDO..."
+            task.spawn(function()
+                local ok, applied, reason = pcall(function()
+                    local module = loadAuxiliary("anim_packs")
+                    return module:enableMixed(base, mixture)
+                end)
+                if destroyed then
+                    local module = auxiliaryModules.anim_packs
+                    if module then pcall(module.disable, module) end
+                    return
+                end
+                busy = false
+                mixApply.Text = "APLICAR MISTURA"
+                if ok and applied then
+                    mixInfo.Text = "Mistura R15 aplicada. Teste com outro jogador para confirmar FE."
+                    mixInfo.TextColor3 = theme.accent
+                    status("Anim: movimentos personalizados aplicados.")
+                else
+                    local message = tostring(ok and reason or applied)
+                    mixInfo.Text = "Não foi possível aplicar: " .. message
+                    mixInfo.TextColor3 = theme.muted
+                    status("Anim: " .. message)
+                end
+            end)
+        end)
     end -- Anim page: release temporary UI locals.
 
     bootStage = "Construindo Settings e Visual"
