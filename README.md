@@ -1,6 +1,21 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.9**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.0**.
+
+## Aba Anim: pacote Vampire R15 — v0.8.0
+
+Nova aba **Anim** no menu, posicionada entre **Emote** e **666**. A primeira ferramenta é um seletor compacto de pacotes com duas opções: **Vampire Animation Pack** e **Padrão do mapa**. A opção Vampire aplica nove slots de movimento do catálogo oficial ao **Animate existente** no personagem R15, e **Restaurar** recupera os IDs anteriores sem alterar os scripts do jogo permanentemente.
+
+Pacote Vampire (Roblox bundle 33): **Idle1 1083445855**, **Idle2 1083450166**, **Walk 1083473930**, **Run 1083462077**, **Jump 1083455352**, **Fall 1083443587**, **Climb 1083439238**, **Swim 1083464683**, **SwimIdle 1083467779**. A documentação Roblox lista também o Idle alternativo 1088037547, não aplicado porque o `Animate` padrão geralmente possui somente dois slots de Idle.
+
+Implementação: `modules/anim_packs.lua` verifica `Humanoid.RigType == R15`, a presença de `Animate` compatível e a presença de um **Animator já existente**, no avatar real do usuário. Não cria `Animator` local, nem usa `Motor6D.Transform` nem clone local para reprodução FE. Desativa temporariamente `Animate`, substitui os IDs dos nove `Animation` filhos e reativa o script no estado anterior. Faz nova aplicação após respawn e restaura os IDs originais ao desligar/fechar o Hub.
+
+**FE:** segundo `Animator:LoadAnimation` da documentação oficial, `AnimationTrack` iniciado no cliente de seu próprio personagem pode ser replicado aos demais clientes quando o `Animator` já foi criado no servidor e replicado. A modificação dos slots locais faz com que o `Animate` nativo solicite e reproduza os clips no `Animator`; **não comprova FE no jogo real**, pois jogos podem substituir `Animate`, bloquear assets ou aplicar outro controlador. Verifique com outra conta no servidor. Não funciona com rig R6 nem enquanto o controle estiver em um clone local.
+
+Fontes:
+- Roblox Animation Using: https://create.roblox.com/docs/animation/using
+- Roblox Animator API: https://create.roblox.com/docs/reference/engine/classes/Animator/LoadAnimation
+- Vampire bundle: https://www.roblox.com/pt/bundles/33/Vampire-Animation-Pack
 
 ## Invisibilidade experimental mais estável — v0.7.9
 
