@@ -26,6 +26,12 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `modules/timecycle.lua` — ajuste local de horário (Dia/Noite/Padrão).
 - `modules/nofog.lua` — remoção local de neblina e névoa atmosférica.
 
+## Identidade visual
+
+O layout de Monarca v0.3 foi alinhado aos princípios do `kxlynn666/SkyNetApi`, especialmente ao `public/design-system-v15.css`: superfícies quase pretas (`#050506`/`#0b0b0d`), texto claro (`#f4f4f0`), divisórias cinza finas (`#252529`) e acento violeta discreto (`#8e82e8`). A navegação mantém quatro abas horizontais de texto com indicador inferior para preservar espaço no Android. Os controles de Player e Settings usam linhas separadoras, em vez de caixas repetidas. A curvatura externa de 8 px foi preservada conforme as diretrizes do Monarca.
+
+A tipografia usa Gotham, disponível no Roblox, como aproximação da hierarquia do site, que usa IBM Plex Sans. Não existe dependência entre os dois projetos: a referência é somente visual. A imagem roxa personalizada continua exclusiva do ícone flutuante e a abertura com barra de carregamento permanece.
+
 ## Funcionalidades
 
 - Janela arrastável (mouse/toque), minimizável e que se ajusta à resolução.
