@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.6.2 — recover runtime bootstrap and show launch errors
+-- Monarca Script Hub v0.6.3 — fluid 666 pose and local headless toggle
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -466,7 +466,7 @@ local function bootMonarca()
         Position = UDim2.fromOffset(26, 26),
         Size = UDim2.new(1, -110, 0, 12),
         BackgroundTransparency = 1,
-        Text = "VISUAL HUB  /  V0.6",
+        Text = "VISUAL HUB  /  V0.6.3",
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextSize = 9,
@@ -2034,6 +2034,88 @@ local function bootMonarca()
         connect(player.CharacterAdded, function()
             stopMystery()
         end)
+
+        -- 666 / </> : independent head visibility control.
+        -- This affects Head only; accessories and hair stay attached.
+        local headlessRow = card(mysteryPage, 59)
+        local headlessTitle = new("TextLabel", {
+            Name = "HeadlessLabel",
+            Position = UDim2.fromOffset(11, 8),
+            Size = UDim2.new(1, -112, 0, 24),
+            BackgroundTransparency = 1,
+            Text = "</>",
+            Font = Enum.Font.GothamBold,
+            TextSize = 17,
+            TextColor3 = theme.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        }, headlessRow)
+        local headlessSubtitle = new("TextLabel", {
+            Position = UDim2.fromOffset(11, 34),
+            Size = UDim2.new(1, -113, 0, 17),
+            BackgroundTransparency = 1,
+            Text = "Ocultar somente a cabeça",
+            TextSize = 10,
+            Font = Enum.Font.GothamMedium,
+            TextColor3 = theme.muted,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        }, headlessRow)
+        local headlessToggle = new("TextButton", {
+            Name = "HeadlessToggle",
+            Position = UDim2.new(1, -98, 0, 13),
+            Size = UDim2.fromOffset(86, 31),
+            BackgroundColor3 = theme.background,
+            TextColor3 = theme.text,
+            Text = "OFF",
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            AutoButtonColor = false,
+            BorderSizePixel = 0,
+        }, headlessRow)
+        rounded(headlessToggle, 2)
+        local headlessStroke = new("UIStroke", {
+            Color = theme.whiteLine,
+            Thickness = 1,
+            Transparency = 0.22,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        }, headlessToggle)
+        local headlessGlow = new("UIStroke", {
+            Color = theme.whiteLine,
+            Thickness = 3,
+            Transparency = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        }, headlessToggle)
+        local headlessActive = false
+        local function refreshHeadless()
+            headlessToggle.Text = headlessActive and "ON" or "OFF"
+            headlessToggle.BackgroundColor3 =
+                headlessActive and theme.primary or theme.background
+            headlessToggle.TextColor3 =
+                headlessActive and theme.background or theme.text
+            headlessStroke.Transparency = headlessActive and 0 or 0.22
+            headlessGlow.Transparency = headlessActive and 0.82 or 1
+        end
+        headlessToggle.Activated:Connect(function()
+            if headlessActive then
+                if auxiliaryModules.headless_local then
+                    pcall(auxiliaryModules.headless_local.disable,
+                        auxiliaryModules.headless_local)
+                end
+                headlessActive = false
+                status("</> desativado: cabeça restaurada.")
+            else
+                local ok, success, why = pcall(function()
+                    return loadAuxiliary("headless_local"):enable()
+                end)
+                headlessActive = ok and success == true
+                if headlessActive then
+                    status("</> ativado: cabeça oculta apenas para você.")
+                else
+                    status("Falha ao ocultar cabeça: " .. tostring(ok and why or success))
+                end
+            end
+            refreshHeadless()
+        end)
+        refreshHeadless()
     
     
     end
@@ -2383,7 +2465,7 @@ local function bootMonarca()
         if destroyed then return end
         stopAlvo()
         cleanupTargetTool()
-        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666"}) do
+        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
             end
