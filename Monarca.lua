@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.4.1 — stable target poses and third-person view
+-- Monarca Script Hub v0.5.0 — target tool, Fly and R6 emote
 -- Interface local. Os modulos sao carregados exclusivamente deste repositorio.
 local Services = {
     Players = game:GetService("Players"),
@@ -31,6 +31,7 @@ local defaults = {
     fieldOfView = 70,
     walkSpeed = 16,
     jumpPower = 50,
+    flySpeed = 40,
 }
 local settings = {}
 for k, v in pairs(defaults) do settings[k] = v end
@@ -77,8 +78,9 @@ if type(readfile) == "function" then
     end
 end
 settings.fieldOfView = math.clamp(settings.fieldOfView, 60, 110)
-settings.walkSpeed = math.clamp(settings.walkSpeed, 8, 32)
-settings.jumpPower = math.clamp(settings.jumpPower, 25, 100)
+settings.walkSpeed = math.clamp(settings.walkSpeed, 8, 160)
+settings.jumpPower = math.clamp(settings.jumpPower, 25, 500)
+settings.flySpeed = math.clamp(settings.flySpeed, 5, 160)
 
 local function new(class, props, parent)
     local object = Instance.new(class)
@@ -434,7 +436,7 @@ new("TextLabel", {
     Position = UDim2.fromOffset(26, 26),
     Size = UDim2.new(1, -110, 0, 12),
     BackgroundTransparency = 1,
-    Text = "VISUAL HUB  /  V0.4.1",
+    Text = "VISUAL HUB  /  V0.5",
     Font = Enum.Font.Gotham,
     TextColor3 = theme.muted,
     TextSize = 9,
@@ -588,9 +590,9 @@ end
 local pages, navButtons, navUnderlines = {}, {}, {}
 local currentTab = "Home"
 local function page(name)
-    -- Home retains its current compact profile composition.
-    -- Other tabs use a smaller control scale and larger section spacing.
+    -- Home retains its compact profile layout, while Player/Emote use tighter lists.
     local isHome = name == "Home"
+    local compactList = name == "Player" or name == "Emote"
     local scroller = new("ScrollingFrame", {
         Name = name,
         BackgroundTransparency = 1,
@@ -603,16 +605,16 @@ local function page(name)
     }, area)
     local stack = new("UIListLayout", {
         SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, isHome and 8 or 15),
+        Padding = UDim.new(0, isHome and 8 or (compactList and 7 or 15)),
     }, scroller)
     new("UIPadding", {
-        PaddingTop = UDim.new(0, isHome and 12 or 17),
+        PaddingTop = UDim.new(0, isHome and 12 or (compactList and 10 or 17)),
         PaddingLeft = UDim.new(0, isHome and 15 or 17),
         PaddingRight = UDim.new(0, isHome and 15 or 17),
-        PaddingBottom = UDim.new(0, isHome and 14 or 18),
+        PaddingBottom = UDim.new(0, isHome and 14 or (compactList and 12 or 18)),
     }, scroller)
     connect(stack:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-        scroller.CanvasSize = UDim2.fromOffset(0, stack.AbsoluteContentSize.Y + (isHome and 28 or 35))
+        scroller.CanvasSize = UDim2.fromOffset(0, stack.AbsoluteContentSize.Y + (isHome and 28 or (compactList and 18 or 35)))
     end)
     pages[name] = scroller
     return scroller
@@ -628,18 +630,18 @@ local function switch(name)
         end
     end
 end
-for index, name in ipairs({"Home", "Alvo", "Visual", "Player", "Settings"}) do
+for index, name in ipairs({"Home", "Alvo", "Visual", "Player", "Emote", "Settings"}) do
     page(name)
     local b = new("TextButton", {
         Name = "Tab" .. name,
-        Size = UDim2.new(0.2, -1, 0, NAV_HEIGHT),
+        Size = UDim2.new(1 / 6, -1, 0, NAV_HEIGHT),
         LayoutOrder = index,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         AutoButtonColor = false,
         Text = name,
         Font = Enum.Font.GothamMedium,
-        TextSize = 12,
+        TextSize = 11,
         TextColor3 = theme.muted,
         TextXAlignment = Enum.TextXAlignment.Center,
     }, sidebar)
@@ -962,6 +964,20 @@ local alvoSearch = new("TextBox", {
     TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 1,
 }, alvoSearchBox)
 
+-- Tool for selecting a player directly by tapping their character (mobile + PC).
+local grantTargetTool = ordered(alvo, new("TextButton", {
+    Name = "GrantTargetTool", Size = UDim2.new(1, 0, 0, 30),
+    BackgroundColor3 = theme.background,
+    Text = "OBTER FERRAMENTA DE ALVO",
+    TextColor3 = theme.text, TextSize = 11,
+    Font = Enum.Font.GothamBold,
+    AutoButtonColor = false, BorderSizePixel = 0,
+}, alvo))
+rounded(grantTargetTool, 2)
+new("UIStroke", {
+    Color = theme.whiteLine, Thickness = 1, Transparency = 0.38,
+    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+}, grantTargetTool)
 local matchesFrame = ordered(alvo, new("Frame", {
     Name = "AlvoMatches", Size = UDim2.new(1, 0, 0, 0),
     AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1,
@@ -1027,7 +1043,7 @@ local alvoFootnote = ordered(alvo, new("TextLabel", {
 }, alvo))
 local selectedPlayer, savedPose, savedCamera = nil, nil, nil
 local targetRespawnConnection = nil
-local modes = {Headsit=false, Follow=false, View=false, TP=false, Backpack=false}
+local modes = {Headsit=false, Follow=false, View=false, Backpack=false}
 local modeButtons = {}
 local rankedMatches = {}
 local hiddenMatches = true
@@ -1215,7 +1231,7 @@ local function setMode(name, enabled)
         if hum and own then pcall(function() hum:MoveTo(own.Position) end) end
     end
     if name=="Headsit" or name=="Backpack" or name=="Follow" then
-        for _,other in ipairs({"Headsit","Backpack","Follow","TP"}) do
+        for _,other in ipairs({"Headsit","Backpack","Follow"}) do
             modes[other]=false
         end
         restorePose()
@@ -1238,7 +1254,7 @@ local function setMode(name, enabled)
             restoreCamera()
             modes.View=false
         end
-    elseif name=="TP" and enabled then
+    elseif name=="TP" then
         for _,other in ipairs({"Headsit","Backpack","Follow"}) do
             modes[other]=false
         end
@@ -1247,9 +1263,8 @@ local function setMode(name, enabled)
         local their=targetParts()
         if own and their then
             own.CFrame=their.CFrame*CFrame.new(0,0,3.5)
-            modes.TP=true
+            status("Teletransportado para @" .. selectedPlayer.Name)
         else
-            modes.TP=false
             status("O alvo não está com o personagem disponível.")
         end
     else
@@ -1380,6 +1395,64 @@ connect(alvoSearch.FocusLost,function(entered)
         if #rankedMatches>0 then choosePlayer(rankedMatches[1].player) end
     end
 end)
+-- Tool activation uses the clicked character, not a typed player name.
+local targetTool
+local targetToolConnection
+local function cleanupTargetTool()
+    if targetToolConnection then targetToolConnection:Disconnect(); targetToolConnection = nil end
+    if targetTool and targetTool.Parent then targetTool:Destroy() end
+    targetTool = nil
+end
+local function playerAtTap()
+    local mouse = player:GetMouse()
+    local part = mouse and mouse.Target
+    if not part then
+        local cam = workspace.CurrentCamera
+        if not cam then return nil end
+        local p = Services.UserInputService:GetMouseLocation()
+        local ray = cam:ViewportPointToRay(p.X, p.Y)
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = player.Character and {player.Character} or {}
+        local hit = workspace:Raycast(ray.Origin, ray.Direction * 900, params)
+        part = hit and hit.Instance
+    end
+    while part and part ~= workspace do
+        if part:IsA("Model") and part:FindFirstChildOfClass("Humanoid") then
+            local target = Services.Players:GetPlayerFromCharacter(part)
+            if target and target ~= player then return target end
+        end
+        part = part.Parent
+    end
+    return nil
+end
+grantTargetTool.Activated:Connect(function()
+    local backpack = player:FindFirstChildOfClass("Backpack")
+        or player:WaitForChild("Backpack", 5)
+    if not backpack then status("Mochila não disponível.") return end
+    if targetTool and targetTool.Parent then
+        status("A ferramenta já está na mochila; equipe-a e toque em alguém.")
+        return
+    end
+    cleanupTargetTool()
+    local tool = new("Tool", {
+        Name = "Marcar Alvo", RequiresHandle = false, CanBeDropped = false,
+        ToolTip = "Equipe e toque em um jogador para selecioná-lo no Monarca.",
+    }, backpack)
+    targetTool = tool
+    targetToolConnection = tool.Activated:Connect(function()
+        if destroyed then return end
+        local candidate = playerAtTap()
+        if candidate then
+            choosePlayer(candidate)
+            status("Jogador marcado: @" .. candidate.Name)
+        else
+            status("Toque diretamente no personagem de outro jogador.")
+        end
+    end)
+    status("Ferramenta entregue: equipe e clique/toque em outro jogador.")
+end)
+
 for i,name in ipairs({"Headsit","Follow","View","TP","Backpack"}) do
     local b=new("TextButton",{
         Name="Action"..name,LayoutOrder=i,BackgroundColor3=theme.background,
@@ -1396,7 +1469,19 @@ for i,name in ipairs({"Headsit","Follow","View","TP","Backpack"}) do
         ApplyStrokeMode=Enum.ApplyStrokeMode.Border,
     },b)
     modeButtons[name]={button=b,stroke=stroke,glow=glow}
-    b.Activated:Connect(function() setMode(name,not modes[name]) end)
+    b.Activated:Connect(function()
+        if name == "TP" then
+            setMode("TP", true)
+            -- Momentary click feedback; the TP action never stays enabled.
+            b.BackgroundColor3 = theme.primary
+            b.TextColor3 = theme.background
+            task.delay(0.18, function()
+                if not destroyed and b.Parent then redrawModes() end
+            end)
+        else
+            setMode(name, not modes[name])
+        end
+    end)
 end
 redrawModes()
 showMatches()
@@ -1421,7 +1506,7 @@ connect(Services.Players.PlayerRemoving,function(leaving)
     if not hiddenMatches then showMatches() end
 end)
 connect(player.CharacterAdded,function()
-    for _,name in ipairs({"Headsit","Follow","Backpack","TP"}) do modes[name]=false end
+    for _,name in ipairs({"Headsit","Follow","Backpack"}) do modes[name]=false end
     restorePose()
     redrawModes()
 end)
@@ -1459,8 +1544,21 @@ local function stopAlvo()
     thumbVersion=thumbVersion+1
 end
 
+local auxiliaryModules = {}
+local function loadAuxiliary(name)
+    if auxiliaryModules[name] then return auxiliaryModules[name] end
+    local source = game:HttpGet(repository .. "modules/" .. name .. ".lua")
+    if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
+    local compiled, err = loadstring(source, "Monarca/" .. name)
+    if not compiled then error(err or "Módulo inválido.") end
+    local module = compiled()
+    assert(type(module) == "table" and type(module.enable) == "function"
+        and type(module.disable) == "function", "Módulo incompleto.")
+    auxiliaryModules[name] = module
+    return module
+end
 local playerPage = pages.Player
-title(playerPage, "Player", "Ajustes locais do personagem e da câmera.")
+title(playerPage, "Player", "Movimento, câmera e aparência do personagem.")
 local function applyPlayer()
     local cam = workspace.CurrentCamera
     if cam then pcall(function() cam.FieldOfView = settings.fieldOfView end) end
@@ -1482,24 +1580,122 @@ local _, paintFov = slider(playerPage, "Campo de visão (FOV)", 60, 110, setting
     applyPlayer()
     save()
 end)
-local _, paintWalk = slider(playerPage, "Velocidade local", 8, 32, settings.walkSpeed, function(v)
+local _, paintWalk = slider(playerPage, "Velocidade (até 10×)", 8, 160, settings.walkSpeed, function(v)
     settings.walkSpeed = v
     settings.playerCustomized = true
     playerAdjusted = true
     applyPlayer()
     save()
 end)
-local _, paintJump = slider(playerPage, "Força de salto", 25, 100, settings.jumpPower, function(v)
+local _, paintJump = slider(playerPage, "Pulo (até 10×)", 25, 500, settings.jumpPower, function(v)
     settings.jumpPower = v
     settings.playerCustomized = true
     playerAdjusted = true
     applyPlayer()
     save()
 end)
+
+-- Fly can be activated without reopening the panel, using touch and keyboard
+-- controls created by ContextActionService.
+local flyActive = false
+local flyRow = card(playerPage, 54)
+local flyTitle = new("TextLabel", {
+    Position = UDim2.fromOffset(10, 8), Size = UDim2.new(1, -113, 0, 21),
+    BackgroundTransparency = 1, Text = "Fly",
+    TextSize = 13, Font = Enum.Font.GothamMedium,
+    TextColor3 = theme.text, TextXAlignment = Enum.TextXAlignment.Left,
+}, flyRow)
+local flyLabel = new("TextLabel", {
+    Position = UDim2.fromOffset(10, 29), Size = UDim2.new(1, -113, 0, 18),
+    BackgroundTransparency = 1, Text = "Voo local",
+    TextSize = 11, Font = Enum.Font.Gotham,
+    TextColor3 = theme.muted, TextXAlignment = Enum.TextXAlignment.Left,
+}, flyRow)
+local flyToggle = button(flyRow, "OFF", UDim2.new(1, -91, 0, 12),
+    UDim2.fromOffset(80, 28))
+local function repaintFly()
+    flyToggle.Text = flyActive and "ON" or "OFF"
+    flyToggle.BackgroundColor3 = flyActive and theme.primary or theme.background
+    flyToggle.TextColor3 = flyActive and theme.background or theme.text
+end
+flyToggle.Activated:Connect(function()
+    if flyActive then
+        local mod = auxiliaryModules.player_fly
+        if mod then pcall(mod.disable, mod) end
+        flyActive = false
+        status("Fly desativado.")
+    else
+        local ok, success, why = pcall(function()
+            local mod = loadAuxiliary("player_fly")
+            mod:setSpeed(settings.flySpeed)
+            return mod:enable()
+        end)
+        flyActive = ok and success == true
+        if flyActive then status("Fly ativado: use SUBIR/DESCER.")
+        else status("Falha no Fly: " .. tostring(ok and why or success)) end
+    end
+    repaintFly()
+end)
+repaintFly()
+local _, paintFly = slider(playerPage, "Velocidade do Fly", 5, 160, settings.flySpeed, function(v)
+    settings.flySpeed = v
+    if auxiliaryModules.player_fly then auxiliaryModules.player_fly:setSpeed(v) end
+    save()
+end)
+
+-- R6/R15 is a real server-side respawn operation. These buttons send a request
+-- ONLY if the experience explicitly installs a supported RemoteEvent.
+local rigStatus = ordered(playerPage, new("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 19),
+    BackgroundTransparency = 1, Text = "Corpo atual: verificando...",
+    TextSize = 11, Font = Enum.Font.GothamMedium,
+    TextColor3 = theme.muted, TextXAlignment = Enum.TextXAlignment.Left,
+}, playerPage))
+local rigRow = ordered(playerPage, new("Frame", {
+    Size = UDim2.new(1, 0, 0, 36), BackgroundTransparency = 1,
+}, playerPage))
+local rigButtons = {}
+local function updateRigUI()
+    local char = player.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local rig = hum and hum.RigType.Name or "Desconhecido"
+    rigStatus.Text = "Corpo atual: " .. rig .. "  •  R6 / R15"
+    for name, b in pairs(rigButtons) do
+        b.BackgroundColor3 = name == rig and theme.primary or theme.background
+        b.TextColor3 = name == rig and theme.background or theme.text
+    end
+end
+for i, rig in ipairs({"R6","R15"}) do
+    local b = button(rigRow, rig, UDim2.new((i - 1) * .5, i == 1 and 0 or 5, 0, 2),
+        UDim2.new(.5, -5, 0, 30))
+    rounded(b, 2)
+    new("UIStroke", {
+        Color = theme.whiteLine, Thickness = 1,
+        Transparency = .26, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, b)
+    rigButtons[rig] = b
+    b.Activated:Connect(function()
+        local rep = game:GetService("ReplicatedStorage")
+        local service = rep:FindFirstChild("MonarcaRigSwitch")
+        if not service or not service:IsA("RemoteEvent") then
+            status("Troca R6/R15 exige suporte do servidor desta experiência.")
+            return
+        end
+        service:FireServer(rig)
+        status("Troca para " .. rig .. " solicitada ao servidor.")
+    end)
+end
+updateRigUI()
 local resetPlayer = card(playerPage, 49)
-button(resetPlayer, "RESTAURAR PADRÕES", UDim2.fromOffset(10, 10), UDim2.new(1, -20, 0, 29), function()
-    settings.fieldOfView, settings.walkSpeed, settings.jumpPower = 70, 16, 50
-    paintFov(70); paintWalk(16); paintJump(50)
+button(resetPlayer, "RESTAURAR PADRÕES", UDim2.fromOffset(10, 10),
+    UDim2.new(1, -20, 0, 29), function()
+    if flyActive and auxiliaryModules.player_fly then
+        pcall(auxiliaryModules.player_fly.disable, auxiliaryModules.player_fly)
+        flyActive = false
+        repaintFly()
+    end
+    settings.fieldOfView, settings.walkSpeed, settings.jumpPower, settings.flySpeed = 70, 16, 50, 40
+    paintFov(70); paintWalk(16); paintJump(50); paintFly(40)
     settings.playerCustomized = false
     playerAdjusted = false
     applyPlayer()
@@ -1507,9 +1703,65 @@ button(resetPlayer, "RESTAURAR PADRÕES", UDim2.fromOffset(10, 10), UDim2.new(1,
     status("Controles do Player restaurados.")
 end, true)
 connect(player.CharacterAdded, function()
+    if flyActive and auxiliaryModules.player_fly then
+        pcall(auxiliaryModules.player_fly.disable, auxiliaryModules.player_fly)
+        flyActive = false
+        repaintFly()
+    end
     task.delay(0.8, function()
-        if not destroyed and playerAdjusted then applyPlayer() end
+        if destroyed then return end
+        updateRigUI()
+        if playerAdjusted then applyPlayer() end
     end)
+end)
+-- Emote: original procedural R6 zombie walk, no external animation asset.
+local emotePage = pages.Emote
+title(emotePage, "Emote", "Animações locais para seu personagem.")
+local zombieRow = card(emotePage, 63)
+local zombieTitle = new("TextLabel", {
+    Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -94, 0, 22),
+    BackgroundTransparency = 1, Text = "Zumbi andando",
+    TextSize = 13, Font = Enum.Font.GothamBold,
+    TextColor3 = theme.text, TextXAlignment = Enum.TextXAlignment.Left,
+}, zombieRow)
+new("TextLabel", {
+    Position = UDim2.fromOffset(10, 31), Size = UDim2.new(1, -94, 0, 20),
+    BackgroundTransparency = 1, Text = "Animação procedural • R6",
+    TextSize = 11, Font = Enum.Font.Gotham,
+    TextColor3 = theme.muted, TextXAlignment = Enum.TextXAlignment.Left,
+}, zombieRow)
+local zombieButton = button(zombieRow, "ATIVAR",
+    UDim2.new(1, -85, 0, 17), UDim2.fromOffset(76, 29))
+local zombieActive = false
+local function repaintZombie()
+    zombieButton.Text = zombieActive and "PARAR" or "ATIVAR"
+    zombieButton.BackgroundColor3 = zombieActive and theme.primary or theme.background
+    zombieButton.TextColor3 = zombieActive and theme.background or theme.text
+end
+zombieButton.Activated:Connect(function()
+    if zombieActive then
+        if auxiliaryModules.zombie_r6 then
+            pcall(auxiliaryModules.zombie_r6.disable, auxiliaryModules.zombie_r6)
+        end
+        zombieActive = false
+        status("Emote encerrado.")
+    else
+        local ok, enabled, err = pcall(function()
+            return loadAuxiliary("zombie_r6"):enable()
+        end)
+        zombieActive = ok and enabled == true
+        if zombieActive then status("Zumbi andando ativado.")
+        else status("Emote: " .. tostring(ok and err or enabled)) end
+    end
+    repaintZombie()
+end)
+repaintZombie()
+connect(player.CharacterAdded, function()
+    if auxiliaryModules.zombie_r6 then
+        pcall(auxiliaryModules.zombie_r6.disable, auxiliaryModules.zombie_r6)
+    end
+    zombieActive = false
+    repaintZombie()
 end)
 
 local settingsPage = pages.Settings
@@ -1853,6 +2105,12 @@ end)
 local function destroy()
     if destroyed then return end
     stopAlvo()
+    cleanupTargetTool()
+    for _, name in ipairs({"player_fly", "zombie_r6"}) do
+        if auxiliaryModules[name] then
+            pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
+        end
+    end
     disableAll()
     destroyed = true
     for _, connection in ipairs(connections) do connection:Disconnect() end
