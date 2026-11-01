@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.1**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.2**.
 
 ## Executar
 
@@ -114,6 +114,22 @@ Módulos atualizados entram em vigor depois de desligar/ligar o módulo ou atual
 ## Correção de inicialização v0.6.1
 
 O script principal ultrapassou o limite de 200 variáveis locais por função do compilador Luau quando a aba 666 foi adicionada. As inicializações de Home e de Emote/666 passaram a ficar em funções isoladas, reduzindo o número de variáveis locais simultâneas na inicialização sem remover recursos. O workflow agora compila todos os arquivos `.lua` com o compilador oficial do Luau (além da análise de sintaxe), para detectar limites de registradores nas próximas atualizações. A compilação não substitui um teste interativo no Roblox.
+
+## Correção de inicialização v0.6.2
+
+Ao não aparecer nada após executar, a causa pode ser um erro em tempo de execução ou a interface ter sido anexada a um `Parent` vazio. A v0.6.2 monta primeiro no `PlayerGui`, verifica que a interface foi realmente anexada, protege a inicialização com `xpcall`, apresenta um aviso **MonarcaStartupError** na tela com a etapa e o erro, e desbloqueia o painel caso a animação inicial falhe ou demore mais de 9 segundos. Os recursos das sete abas continuam disponíveis, incluindo **666**. A execução visual dentro do Roblox ainda depende de um teste real.
+
+Se estiver testando uma versão em cache, execute com uma consulta diferente a cada tentativa:
+
+```lua
+local address = "https://raw.githubusercontent.com/DiscNet/Monarca/main/Monarca.lua"
+local source = game:HttpGet(address .. "?v=" .. tostring(os.time()))
+local chunk, err = loadstring(source)
+assert(chunk, err)
+chunk()
+```
+
+Se um painel de erro aparecer, envie o conteúdo para identificar a etapa exata da falha.
 
 ## Limites e testes
 
