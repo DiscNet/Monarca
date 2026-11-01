@@ -101,11 +101,11 @@ jobs:
               'werewolf', 'zombie'
           )
           for name in expected:
-              assert re.search(r'^    ' + name + r' = \\{', anim, re.M), f'Missing R15 pack: {name}'
+              assert re.search(r'^    ' + name + r' = \{', anim, re.M), f'Missing R15 pack: {name}'
               assert ('id = "' + name + '", name = "') in core, f'Missing UI pack: {name}'
           assert anim.count('title = "') == len(expected)
           assert 'local previous = PRESETS[currentPreset]' in anim, 'Restore must use selected preset'
-          assert 'restoreCurrent()\\n    currentPreset = "default"' in anim
+          assert 'restoreCurrent()\n    currentPreset = "default"' in anim
           for marker in ('Name = "AnimationSearch"', 'Name = "AnimationPackList"',
                          'local function filterChoices()', 'local requestPreset, requestLabel = selected, selectedLabel',
                          'end -- Anim page: release temporary UI locals.'):
