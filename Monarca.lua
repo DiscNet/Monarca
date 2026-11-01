@@ -1029,7 +1029,7 @@ local selectedPlayer, savedPose, savedCamera = nil, nil, nil
 local modes = {Headsit=false, Follow=false, View=false, TP=false, Backpack=false}
 local modeButtons = {}
 local rankedMatches = {}
-local hiddenMatches = false
+local hiddenMatches = true
 local thumbVersion = 0
 local tickFollow, tickDistance = 0, 0
 local runService = game:GetService("RunService")
@@ -1082,6 +1082,12 @@ local function redrawModes()
     end
 end
 local function resetModes()
+    if modes.Follow then
+        local char = player.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local ownRoot = root(char)
+        if hum and ownRoot then pcall(function() hum:MoveTo(ownRoot.Position) end) end
+    end
     for name in pairs(modes) do modes[name] = false end
     restorePose()
     restoreCamera()
@@ -1091,6 +1097,13 @@ local function setMode(name, enabled)
     if enabled and not selectedPlayer then
         status("Selecione um jogador primeiro.")
         return
+    end
+    -- Stop the last MoveTo command whenever the follow mode is replaced.
+    if modes.Follow and (name ~= "Follow" or not enabled) then
+        local char = player.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local ownRoot = root(char)
+        if hum and ownRoot then pcall(function() hum:MoveTo(ownRoot.Position) end) end
     end
     if name == "Headsit" or name == "Backpack" or name == "Follow" then
         for _, other in ipairs({"Headsit", "Backpack", "Follow", "TP"}) do
