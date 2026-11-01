@@ -62,7 +62,7 @@ jobs:
           assert main.index('gui.Parent = parent') < main.index('game:HttpGet(repository')
           assert 'local ok, failure = xpcall(bootMonarca' in core
           assert core.strip().endswith('return ok, failure')
-          assert 'hub_core.lua?v=0.8.6-' in main, 'Old core can be cached'
+          assert 'hub_core.lua?v=0.8.7-' in main, 'Old core can be cached'
           for marker in (
               'end -- Player/Emote/666 block: release its many UI locals.',
               'end -- Settings + Visual block: release temporary UI registers.',
@@ -127,6 +127,7 @@ jobs:
           assert 'Name = "EmoteCatalogPicker"' in core
           assert 'Name = "EmotePlay"' in core and 'Name = "EmoteStop"' in core
           assert 'initializeCatalogUI()' in core
+          assert 'local opened, loading, playing = true, false, false' in core, 'List must be initially visible'
           assert 'loadAuxiliary("emote_catalog"):getCatalog()' in core
           assert 'loadAuxiliary("emote_catalog"):play(choice)' in core
           assert '"antifling", "emote_catalog", "server_invisibility"' in core
@@ -137,13 +138,15 @@ jobs:
           assert len(ids) == 50, f'Expected 50 curated emotes, got {len(ids)}'
           assert len(set(ids)) == len(ids), 'Duplicate catalog emote ID'
           for feature in ('function Catalog:getCatalog()', 'function Catalog:play(item)',
+                          'function Catalog:enable()', 'self:enable()',
                           'function Catalog:stop()', 'function Catalog:disable()',
                           'humanoid:GetAppliedDescription()', 'description:GetEmotes()',
                           'humanoid:PlayEmoteAsync(item.nativeName)',
                           'animator:LoadAnimation(animation)', 'Enum.HumanoidRigType.R15',
                           'characterConnection:Disconnect()'):
               assert feature in catalog, f'Missing emote behavior: {feature}'
-          assert 'Instance.new("Animator")' not in catalog, 'Must use server-created Animator'
+          assert 'Instance.new("Animator")' not in catalog
+          assert 'type(module.enable) == "function"' in core, 'Loader contract must be explicit', 'Must use server-created Animator'
           assert 'restoreButton:Activate()' not in core
           anim = Path('modules/anim_packs.lua').read_text(encoding='utf-8')
           import re
