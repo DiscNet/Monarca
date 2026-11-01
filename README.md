@@ -1,6 +1,16 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.5**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.6**.
+
+## Aba Emote — Catálogo com busca (v0.8.6)
+
+A aba **Emote** agora possui um **catálogo de 50 emotes de referência** do Roblox (7 clássicos, 7 gratuitos do Marketplace e 36 do catálogo), além dos emotes encontrados na `HumanoidDescription` do avatar atual. A ferramenta tem um seletor expansível com **busca por nome, apelido em português, categoria ou ID**, lista com rolagem, indicação do escolhido e botões **REPRODUZIR**, **PARAR** e **ATUALIZAR**.
+
+O catálogo está em `modules/emote_catalog.lua` e é carregado do próprio GitHub, sem novas dependências. O emote R6 de zumbi continua disponível abaixo, separado. A reprodução foi projetada para R15 e tenta usar `Humanoid:PlayEmoteAsync` para emotes do avatar, recorrendo a `Animator:LoadAnimation` com o `Animator` original nos outros casos. O script não cria `Animator` local nem promete permitir emotes pagos não possuídos.
+
+**Limites:** pesquisar um item não concede sua posse. IDs podem existir no catálogo e ainda assim não ser reproduzíveis no jogo, por permissões, disponibilidade do asset ou comportamento próprio da experiência. A replicação para outros jogadores também depende do `Animator` e das permissões. O controle **PARAR** encerra o emote iniciado pelo próprio módulo; trocar de personagem e fechar o hub limpam a animação ativa e as conexões.
+
+Fontes para identificação de emotes: [ajuda oficial do Roblox](https://en.help.roblox.com/hc/pt-br/articles/203314300-Sistema-de-Anima%C3%A7%C3%A3o-Emotes), [documentação Humanoid](https://create.roblox.com/docs/reference/engine/classes/Humanoid), [Animator](https://create.roblox.com/docs/reference/engine/classes/Animator) e [catálogo de IDs de emotes](https://rblxdb.com/emotes).
 
 ## Aba 666 — Fling em servidores públicos e privados (v0.8.5)
 
