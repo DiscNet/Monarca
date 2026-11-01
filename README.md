@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.2**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.3**.
 
 ## Executar
 
@@ -27,7 +27,8 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `modules/nofog.lua` — remoção local de neblina e névoa atmosférica.
 - `modules/player_fly.lua` — voo local com velocidade de 5–160 studs/s, controle analógico de movimento e comandos para subir/descer.
 - `modules/zombie_r6.lua` — emote R6 corrigido: braços à frente, pernas alternadas no plano de caminhada; reprodução FE por animação publicada quando autorizada, ou alternativa local.
-- `modules/pose_666.lua` — animação procedural local exclusiva do R6: braços projetados à frente e para dentro, postura curvada, cabeça levantada, caminhada cambaleante e idle cansado.
+- `modules/pose_666.lua` — animação R6 local aprimorada: postura menos inclinada, braços soltos, idle com respiração e oscilação, caminhada com passos mais expressivos e transição idle/walk gradual.
+- `modules/headless_local.lua` — controle independente `</>`: oculta apenas `Head` e decals/texturas do rosto no cliente por `LocalTransparencyModifier`, mantendo cabelos/acessórios e restaurando tudo ao desativar.
 - `server/MonarcaRigSwitch.server.lua` — integração **opcional** para experiências próprias; cria um novo personagem R6/R15 no servidor e retorna sucesso/erro ao painel.
 - `studio/GenerateZombieR6Animation.lua` — gera no Roblox Studio um `KeyframeSequence` original para publicação como asset de animação.
 
@@ -65,7 +66,8 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - **Player**: FOV e controles de velocidade `8–160` (10× o padrão 16) e pulo `25–500` (10× o padrão 50). Painel com menor espaçamento entre sliders.
 - **Fly**: velocidade ajustável de 5 a 160, toggle no Player, comandos SUBIR/DESCER na tela do celular e Space/Ctrl no teclado. Usa `LinearVelocity`, pode ser limitado pelo jogo e é desativado ao entrar em modos de Alvo.
 - **R6/R15**: o painel só envia uma solicitação quando a experiência fornece `ReplicatedStorage.MonarcaRigSwitch`. O script `server/MonarcaRigSwitch.server.lua`, instalado em **ServerScriptService de um jogo próprio**, cria o novo modelo R6 ou R15 com `Players:CreateHumanoidModelFromDescriptionAsync`, troca `Player.Character`, destrói o modelo antigo e responde ao cliente com o resultado. Esse processo recria o personagem de verdade, disparando `CharacterAdded`. A implementação precisa ser testada com os scripts e regras de avatar da experiência. Em jogos de terceiros sem essa integração, a troca não funciona. Alterar só `Humanoid.RigType` pode matar o personagem.
-- **Aba 666**: contém uma única opção alternável chamada **?** (sem nomes extras). A animação R6 muda o alinhamento dos ombros para apontar braços à frente e ligeiramente para dentro, inclina o tronco, ergue a cabeça, mantém um idle de respiração cansada e dá passos arrastados durante o movimento. Usa `Motor6D.Transform` e é **somente local**, não FE. Ao iniciar ?, desativa o Zombie; ao iniciar Zombie, desativa ?. O botão passa de preto/contorno branco para branco/texto preto quando ativo.
+- **Aba 666 — ?**: animação R6 local com idle mais natural, respiração perceptível (tronco, ombros e cabeça), postura menos inclinada, braços soltos, passadas mais amplas, elevação alternada dos pés e balanço de quadril. As poses são interpoladas com suavização exponencial e `CFrame:Lerp` para passar de idle a walk e vice-versa. O emote Zombie permanece mutuamente exclusivo. Ainda utiliza `Motor6D.Transform` e não é FE.
+- **Aba 666 — </>**: novo botão alternável imediatamente abaixo de **?**, independente da animação. Quando ativo, torna somente a cabeça invisível localmente usando `LocalTransparencyModifier = 1`, ocultando também decal/textura do rosto, mas **não** remove cabelo, chapéus, acessórios, `Humanoid` ou juntas. Continua no respawn enquanto ativo; ao desativar ou fechar o Hub, restaura a transparência original. Outros jogadores continuam enxergando a cabeça.
 - **Navegação responsiva**: com sete abas, a faixa superior pode ser rolada horizontalmente no Android. Cada aba mantém 67 px de largura e o indicador de seleção branco. A rolagem automática procura manter a aba ativa visível.
 - **Emote — Zumbi andando R6**: articulações dos ombros e quadris usam o eixo local de pitch correto, detectado pelo `Motor6D.C0/C1`; braços ficam aproximadamente 86° à frente e pernas dão passadas alternadas para frente/trás, com elevação de pés e oscilação sutil. A movimentação depende do personagem estar realmente caminhando e requer um **R6 real**.
 - **FE quando permitido**: insira, na aba Emote, o ID de uma animação R6 publicada, autorizada para a experiência. O Hub usa o `Animator` do personagem (criado pelo servidor) e reproduz um `AnimationTrack`. Esse tipo de animação normalmente é replicado a outras pessoas. Sem ID/permissão ou se a animação não carregar, o modo procedural continua disponível, mas é **somente local** — `Motor6D.Transform` não replica.
