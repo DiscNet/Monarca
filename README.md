@@ -1,6 +1,12 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.6**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.7**.
+
+## Correção dos emotes não exibidos — v0.8.7
+
+A versão 0.8.6 falhava ao carregar o catálogo: `loadAuxiliary()` exige que todo módulo implemente tanto `enable()` quanto `disable()`, mas `modules/emote_catalog.lua` não possuía `enable()`. O resultado era a mensagem de falha de carregamento e nenhuma opção apresentada. O módulo agora cumpre o contrato e reconecta o listener de respawn ao começar a reproduzir emotes, mantendo a limpeza ao desligar.
+
+Além disso, o seletor de emotes começa **expandido**, com o campo de busca e os resultados visíveis ao abrir a aba **Emote**, em vez de exigir um toque extra para encontrar a lista. Os 50 emotes predefinidos continuam listados mesmo que o avatar não possua emotes equipados (com as limitações de reprodução/posse já descritas).
 
 ## Aba Emote — Catálogo com busca (v0.8.6)
 
