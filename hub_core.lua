@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.8.0 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.8.1 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -124,7 +124,7 @@ local function bootMonarca()
         local ok, moduleOrError = pcall(function()
             if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
             local source = game:HttpGet(repository .. "modules/" .. name
-                .. ".lua?v=0.8.0-" .. tostring(os.time()))
+                .. ".lua?v=0.8.1-" .. tostring(os.time()))
             if type(source) ~= "string" or #source < 20 then
                 error("Resposta vazia ao carregar " .. name)
             end
@@ -3190,65 +3190,142 @@ local function bootMonarca()
         local animPage = pages.Anim
         title(animPage, "Anim", "Pacotes de animação para personagem R15.")
 
-        local chooseRow = card(animPage, 66)
-        cardText(chooseRow, "Pacote", "Escolha um pacote da lista.", 140)
-        local chooseButton = button(
-            chooseRow, "VAMPIRE  ▾",
-            UDim2.new(1, -144, 0, 17), UDim2.fromOffset(132, 31))
         local choices = {
-            { id = "vampire", name = "Vampire Animation Pack", short = "VAMPIRE" },
-            { id = "default", name = "Padrão do mapa", short = "PADRÃO" },
+            {id = "vampire", name = "Vampire Animation Pack", short = "Vampire"},
+            {id = "astronaut", name = "Astronaut Animation Pack", short = "Astronaut"},
+            {id = "bubbly", name = "Bubbly Animation Pack", short = "Bubbly"},
+            {id = "cartoony", name = "Cartoony Animation Pack", short = "Cartoony"},
+            {id = "elder", name = "Elder Animation Pack", short = "Elder"},
+            {id = "knight", name = "Knight Animation Pack", short = "Knight"},
+            {id = "levitation", name = "Levitation Animation Pack", short = "Levitation"},
+            {id = "mage", name = "Mage Animation Pack", short = "Mage"},
+            {id = "ninja", name = "Ninja Animation Pack", short = "Ninja"},
+            {id = "pirate", name = "Pirate Animation Pack", short = "Pirate"},
+            {id = "robot", name = "Robot Animation Pack", short = "Robot"},
+            {id = "rthro", name = "Rthro Animation Pack", short = "Rthro"},
+            {id = "stylish", name = "Stylish Animation Pack", short = "Stylish"},
+            {id = "superhero", name = "Superhero Animation Pack", short = "Superhero"},
+            {id = "toy", name = "Toy Animation Pack", short = "Toy"},
+            {id = "werewolf", name = "Werewolf Animation Pack", short = "Werewolf"},
+            {id = "zombie", name = "Zombie Animation Pack", short = "Zombie"},
+            {id = "default", name = "Padrão do mapa", short = "Padrão"},
         }
-        local selected = "vampire"
-        local selectedLabel = "Vampire Animation Pack"
+        local selected, selectedLabel, selectedShort =
+            "vampire", "Vampire Animation Pack", "Vampire"
         local selectedDetail
+        local chooseRow = card(animPage, 65)
+        cardText(chooseRow, "Pacote", "Selecione na lista.", 176)
+        local chooseButton = button(chooseRow, "Vampire  ▾",
+            UDim2.new(1, -172, 0, 15), UDim2.fromOffset(160, 32))
+        chooseButton.TextSize = 12
+        chooseButton.TextTruncate = Enum.TextTruncate.AtEnd
+
+        -- Searchable list within a bounded dropdown: no huge vertical panel.
         local drop = ordered(animPage, new("Frame", {
             Name = "AnimationChoices",
-            Size = UDim2.new(1, -2, 0, 76),
+            Size = UDim2.new(1, -2, 0, 0),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
+            ClipsDescendants = true,
             Visible = false,
         }, animPage))
+        local searchBox = new("TextBox", {
+            Name = "AnimationSearch",
+            Position = UDim2.fromOffset(6, 5),
+            Size = UDim2.new(1, -12, 0, 31),
+            BackgroundColor3 = theme.card,
+            BackgroundTransparency = 0.08,
+            TextColor3 = theme.text,
+            PlaceholderColor3 = theme.muted,
+            PlaceholderText = "Buscar pacote...",
+            ClearTextOnFocus = false,
+            Text = "",
+            Font = Enum.Font.Gotham,
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        }, drop)
+        rounded(searchBox, 6)
+        new("UIPadding", {
+            PaddingLeft = UDim.new(0, 9),
+            PaddingRight = UDim.new(0, 9),
+        }, searchBox)
+        local list = new("ScrollingFrame", {
+            Name = "AnimationPackList",
+            Position = UDim2.fromOffset(6, 43),
+            Size = UDim2.new(1, -12, 0, 162),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = theme.accent,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            CanvasSize = UDim2.fromOffset(0, 0),
+        }, drop)
+        local layout = new("UIListLayout", {
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, 4),
+        }, list)
         local dropdownOpened = false
+        local buttons = {}
         local function repaintSelection()
-            chooseButton.Text = (selected == "default" and "PADRÃO" or "VAMPIRE")
-                .. (dropdownOpened and "  ▴" or "  ▾")
+            chooseButton.Text = selectedShort .. (dropdownOpened and "  ▴" or "  ▾")
             chooseButton.BackgroundColor3 = dropdownOpened and theme.primary or theme.card
             chooseButton.TextColor3 = dropdownOpened and theme.background or theme.text
+            drop.Size = UDim2.new(1, -2, 0, dropdownOpened and 211 or 0)
             drop.Visible = dropdownOpened
+            if selectedDetail then
+                selectedDetail.Text = selected == "default"
+                    and "Animações originais do personagem."
+                    or (selectedLabel .. " · R15 · 9 movimentos")
+            end
         end
         for i, choice in ipairs(choices) do
-            local itemButton = button(
-                drop, choice.name,
-                UDim2.fromOffset(5, (i - 1) * 38),
-                UDim2.new(1, -10, 0, 34))
-            itemButton.Font = Enum.Font.GothamMedium
-            itemButton.TextXAlignment = Enum.TextXAlignment.Left
-            itemButton.TextSize = 12
-            itemButton.Activated:Connect(function()
-                selected, selectedLabel = choice.id, choice.name
+            local item = button(list, choice.name,
+                UDim2.new(), UDim2.new(1, -8, 0, 33))
+            item.LayoutOrder = i
+            item.TextXAlignment = Enum.TextXAlignment.Left
+            item.TextTruncate = Enum.TextTruncate.AtEnd
+            item.TextSize = 12
+            table.insert(buttons, item)
+            item.Activated:Connect(function()
+                selected = choice.id
+                selectedLabel = choice.name
+                selectedShort = choice.short
                 dropdownOpened = false
+                searchBox.Text = ""
                 repaintSelection()
-                if selected == "default" then
-                    selectedDetail.Text = "Animações originais do personagem."
-                else
-                    selectedDetail.Text = selectedLabel .. " · 9 clips · R15"
-                end
             end)
         end
+        local function filterChoices()
+            local term = string.lower(searchBox.Text)
+            local visibleCount = 0
+            for i, entry in ipairs(choices) do
+                local show = term == ""
+                    or string.find(string.lower(entry.name), term, 1, true) ~= nil
+                    or string.find(entry.id, term, 1, true) ~= nil
+                buttons[i].Visible = show
+                if show then visibleCount = visibleCount + 1 end
+            end
+            list.CanvasSize = UDim2.fromOffset(
+                0, visibleCount > 0 and visibleCount * 37 + 5 or 0)
+            list.CanvasPosition = Vector2.zero
+        end
+        connect(searchBox:GetPropertyChangedSignal("Text"), filterChoices)
         chooseButton.Activated:Connect(function()
             dropdownOpened = not dropdownOpened
+            if dropdownOpened then searchBox.Text = "" end
             repaintSelection()
         end)
-        repaintSelection()
-
         local selectedRow = card(animPage, 51)
         local selectedCaption = label(selectedRow, "Selecionado", 13, theme.text, 21)
         selectedCaption.Position = UDim2.fromOffset(10, 4)
-        selectedDetail = label(selectedRow, "Vampire Animation Pack · 9 clips · R15",
+        selectedDetail = label(selectedRow,
+            "Vampire Animation Pack · R15 · 9 movimentos",
             11, theme.muted, 21)
         selectedDetail.Position = UDim2.fromOffset(10, 27)
         selectedDetail.Size = UDim2.new(1, -20, 0, 21)
+        selectedDetail.TextTruncate = Enum.TextTruncate.AtEnd
+        filterChoices()
+        repaintSelection()
         local actionsRow = card(animPage, 49)
         local applyButton = button(actionsRow, "APLICAR",
             UDim2.fromOffset(9, 10),
@@ -3275,6 +3352,9 @@ local function bootMonarca()
             end)
             busy = false
             if ok and worked then
+                selected, selectedLabel, selectedShort =
+                    "default", "Padrão do mapa", "Padrão"
+                repaintSelection()
                 updateInfo("Padrão do mapa restaurado.", true)
                 status("Anim: pacote restaurado.")
             else
@@ -3288,11 +3368,12 @@ local function bootMonarca()
                 return
             end
             busy = true
+            local requestPreset, requestLabel = selected, selectedLabel
             applyButton.Text = "APLICANDO..."
             task.spawn(function()
                 local ok, applied, reason = pcall(function()
                     local module = loadAuxiliary("anim_packs")
-                    return module:enable(selected)
+                    return module:enable(requestPreset)
                 end)
                 if destroyed then
                     local module = auxiliaryModules.anim_packs
@@ -3302,8 +3383,8 @@ local function bootMonarca()
                 busy = false
                 applyButton.Text = "APLICAR"
                 if ok and applied then
-                    updateInfo("Ativo: " .. selectedLabel .. " · R15. Confirme FE com outro jogador.", true)
-                    status("Anim: " .. selectedLabel .. " aplicado ao seu personagem.")
+                    updateInfo("Ativo: " .. requestLabel .. " · R15. Confirme FE com outro jogador.", true)
+                    status("Anim: " .. requestLabel .. " aplicado ao seu personagem.")
                 else
                     local message = tostring(ok and reason or applied)
                     updateInfo("Não foi possível aplicar: " .. message, false)
