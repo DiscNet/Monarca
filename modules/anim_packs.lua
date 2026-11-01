@@ -1,4 +1,4 @@
--- Monarca / Anim v0.8.1: 17 Creator Hub R15 packs + Oldschool (community IDs).
+-- Monarca / Anim v0.8.2: 17 Creator Hub R15 packs + Oldschool (community IDs).
 -- Roblox official asset IDs: https://create.roblox.com/docs/animation/using
 -- Replication uses the EXISTING Animator in the local player's actual character.
 -- Do not create a client Animator or use a local fake character.
