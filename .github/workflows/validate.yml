@@ -58,6 +58,7 @@ jobs:
                        'modules/lowgraphics.lua', 'modules/crosshair.lua',
                        'modules/player_fly.lua', 'modules/zombie_r6.lua',
                        'modules/pose_666.lua', 'modules/headless_local.lua',
+                       'modules/korblox_right_leg.lua',
                        'server/MonarcaRigSwitch.server.lua'):
               assert Path(path).is_file(), f'Missing {path}'
           print('All expected files present')
