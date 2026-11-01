@@ -1,6 +1,14 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.7**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.8**.
+
+## Correção do limite de registradores — v0.7.8
+
+A captura de erro no Roblox Android mostrou: `Out of local registers when trying to allocate dragStart: exceeded limit 200` na linha **3495** do antigo núcleo. O compilador do executor possui limite de registradores locais simultâneos para cada função. Dividir `Monarca.lua` em um carregador curto e `hub_core.lua` **não resolveu por si só**, pois a função `bootMonarca()` dentro do núcleo ainda mantinha muitas referências de interface vivas até o fim.
+
+Nesta correção, `hub_core.lua` separa a construção de **Player/Emote/666**, **Settings/Visual** e **eventos de arrastar** em blocos lexicais `do ... end` independentes. São preservadas somente as referências necessárias fora deles, como `applyPlayer`, os pintores de sliders, `refresh` e `disableAll`. O compilador pode reciclar os registradores das variáveis temporárias após cada bloco, reduzindo o pico de variáveis vivas no trecho que antes falhava. Mantivemos o botão do Reverse, invisibilidade experimental, HUD e as demais abas.
+
+O carregador `Monarca.lua` continua pequeno, mostra erros de download/compilação/execução na tela e tenta `hub_core.lua?v=0.7.8-...`, evitando reaproveitar acidentalmente a versão anterior. As verificações automatizadas validam a sintaxe e compilação Luau, mas **a execução no executor Android precisa de teste real**.
 
 ## Executar
 
