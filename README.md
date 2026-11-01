@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/Settings** e layout adaptável ao Android. Versão atual: **0.5.0**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/Settings** e layout adaptável ao Android. Versão atual: **0.5.1**.
 
 ## Executar
 
@@ -26,8 +26,9 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `modules/timecycle.lua` — ajuste local de horário (Dia/Noite/Padrão).
 - `modules/nofog.lua` — remoção local de neblina e névoa atmosférica.
 - `modules/player_fly.lua` — voo local com velocidade de 5–160 studs/s, controle analógico de movimento e comandos para subir/descer.
-- `modules/zombie_r6.lua` — emote procedural original para corpo R6, com braços estendidos e caminhada cambaleante.
-- `server/MonarcaRigSwitch.server.lua` — integração **opcional** para experiências próprias; não é executada pelo hub cliente.
+- `modules/zombie_r6.lua` — emote R6 corrigido: braços à frente, pernas alternadas no plano de caminhada; reprodução FE por animação publicada quando autorizada, ou alternativa local.
+- `server/MonarcaRigSwitch.server.lua` — integração **opcional** para experiências próprias; cria um novo personagem R6/R15 no servidor e retorna sucesso/erro ao painel.
+- `studio/GenerateZombieR6Animation.lua` — gera no Roblox Studio um `KeyframeSequence` original para publicação como asset de animação.
 
 
 ## Identidade visual
@@ -62,12 +63,27 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - **Mira roxa** e **Gráficos leves**, com ativação local e reversível.
 - **Player**: FOV e controles de velocidade `8–160` (10× o padrão 16) e pulo `25–500` (10× o padrão 50). Painel com menor espaçamento entre sliders.
 - **Fly**: velocidade ajustável de 5 a 160, toggle no Player, comandos SUBIR/DESCER na tela do celular e Space/Ctrl no teclado. Usa `LinearVelocity`, pode ser limitado pelo jogo e é desativado ao entrar em modos de Alvo.
-- **R6/R15**: botões mostram o rig atual e enviam pedidos a `ReplicatedStorage.MonarcaRigSwitch` **somente quando uma experiência instalar esse RemoteEvent no servidor**. Não alteram `Humanoid.RigType` localmente — isso quebraria os corpos. Para habilitar em um jogo próprio, coloque `server/MonarcaRigSwitch.server.lua` em `ServerScriptService` e teste a integração com as animações e scripts da experiência. Em jogos de terceiros, sem suporte do servidor, a troca não funciona.
-- **Emote**: primeira opção `Zumbi andando`, animação R6 procedural local baseada em `Motor6D.Transform`, alternável e com restauração ao desativar. Requer um personagem **R6 real**; em R15, exibe o motivo e não inicia o emote.
+- **R6/R15**: o painel só envia uma solicitação quando a experiência fornece `ReplicatedStorage.MonarcaRigSwitch`. O script `server/MonarcaRigSwitch.server.lua`, instalado em **ServerScriptService de um jogo próprio**, cria o novo modelo R6 ou R15 com `Players:CreateHumanoidModelFromDescriptionAsync`, troca `Player.Character`, destrói o modelo antigo e responde ao cliente com o resultado. Esse processo recria o personagem de verdade, disparando `CharacterAdded`. A implementação precisa ser testada com os scripts e regras de avatar da experiência. Em jogos de terceiros sem essa integração, a troca não funciona. Alterar só `Humanoid.RigType` pode matar o personagem.
+- **Emote — Zumbi andando R6**: articulações dos ombros e quadris usam o eixo local de pitch correto, detectado pelo `Motor6D.C0/C1`; braços ficam aproximadamente 86° à frente e pernas dão passadas alternadas para frente/trás, com elevação de pés e oscilação sutil. A movimentação depende do personagem estar realmente caminhando e requer um **R6 real**.
+- **FE quando permitido**: insira, na aba Emote, o ID de uma animação R6 publicada, autorizada para a experiência. O Hub usa o `Animator` do personagem (criado pelo servidor) e reproduz um `AnimationTrack`. Esse tipo de animação normalmente é replicado a outras pessoas. Sem ID/permissão ou se a animação não carregar, o modo procedural continua disponível, mas é **somente local** — `Motor6D.Transform` não replica.
+- **Limite do FE**: publicar código no GitHub **não** publica uma animação na Roblox nem concede acesso a experiências de terceiros. Um asset válido e permissão da experiência são necessários. A animação não precisa ser um pacote de avatar do Marketplace; basta publicar um clipe apropriado para R6.
 - Ajustes locais podem ser revertidos pelo jogo/servidor; não há garantia de replicação da movimentação ou emotes em outras máquinas.
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Preparar o emote FE no Roblox Studio
+
+1. Em uma experiência que você controla, abra o **Roblox Studio**. Execute o conteúdo de [`studio/GenerateZombieR6Animation.lua`](https://github.com/DiscNet/Monarca/blob/main/studio/GenerateZombieR6Animation.lua) na **Command Bar** (modo de edição). Ele cria `ServerStorage/MonarcaZombieR6` como sequência de quadros do R6.
+2. Inspecione e teste a animação num rig R6 usando o Editor de Animação. Publique-a no Roblox (menu **Publish to Roblox**, ou a opção de salvar/publicar o `KeyframeSequence` quando disponível). Copie o ID do asset publicado.
+3. Conceda à experiência acesso a esse asset em **Creator Dashboard → experiência → Permissions → Assets**, se a propriedade da animação exigir autorização.
+4. No Monarca, vá a **Emote**, insira o ID publicado no campo FE e ative **Zumbi andando**. A tela indicará se entrou em modo FE ou local. Seu amigo poderá verificar a reprodução em outra sessão do jogo.
+
+Sem executar a publicação no Roblox, não existe ID real para o emote original. IDs temporários de `KeyframeSequenceProvider:RegisterKeyframeSequence` são apenas para testes locais e não funcionam no jogo publicado.
+
+## Ativar R6/R15 real em experiência própria
+
+Instale [`server/MonarcaRigSwitch.server.lua`](https://github.com/DiscNet/Monarca/blob/main/server/MonarcaRigSwitch.server.lua) como **Script** em `ServerScriptService`. Publique/reinicie a experiência para que o servidor crie o `RemoteEvent`. Quando R6 ou R15 é solicitado no Player, o servidor reconstrói o personagem do próprio jogador, preservando sua descrição de avatar, e envia uma confirmação ou erro. Não é uma funcionalidade que o Script Hub cliente possa ativar por conta própria em jogos de outras pessoas.
 
 ## Adicionar um módulo
 
