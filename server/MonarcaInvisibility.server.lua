@@ -98,6 +98,7 @@ local function ensureState(player)
         if not state.enabled then return end
         -- CharacterAdded may fire before the appearance is complete.
         task.defer(function()
+            character:WaitForChild("Humanoid", 8)
             if player.Character ~= character or not state.enabled then return end
             applyToCharacter(player, state, character)
         end)
