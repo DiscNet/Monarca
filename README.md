@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.8**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.9**.
 
 ## Executar
 
@@ -30,7 +30,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `modules/pose_666.lua` — animação R6 local aprimorada: postura menos inclinada, braços soltos, idle com respiração e oscilação, caminhada com passos mais expressivos e transição idle/walk gradual.
 - `modules/headless_local.lua` — controle independente `</>`: oculta apenas `Head` e decals/texturas do rosto no cliente por `LocalTransparencyModifier`, mantendo cabelos/acessórios e restaurando tudo ao desativar.
 - `modules/korblox_right_leg.lua` — opção alternável de prévia **local e reversível** da perna direita original do Korblox Deathspeaker (asset Roblox `139607718`). No R15 preserva o **tamanho nativo de cada `MeshPart`** da geometria Korblox (sem esticá-la até as dimensões da perna anterior) e alinha as peças por `RightHipRigAttachment`, `RightKneeRigAttachment` e `RightAnkleRigAttachment`. No R6 mantém `CharacterMesh`. Não concede propriedade do item e depende de o carregamento desse asset ser permitido pela experiência.
-- `modules/owner_tag.lua` — tag personalizada local acima da cabeça, com `BillboardGui`, texto editável, controles RGB 0–255 e modo arco-íris rápido (~3,5 ciclos/s). A UI e o módulo exigem que `LocalPlayer.Name` seja exatamente `samulucas7419` (sem diferenciar maiúsculas). Acesso apenas visual/cliente, não é whitelist segura de servidor.
+- `modules/owner_tag.lua` — tag local projetada acima da cabeça pelo `WorldToViewportPoint` com `ScreenGui` e tamanho de 280×42 pixels fixos, mesmo ao aplicar zoom na câmera. Permite texto editável, RGB 0–255 e `UIGradient` que produz uma onda de cores suave (ciclo de ~5,6 segundos). A UI e o módulo restringem o uso a `LocalPlayer.Name == samulucas7419` (sem diferenciar maiúsculas); não é whitelist segura de servidor.
 - `server/MonarcaRigSwitch.server.lua` — integração **opcional** para experiências próprias; cria um novo personagem R6/R15 no servidor e retorna sucesso/erro ao painel.
 - `studio/GenerateZombieR6Animation.lua` — gera no Roblox Studio um `KeyframeSequence` original para publicação como asset de animação.
 
@@ -80,6 +80,12 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Tag estável e RGB ONDA — v0.6.9
+
+- A tag deixou de depender de redimensionamento 3D de `BillboardGui`: uma `ScreenGui` desenha o texto em **280×42 pixels**, com `TextSize = 19` e `TextScaled = false`, enquanto `Camera:WorldToViewportPoint` acompanha a posição da cabeça. Distância e zoom não alteram a dimensão do texto na tela.
+- O modo antigo `RGB FAST` passou a aparecer como **RGB ONDA**: um `UIGradient` com seis pontos de cor cria um espectro distribuído horizontalmente no texto. A onda varia suavemente e completa um ciclo em aproximadamente **5,6 segundos**, sem flashes nem mudanças bruscas da cor inteira. A amostra de cor na aba Player acompanha o mesmo efeito.
+- A chave de configuração `ownerTagRainbowFast` foi mantida apenas para preservar as preferências salvas. O resultado permanece **local**, exclusivo ao usuário `samulucas7419` na interface, sem replicação para outros jogadores.
 
 ## Tag exclusiva e Fly parado — v0.6.8
 
