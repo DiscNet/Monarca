@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.6.8 — owner-only overhead tag and idle Fly camera pitch
+-- Monarca Script Hub v0.6.9 — fixed-size nameplate and smooth rainbow-wave text
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -475,7 +475,7 @@ local function bootMonarca()
         Position = UDim2.fromOffset(26, 26),
         Size = UDim2.new(1, -110, 0, 12),
         BackgroundTransparency = 1,
-        Text = "VISUAL HUB  /  V0.6.8",
+        Text = "VISUAL HUB  /  V0.6.9",
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextSize = 9,
@@ -1684,7 +1684,7 @@ local function bootMonarca()
     local auxiliaryModules = {}
     local function loadAuxiliary(name)
         if auxiliaryModules[name] then return auxiliaryModules[name] end
-        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.6.8-" .. tostring(os.time()))
+        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.6.9-" .. tostring(os.time()))
         if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
         local compiled, err = loadstring(source, "Monarca/" .. name)
         if not compiled then error(err or "Módulo inválido.") end
@@ -1896,9 +1896,28 @@ local function bootMonarca()
             Thickness = 1,
             Transparency = 0.55,
         }, sample)
+        -- Preview matches the moving multi-color wave used on the nameplate.
+        -- Keep the saved setting key for backward compatibility.
+        local previewGradient = new("UIGradient", {
+            Name = "OwnerWavePreview",
+            Rotation = 0,
+            Enabled = settings.ownerTagRainbowFast,
+        }, sample)
         local function previewColor()
-            if settings.ownerTagRainbowFast then
-                sample.BackgroundColor3 = Color3.fromHSV((os.clock() * 3.5) % 1, 0.92, 1)
+            local wave = settings.ownerTagRainbowFast
+            previewGradient.Enabled = wave
+            if wave then
+                sample.BackgroundColor3 = Color3.new(1, 1, 1)
+                local base = (os.clock() * 0.18) % 1
+                local stops = {}
+                for index = 0, 5 do
+                    local fraction = index / 5
+                    stops[#stops + 1] = ColorSequenceKeypoint.new(
+                        fraction,
+                        Color3.fromHSV((base + 0.82 * fraction) % 1, 0.86, 1)
+                    )
+                end
+                previewGradient.Color = ColorSequence.new(stops)
             else
                 sample.BackgroundColor3 = Color3.fromRGB(
                     settings.ownerTagR, settings.ownerTagG, settings.ownerTagB
@@ -1922,10 +1941,10 @@ local function bootMonarca()
         end)
 
         local rgbRow = card(playerPage, 53)
-        local rgbLabel = label(rgbRow, "RGB FAST", 13, theme.text, 21)
+        local rgbLabel = label(rgbRow, "RGB ONDA", 13, theme.text, 21)
         rgbLabel.Position = UDim2.fromOffset(10, 6)
         rgbLabel.Size = UDim2.new(1, -102, 0, 22)
-        local rgbHint = label(rgbRow, "Cores animadas · 3,5 ciclos/s",
+        local rgbHint = label(rgbRow, "Onda suave · ciclo ~5,6 s",
             10, theme.muted, 18)
         rgbHint.Position = UDim2.fromOffset(10, 28)
         rgbHint.Size = UDim2.new(1, -105, 0, 18)
@@ -1964,7 +1983,7 @@ local function bootMonarca()
         connect(game:GetService("RunService").RenderStepped, function(dt)
             if destroyed or not settings.ownerTagRainbowFast then return end
             previewClock = previewClock + dt
-            if previewClock >= 1/25 then
+            if previewClock >= 1/20 then
                 previewClock = 0
                 previewColor()
             end
