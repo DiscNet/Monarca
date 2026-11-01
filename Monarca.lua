@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.4.0 — compact target controls
+-- Monarca Script Hub v0.4.1 — stable target poses and third-person view
 -- Interface local. Os modulos sao carregados exclusivamente deste repositorio.
 local Services = {
     Players = game:GetService("Players"),
@@ -434,7 +434,7 @@ new("TextLabel", {
     Position = UDim2.fromOffset(26, 26),
     Size = UDim2.new(1, -110, 0, 12),
     BackgroundTransparency = 1,
-    Text = "VISUAL HUB  /  V0.4",
+    Text = "VISUAL HUB  /  V0.4.1",
     Font = Enum.Font.Gotham,
     TextColor3 = theme.muted,
     TextSize = 9,
@@ -1020,12 +1020,13 @@ new("UIGridLayout", {
 }, actionGrid)
 local alvoFootnote = ordered(alvo, new("TextLabel", {
     Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1,
-    Text = "Headsit, Follow e Backpack não funcionam simultaneamente. TP é pontual.",
+    Text = "Headsit e Backpack têm alinhamento físico; View segue em terceira pessoa.",
     TextSize = 10, Font = Enum.Font.Gotham, TextColor3 = theme.muted,
     TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
     TextYAlignment = Enum.TextYAlignment.Top,
 }, alvo))
 local selectedPlayer, savedPose, savedCamera = nil, nil, nil
+local targetRespawnConnection = nil
 local modes = {Headsit=false, Follow=false, View=false, TP=false, Backpack=false}
 local modeButtons = {}
 local rankedMatches = {}
@@ -1042,35 +1043,143 @@ local function targetParts()
     local char = selectedPlayer.Character
     return root(char), char and char:FindFirstChild("Head")
 end
+
+-- The solver follows a target-relative attachment rather than teleporting
+-- HumanoidRootPart on every rendered frame. Only the local character receives
+-- forces; the target stays unaffected.
 local function restorePose()
     if not savedPose then return end
-    local hum = savedPose.hum
-    if hum and hum.Parent then
-        hum.AutoRotate = savedPose.rotate
-        hum.Sit = false
-        pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
-    end
+    local pose = savedPose
     savedPose = nil
+    for _, obj in ipairs(pose.objects) do
+        if obj and obj.Parent then pcall(function() obj:Destroy() end) end
+    end
+    for part, oldValue in pairs(pose.collisions) do
+        if part.Parent then pcall(function() part.CanCollide = oldValue end) end
+    end
+    if pose.hum and pose.hum.Parent then
+        pcall(function()
+            pose.hum.AutoRotate = pose.rotate
+            pose.hum.Sit = false
+            pose.hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end)
+    end
+end
+local function createPose(mode)
+    local char = player.Character
+    local own = root(char)
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local target, head = targetParts()
+    if not own or not hum or not target or
+        (mode == "Headsit" and not head) then
+        return false, "Personagem não disponível."
+    end
+    if hum.Health <= 0 then return false, "Seu personagem está sem vida." end
+    -- Stable target root reference avoids bobbing with head animations.
+    local elevation = 0
+    if mode == "Headsit" then
+        elevation = math.max(2.5,
+            target.CFrame:PointToObjectSpace(head.Position).Y
+            + head.Size.Y * 0.5 + 1.05)
+    end
+    local pose = {hum=hum,rotate=hum.AutoRotate,objects={},collisions={}}
+    local function make(kind, fields, parent)
+        local obj = new(kind, fields, parent)
+        table.insert(pose.objects,obj)
+        return obj
+    end
+    local ok, errorMessage = pcall(function()
+        local attachOwn = make("Attachment",{
+            Name="MonarcaPoseOwn",CFrame=CFrame.identity
+        },own)
+        local attachTarget = make("Attachment",{
+            Name="MonarcaPoseTarget",
+            Position=mode=="Headsit" and Vector3.new(0,elevation,0)
+                or Vector3.new(0,0.3,1.35),
+            -- Headsit faces the SAME way as target; Backpack faces backward.
+            Orientation=Vector3.new(0,mode=="Headsit" and 0 or 180,0),
+        },target)
+        make("AlignPosition",{
+            Name="MonarcaPosition",Attachment0=attachOwn,Attachment1=attachTarget,
+            Mode=Enum.PositionAlignmentMode.TwoAttachment,
+            ReactionForceEnabled=false,ApplyAtCenterOfMass=true,
+            RigidityEnabled=false,Responsiveness=125,
+            MaxForce=1000000000,MaxVelocity=250,
+        },own)
+        make("AlignOrientation",{
+            Name="MonarcaRotation",Attachment0=attachOwn,Attachment1=attachTarget,
+            Mode=Enum.OrientationAlignmentMode.TwoAttachment,
+            ReactionTorqueEnabled=false,RigidityEnabled=false,
+            Responsiveness=125,MaxTorque=1000000000,MaxAngularVelocity=200,
+        },own)
+        for _,part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                pose.collisions[part]=part.CanCollide
+                part.CanCollide=false
+            end
+        end
+        hum.AutoRotate=false
+        hum.Sit=true
+        own.AssemblyAngularVelocity=Vector3.zero
+    end)
+    if not ok then
+        savedPose=pose
+        restorePose()
+        return false,tostring(errorMessage)
+    end
+    savedPose=pose
+    return true
 end
 local function restoreCamera()
     if not savedCamera then return end
-    local cam = workspace.CurrentCamera
+    local old=savedCamera
+    savedCamera=nil
+    pcall(function()
+        player.CameraMaxZoomDistance=math.max(old.maxZoom,player.CameraMinZoomDistance)
+        player.CameraMinZoomDistance=old.minZoom
+        player.CameraMaxZoomDistance=old.maxZoom
+        player.CameraMode=old.mode
+    end)
+    local cam=workspace.CurrentCamera
     if cam then
-        local previous = savedCamera
         pcall(function()
-            cam.CameraType = previous.kind
-            if previous.subject and previous.subject.Parent then
-                cam.CameraSubject = previous.subject
+            cam.CameraType=old.kind
+            if old.subject and old.subject.Parent then
+                cam.CameraSubject=old.subject
             else
-                local char = player.Character
-                local hum = char and char:FindFirstChildOfClass("Humanoid")
-                if hum then cam.CameraSubject = hum end
+                local char=player.Character
+                local hum=char and char:FindFirstChildOfClass("Humanoid")
+                if hum then cam.CameraSubject=hum end
             end
-            if previous.kind == Enum.CameraType.Scriptable then cam.CFrame = previous.cframe end
+            if old.kind==Enum.CameraType.Scriptable then cam.CFrame=old.cframe end
         end)
     end
-    savedCamera = nil
 end
+local function activateView()
+    local char=selectedPlayer and selectedPlayer.Character
+    local hum=char and char:FindFirstChildOfClass("Humanoid")
+    local cam=workspace.CurrentCamera
+    if not cam or not hum then return false,"Câmera ou alvo indisponível." end
+    savedCamera={
+        kind=cam.CameraType,subject=cam.CameraSubject,cframe=cam.CFrame,
+        mode=player.CameraMode,minZoom=player.CameraMinZoomDistance,
+        maxZoom=player.CameraMaxZoomDistance,
+    }
+    local ok,err=pcall(function()
+        player.CameraMode=Enum.CameraMode.Classic
+        player.CameraMaxZoomDistance=math.max(18,player.CameraMinZoomDistance)
+        player.CameraMinZoomDistance=7
+        player.CameraMaxZoomDistance=18
+        cam.CameraType=Enum.CameraType.Custom
+        cam.CameraSubject=hum
+    end)
+    if not ok then
+        restoreCamera()
+        return false,tostring(err)
+    end
+    return true
+end
+
 local function redrawModes()
     for name, ui in pairs(modeButtons) do
         local on = modes[name]
@@ -1093,70 +1202,78 @@ local function resetModes()
     restoreCamera()
     redrawModes()
 end
+
 local function setMode(name, enabled)
     if enabled and not selectedPlayer then
         status("Selecione um jogador primeiro.")
         return
     end
-    -- Stop the last MoveTo command whenever the follow mode is replaced.
-    if modes.Follow and (name ~= "Follow" or not enabled) then
-        local char = player.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        local ownRoot = root(char)
-        if hum and ownRoot then pcall(function() hum:MoveTo(ownRoot.Position) end) end
+    if modes.Follow and (name~="Follow" or not enabled) then
+        local char=player.Character
+        local hum=char and char:FindFirstChildOfClass("Humanoid")
+        local own=root(char)
+        if hum and own then pcall(function() hum:MoveTo(own.Position) end) end
     end
-    if name == "Headsit" or name == "Backpack" or name == "Follow" then
-        for _, other in ipairs({"Headsit", "Backpack", "Follow", "TP"}) do
-            modes[other] = enabled and other == name
+    if name=="Headsit" or name=="Backpack" or name=="Follow" then
+        for _,other in ipairs({"Headsit","Backpack","Follow","TP"}) do
+            modes[other]=false
         end
         restorePose()
-        if enabled and name ~= "Follow" then
-            local char = player.Character
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                savedPose = {hum=hum, rotate=hum.AutoRotate}
-                hum.AutoRotate = false
-                hum.Sit = true
+        if enabled then
+            if name=="Follow" then modes.Follow=true
+            else
+                local ok,err=createPose(name)
+                modes[name]=ok
+                if not ok then status(err or "Não foi possível posicionar.") end
             end
         end
-    elseif name == "View" then
-        if not enabled then
+    elseif name=="View" then
+        if enabled then
+            if not modes.View then
+                local ok,err=activateView()
+                modes.View=ok
+                if not ok then status(err or "Câmera indisponível.") end
+            end
+        else
             restoreCamera()
-            modes.View = false
-        else
-            local cam = workspace.CurrentCamera
-            if cam then
-                savedCamera = {
-                    kind = cam.CameraType,
-                    subject = cam.CameraSubject,
-                    cframe = cam.CFrame,
-                }
-                cam.CameraType = Enum.CameraType.Scriptable
-                modes.View = true
-            end
+            modes.View=false
         end
-    elseif name == "TP" and enabled then
-        for _, other in ipairs({"Headsit", "Backpack", "Follow"}) do modes[other] = false end
+    elseif name=="TP" and enabled then
+        for _,other in ipairs({"Headsit","Backpack","Follow"}) do
+            modes[other]=false
+        end
         restorePose()
-        local own = root(player.Character)
-        local their = targetParts()
+        local own=root(player.Character)
+        local their=targetParts()
         if own and their then
-            own.CFrame = their.CFrame * CFrame.new(0, 0, 3.5)
-            modes.TP = true
+            own.CFrame=their.CFrame*CFrame.new(0,0,3.5)
+            modes.TP=true
         else
-            modes.TP = false
+            modes.TP=false
             status("O alvo não está com o personagem disponível.")
         end
     else
-        modes[name] = enabled
+        modes[name]=enabled
     end
     redrawModes()
 end
 
 local function choosePlayer(candidate)
     if not candidate or candidate == player or not candidate.Parent then return end
-    if selectedPlayer ~= candidate then resetModes() end
+    if selectedPlayer ~= candidate then
+        resetModes()
+        if targetRespawnConnection then
+            targetRespawnConnection:Disconnect()
+            targetRespawnConnection=nil
+        end
+    end
     selectedPlayer = candidate
+    if not targetRespawnConnection then
+        targetRespawnConnection=candidate.CharacterRemoving:Connect(function()
+            resetModes()
+            status("O alvo reapareceu. Reative o modo desejado.")
+        end)
+    end
     alvoName.Text = candidate.DisplayName
     alvoNick.Text = "@" .. candidate.Name
     alvoId.Text = "ID: " .. candidate.UserId
@@ -1287,6 +1404,10 @@ connect(Services.Players.PlayerAdded,function() if not hiddenMatches then showMa
 connect(Services.Players.PlayerRemoving,function(leaving)
     if leaving==selectedPlayer then
         resetModes()
+        if targetRespawnConnection then
+            targetRespawnConnection:Disconnect()
+            targetRespawnConnection=nil
+        end
         selectedPlayer=nil
         thumbVersion=thumbVersion+1
         alvoAvatar.Image=""
@@ -1304,31 +1425,7 @@ connect(player.CharacterAdded,function()
     restorePose()
     redrawModes()
 end)
-connect(runService.RenderStepped,function()
-    if destroyed or not selectedPlayer then return end
-    local their,head=targetParts()
-    if modes.View and savedCamera and head then
-        local cam=workspace.CurrentCamera
-        if cam then
-            cam.CameraType=Enum.CameraType.Scriptable
-            cam.CFrame=head.CFrame*CFrame.new(0,0,-0.5)
-        end
-    end
-    if not (modes.Headsit or modes.Backpack) or not their then return end
-    local own=root(player.Character)
-    if not own then return end
-    local position
-    if modes.Headsit and head then
-        position=head.CFrame*CFrame.new(0,1.55,0)*CFrame.Angles(0,math.pi,0)
-    elseif modes.Backpack then
-        position=their.CFrame*CFrame.new(0,0.1,1.4)*CFrame.Angles(0,math.pi,0)
-    end
-    if position then
-        own.CFrame=position
-        own.AssemblyLinearVelocity=Vector3.zero
-        own.AssemblyAngularVelocity=Vector3.zero
-    end
-end)
+-- Physics constraints maintain Headsit and Backpack without per-frame CFrame writes.
 connect(runService.Heartbeat,function(dt)
     if destroyed or not selectedPlayer then return end
     tickDistance=tickDistance+dt
@@ -1354,6 +1451,10 @@ connect(runService.Heartbeat,function(dt)
 end)
 local function stopAlvo()
     resetModes()
+    if targetRespawnConnection then
+        targetRespawnConnection:Disconnect()
+        targetRespawnConnection=nil
+    end
     selectedPlayer=nil
     thumbVersion=thumbVersion+1
 end
