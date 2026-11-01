@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.5**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.6**.
 
 ## Executar
 
@@ -29,7 +29,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `modules/zombie_r6.lua` — emote R6 corrigido: braços à frente, pernas alternadas no plano de caminhada; reprodução FE por animação publicada quando autorizada, ou alternativa local.
 - `modules/pose_666.lua` — animação R6 local aprimorada: postura menos inclinada, braços soltos, idle com respiração e oscilação, caminhada com passos mais expressivos e transição idle/walk gradual.
 - `modules/headless_local.lua` — controle independente `</>`: oculta apenas `Head` e decals/texturas do rosto no cliente por `LocalTransparencyModifier`, mantendo cabelos/acessórios e restaurando tudo ao desativar.
-- `modules/korblox_right_leg.lua` — opção alternável de prévia **local e reversível** da perna direita original do Korblox Deathspeaker (asset Roblox `139607718`). Gera um rig temporário por `HumanoidDescription.RightLeg`, aproveita a geometria real R15 ou `CharacterMesh` R6 e mantém as juntas/colisões do jogador. Não concede propriedade do item e depende de o carregamento desse asset ser permitido pela experiência.
+- `modules/korblox_right_leg.lua` — opção alternável de prévia **local e reversível** da perna direita original do Korblox Deathspeaker (asset Roblox `139607718`). No R15 preserva o **tamanho nativo de cada `MeshPart`** da geometria Korblox (sem esticá-la até as dimensões da perna anterior) e alinha as peças por `RightHipRigAttachment`, `RightKneeRigAttachment` e `RightAnkleRigAttachment`. No R6 mantém `CharacterMesh`. Não concede propriedade do item e depende de o carregamento desse asset ser permitido pela experiência.
 - `server/MonarcaRigSwitch.server.lua` — integração **opcional** para experiências próprias; cria um novo personagem R6/R15 no servidor e retorna sucesso/erro ao painel.
 - `studio/GenerateZombieR6Animation.lua` — gera no Roblox Studio um `KeyframeSequence` original para publicação como asset de animação.
 
@@ -79,6 +79,12 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Correção da perna Korblox R15 — v0.6.6
+
+Corrigida a prévia local da perna `139607718` na aba **666**. Antes, o módulo fazia `visual.Size = original.Size`, distorcendo a malha Korblox (especialmente espessura e comprimento). Agora cada segmento preserva a dimensão nativa gerada pelo Roblox e seu encaixe acontece pelos `RigAttachment` de quadril, joelho e tornozelo, sem alterar os tamanhos originais ou a física da perna do jogador. O módulo também valida a existência dos três segmentos antes de ocultar qualquer parte original.
+
+O carregador dos módulos agora inclui um parâmetro de versão na URL para evitar reuso da implementação anterior via cache. O resultado depende da escala e do rig da experiência; é necessário avaliar visualmente no Roblox Android. A troca continua **local e reversível**, não FE.
 
 ## Referências de animação — revisão v0.6.4
 
