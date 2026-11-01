@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.8.6 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.8.7 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -2771,10 +2771,10 @@ local function bootMonarca()
             }, emoteList)
 
             local selected, choices, choiceButtons = nil, {}, {}
-            local opened, loading, playing = false, false, false
+            local opened, loading, playing = true, false, false
             local selectionRow = card(emotePage, 46)
             local selectedName = label(selectionRow,
-                "Nenhum emote selecionado.", 11, theme.muted, 27)
+                "Escolha um emote na lista acima.", 11, theme.muted, 27)
             selectedName.Position = UDim2.fromOffset(10, 9)
             selectedName.Size = UDim2.new(1, -20, 0, 26)
             selectedName.TextTruncate = Enum.TextTruncate.AtEnd
@@ -2928,6 +2928,7 @@ local function bootMonarca()
                 feedback.Text = "Emote interrompido."
                 status("Emote: reprodução interrompida.")
             end)
+            -- Open the search results immediately; no empty collapsed selector.
             repaintPicker()
             task.defer(refreshCatalog)
         end
