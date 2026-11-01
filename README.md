@@ -1,6 +1,21 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.8**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.9**.
+
+## Invisibilidade experimental mais estável — v0.7.9
+
+A aba **X?** mantém a técnica de `RealCharacter` / `FakeCharacter`, mas corrige fontes de *jitter* quando o avatar entra ou sai da invisibilidade:
+
+- O corpo real distante deixa de receber `Humanoid:Move()` e `Humanoid.Jump` repetidamente. Reposiciona apenas quando há desvio acima de 4 studs, em vez de teletransportar em todo ciclo de atualização.
+- O corpo estacionado tem colisões locais desativadas temporariamente e usa uma força gravitacional compensatória quando a API permite. As propriedades originais são restauradas ao desligar. Essas alterações não garantem que o servidor manterá o corpo distante.
+- O clone conserva a velocidade linear atual na ativação. Na desativação o `HumanoidRootPart` do corpo real é alinhado ao do clone, com velocidade zerada para evitar deslocamentos verticais.
+- A câmera conserva posição/orientação por cinco atualizações de renderização durante a troca de `CameraSubject`, para permitir que o controlador de câmera seja religado sem rotação brusca.
+- A restauração desativa a colisão do clone antes de sobrepor os dois corpos, recupera o item previamente equipado e evita devolver o controle a um corpo real já morto quando ocorreu respawn.
+- Falhas no uso de `BindToRenderStep` não devem mais abortar toda a ativação. Se o retorno ao personagem real falhar, o sistema preserva o proxy para uma tentativa posterior em vez de apagá-lo à força.
+
+**Limitações:** o servidor pode reconciliar posições e estados; nenhum teste real no cliente Android foi efetuado. O método baseado em corpo remoto não equivale a uma funcionalidade de invisibilidade de servidor garantida.
+
+**Sobre animações R15 FE:** o `Animator` já replicado dentro do `Humanoid` do próprio personagem permite que `AnimationTrack:Play()` iniciado localmente replique para servidor e outros clientes, conforme documentação oficial Roblox. O `Animator` de um clone criado apenas no cliente não oferece a mesma garantia. Para animações FE, é preferível trabalhar com o `Animator` do avatar original e IDs de animação acessíveis, e confirmar com outra conta.
 
 ## Correção do limite de registradores — v0.7.8
 
