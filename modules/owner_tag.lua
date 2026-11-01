@@ -1,83 +1,159 @@
--- Monarca Owner Tag v0.6.8
--- Only the exact Roblox username samulucas7419 can use these local controls.
--- This is a client-only nameplate; it is NOT a server-side security boundary.
+-- Monarca Owner Tag v0.6.9
+-- Username-restricted LOCAL nameplate; not a trusted server permission system.
+-- ScreenGui + WorldToViewportPoint keeps its on-screen size fixed while zooming.
+-- RGB wave: a soft horizontal UIGradient, smoothly animated across the text.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local OwnerTag = {}
+
 local allowed = player.Name:lower() == "samulucas7419"
 local active = false
 local text = "MONARCA"
 local red, green, blue = 180, 145, 255
-local rainbowFast = false
-local billboard, nameLabel
-local respawnConnection
-local latestGeneration = 0
-local rgbConnection
-local lastFrame = -1
+local rainbowFast = false  -- kept for compatibility with saved settings
+local screenGui, container, label, shadow, gradient
+local currentHead
+local respawnConnection, frameConnection
+local generation = 0
+local waveAccumulator = 0
+local MAX_DISTANCE = 225
+local WAVE_SPEED = 0.18          -- ~5.6 seconds per color cycle, not strobing
+local WAVE_WIDTH = 0.82          -- different colors at different text positions
+local WAVE_STOPS = 6             -- bounded to 6 stops for UIGradient performance
+local WAVE_INTERVAL = 1 / 20    -- smooth interpolation with modest update cost
 
 local function cleanText(value)
-    local input = tostring(value or ""):gsub("[%c]", " "):gsub("^%s+", ""):gsub("%s+$", "")
+    local input = tostring(value or ""):gsub("[%c]", " ")
+        :gsub("^%s+", ""):gsub("%s+$", "")
     if input == "" then return "MONARCA" end
-    -- Use codepoint boundaries to avoid splitting UTF-8 characters.
     local ok, cutoff = pcall(utf8.offset, input, 33)
     if ok and cutoff then input = input:sub(1, cutoff - 1) end
     if #input > 160 then input = input:sub(1, 160) end
     return input
 end
 
-local function destroyTag()
-    if billboard then billboard:Destroy() end
-    billboard, nameLabel = nil, nil
-end
-
-local function currentColor()
-    if rainbowFast then
-        return Color3.fromHSV((os.clock() * 3.5) % 1, 0.92, 1)
+local function waveColors(now)
+    local shift = (now * WAVE_SPEED) % 1
+    local keys = {}
+    for i = 0, WAVE_STOPS - 1 do
+        local position = i / (WAVE_STOPS - 1)
+        local hue = (shift + position * WAVE_WIDTH) % 1
+        keys[#keys + 1] = ColorSequenceKeypoint.new(
+            position, Color3.fromHSV(hue, 0.86, 1)
+        )
     end
-    return Color3.fromRGB(red, green, blue)
+    return ColorSequence.new(keys)
 end
 
-local function render()
-    if not active or not nameLabel then return end
-    nameLabel.Text = text
-    nameLabel.TextColor3 = currentColor()
+local function destroyGui()
+    if screenGui then pcall(function() screenGui:Destroy() end) end
+    screenGui, container, label, shadow, gradient = nil, nil, nil, nil, nil
 end
 
-local function showOnCharacter(character, version)
-    if not active or not character or version ~= latestGeneration then return end
+local function makeLabel(parent, name, position, color, zIndex)
+    local value = Instance.new("TextLabel")
+    value.Name = name
+    value.Position = position
+    value.Size = UDim2.fromScale(1, 1)
+    value.BackgroundTransparency = 1
+    value.Font = Enum.Font.GothamBold
+    value.TextSize = 19
+    value.TextScaled = false
+    value.TextWrapped = false
+    value.TextTruncate = Enum.TextTruncate.AtEnd
+    value.TextColor3 = color
+    value.TextXAlignment = Enum.TextXAlignment.Center
+    value.TextYAlignment = Enum.TextYAlignment.Center
+    value.ZIndex = zIndex
+    value.Parent = parent
+    return value
+end
+
+local function createGui()
+    if screenGui and screenGui.Parent then return true end
+    local parent = player:FindFirstChildOfClass("PlayerGui")
+        or player:WaitForChild("PlayerGui", 8)
+    if not parent then return false end
+    destroyGui()
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "MonarcaOwnerTag"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 105
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.Parent = parent
+
+    local frame = Instance.new("Frame")
+    frame.Name = "FixedSizeNameplate"
+    frame.AnchorPoint = Vector2.new(0.5, 1)
+    frame.Size = UDim2.fromOffset(280, 42)
+    frame.BackgroundTransparency = 1
+    frame.BorderSizePixel = 0
+    frame.Active = false
+    frame.Visible = false
+    frame.Parent = gui
+
+    -- Flat shadow instead of TextStroke, which can conflict with UIGradient.
+    local dark = makeLabel(frame, "TextShadow",
+        UDim2.fromOffset(1, 2), Color3.fromRGB(2, 2, 6), 1)
+    dark.TextTransparency = 0.35
+    local main = makeLabel(frame, "CustomTag",
+        UDim2.fromOffset(0, 0), Color3.fromRGB(red, green, blue), 2)
+
+    local wave = Instance.new("UIGradient")
+    wave.Name = "RainbowWave"
+    wave.Rotation = 0
+    wave.Color = waveColors(os.clock())
+    wave.Enabled = rainbowFast
+    wave.Parent = main
+
+    screenGui, container, label, shadow, gradient = gui, frame, main, dark, wave
+    return true
+end
+
+local function updateAppearance()
+    if not label then return end
+    label.Text = text
+    if shadow then shadow.Text = text end
+    label.TextColor3 = rainbowFast and Color3.new(1, 1, 1)
+        or Color3.fromRGB(red, green, blue)
+    if gradient then
+        gradient.Enabled = rainbowFast
+        if rainbowFast then gradient.Color = waveColors(os.clock()) end
+    end
+end
+
+local function bindHead(character, token)
+    if not active or generation ~= token or player.Character ~= character then return end
     local head = character:FindFirstChild("Head")
         or character:WaitForChild("Head", 8)
-    if not active or version ~= latestGeneration or player.Character ~= character
-        or not head or not head:IsA("BasePart") then return end
-    if not billboard then
-        local parent = player:FindFirstChildOfClass("PlayerGui")
-        if not parent then return end
-        billboard = Instance.new("BillboardGui")
-        billboard.Name = "MonarcaOwnerTag"
-        billboard.Size = UDim2.fromOffset(260, 50)
-        billboard.StudsOffsetWorldSpace = Vector3.new(0, 2.25, 0)
-        billboard.AlwaysOnTop = true
-        billboard.MaxDistance = 225
-        billboard.LightInfluence = 0
-        billboard.Parent = parent
+    if not active or generation ~= token or player.Character ~= character then return end
+    currentHead = head and head:IsA("BasePart") and head or nil
+    if container and not currentHead then container.Visible = false end
+end
 
-        nameLabel = Instance.new("TextLabel")
-        nameLabel.Name = "CustomTag"
-        nameLabel.Size = UDim2.fromScale(1, 1)
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = text
-        nameLabel.TextSize = 19
-        nameLabel.Font = Enum.Font.GothamBold
-        nameLabel.TextColor3 = currentColor()
-        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-        nameLabel.TextStrokeTransparency = 0.26
-        nameLabel.TextScaled = false
-        nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-        nameLabel.Parent = billboard
+local function updatePosition()
+    if not active or not container then return end
+    local head = currentHead
+    local camera = workspace.CurrentCamera
+    if not head or not head.Parent or not camera then
+        container.Visible = false
+        return
     end
-    billboard.Adornee = head
-    render()
+    -- Project a world position just above the head, while the label's actual
+    -- width, height and TextSize always remain unchanged in SCREEN pixels.
+    local above = head.Position + Vector3.new(0, head.Size.Y * 0.5 + 0.9, 0)
+    local pos, onScreen = camera:WorldToViewportPoint(above)
+    local distance = (camera.CFrame.Position - above).Magnitude
+    local visible = onScreen and pos.Z > 0 and distance <= MAX_DISTANCE
+    container.Visible = visible
+    if visible then
+        container.Position = UDim2.fromOffset(
+            math.floor(pos.X + 0.5), math.floor(pos.Y + 0.5)
+        )
+    end
 end
 
 function OwnerTag:configure(config)
@@ -94,53 +170,66 @@ function OwnerTag:configure(config)
         blue = math.clamp(math.floor(tonumber(config.blue) or blue), 0, 255)
     end
     if config.rainbowFast ~= nil then rainbowFast = config.rainbowFast == true end
-    lastFrame = -1
-    render()
+    waveAccumulator = 0
+    updateAppearance()
     return true
 end
 
 function OwnerTag:enable()
     if not allowed then return false, "Tag exclusiva de samulucas7419." end
     if active then return true end
+    local success, err = pcall(createGui)
+    if not success or not err then
+        return false, success and "PlayerGui indisponível." or tostring(err)
+    end
+
     active = true
-    latestGeneration = latestGeneration + 1
-    if not respawnConnection then
-        respawnConnection = player.CharacterAdded:Connect(function(character)
-            latestGeneration = latestGeneration + 1
-            local version = latestGeneration
-            task.spawn(showOnCharacter, character, version)
-        end)
-    end
-    if not rgbConnection then
-        rgbConnection = RunService.RenderStepped:Connect(function()
-            if not active or not rainbowFast or not nameLabel then return end
-            -- ~30 color frames/s, with 3.5 complete hue cycles each second.
-            local colorFrame = math.floor(os.clock() * 30)
-            if colorFrame ~= lastFrame then
-                lastFrame = colorFrame
-                nameLabel.TextColor3 = currentColor()
+    generation = generation + 1
+    local token = generation
+    currentHead = nil
+    if respawnConnection then respawnConnection:Disconnect() end
+    respawnConnection = player.CharacterAdded:Connect(function(character)
+        generation = generation + 1
+        local nextToken = generation
+        currentHead = nil
+        if container then container.Visible = false end
+        task.spawn(bindHead, character, nextToken)
+    end)
+    if frameConnection then frameConnection:Disconnect() end
+    frameConnection = RunService.RenderStepped:Connect(function(dt)
+        if not active then return end
+        updatePosition()
+        if rainbowFast and gradient and label then
+            waveAccumulator = waveAccumulator + math.min(dt, 0.1)
+            if waveAccumulator >= WAVE_INTERVAL then
+                waveAccumulator = waveAccumulator % WAVE_INTERVAL
+                gradient.Color = waveColors(os.clock())
             end
-        end)
-    end
+        else
+            waveAccumulator = 0
+        end
+    end)
     if player.Character then
-        local version = latestGeneration
-        task.spawn(showOnCharacter, player.Character, version)
+        task.spawn(bindHead, player.Character, token)
     end
+    updateAppearance()
     return true
 end
 
 function OwnerTag:disable()
     active = false
-    latestGeneration = latestGeneration + 1
+    generation = generation + 1
+    currentHead = nil
     if respawnConnection then
         respawnConnection:Disconnect()
         respawnConnection = nil
     end
-    if rgbConnection then
-        rgbConnection:Disconnect()
-        rgbConnection = nil
+    if frameConnection then
+        frameConnection:Disconnect()
+        frameConnection = nil
     end
-    destroyTag()
+    waveAccumulator = 0
+    destroyGui()
 end
 
 function OwnerTag:isActive() return active end
