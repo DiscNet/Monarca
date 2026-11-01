@@ -104,8 +104,9 @@ jobs:
           assert 'part.CanCollide = false' in antifling
           assert 'character.CanCollide = false' not in antifling
           assert 'part.AssemblyLinearVelocity =' not in antifling, 'Do not modify avatar velocity'
-          assert 'Name = "FlingToggle"' in core
-          assert 'Name = "FlingConsentToggle"' in core
+          assert 'and "FlingToggle" or "FlingConsentToggle"' in core
+          assert 'addFlingControl("Fling"' in core
+          assert 'addFlingControl("Aceitar Fling"' in core
           assert 'loadAuxiliary("fling_touch")' in core
           assert 'auxiliaryModules.fling_touch.shutdown' in core
           bounce = Path('modules/fling_touch.lua').read_text(encoding='utf-8')
