@@ -55,7 +55,8 @@ local function getParts()
         neck = torso:FindFirstChild("Neck"),
         root = root:FindFirstChild("RootJoint"),
     }
-    for key, joint in pairs(motors) do
+    for _, key in ipairs({"rightArm", "leftArm", "rightLeg", "leftLeg", "neck", "root"}) do
+        local joint = motors[key]
         if not joint or not joint:IsA("Motor6D") then
             return nil, "Junta R6 indisponível: " .. key
         end
