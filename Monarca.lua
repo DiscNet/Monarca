@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.7.1 — denser radioactive effect and server X? tab
+-- Monarca Script Hub v0.7.2 — experimental reversible clone invisibility in X?
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -475,7 +475,7 @@ local function bootMonarca()
         Position = UDim2.fromOffset(26, 26),
         Size = UDim2.new(1, -110, 0, 12),
         BackgroundTransparency = 1,
-        Text = "VISUAL HUB  /  V0.7.1",
+        Text = "VISUAL HUB  /  V0.7.2",
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextSize = 9,
@@ -1684,7 +1684,7 @@ local function bootMonarca()
     local auxiliaryModules = {}
     local function loadAuxiliary(name)
         if auxiliaryModules[name] then return auxiliaryModules[name] end
-        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.7.1-" .. tostring(os.time()))
+        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.7.2-" .. tostring(os.time()))
         if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
         local compiled, err = loadstring(source, "Monarca/" .. name)
         if not compiled then error(err or "Módulo inválido.") end
@@ -1698,13 +1698,13 @@ local function bootMonarca()
     -- A successful result needs a remote installed by the game's OWNER.
     local function initializeXPage()
         local section = pages["X?"]
-        title(section, "X?", "Funções com autorização do servidor")
+        title(section, "X?", "Invisibilidade de servidor e testes experimentais")
         local row = card(section, 68)
         new("TextLabel", {
             Position = UDim2.fromOffset(11, 7),
             Size = UDim2.new(1, -113, 0, 23),
             BackgroundTransparency = 1,
-            Text = "Invisível",
+            Text = "Invisível · servidor",
             Font = Enum.Font.GothamBold,
             TextSize = 13,
             TextColor3 = theme.text,
@@ -1747,6 +1747,8 @@ local function bootMonarca()
         }, toggleButton)
         local enabled = false
         local busy = false
+        local experimentEnabled = false
+        local experimentBusy = false
         local function repaint()
             toggleButton.Text = busy and "..." or (enabled and "ON" or "OFF")
             toggleButton.BackgroundColor3 = enabled and theme.primary or theme.background
@@ -1755,7 +1757,11 @@ local function bootMonarca()
             glow.Transparency = enabled and 0.82 or 1
         end
         toggleButton.Activated:Connect(function()
-            if busy then return end
+            if busy or experimentBusy then return end
+            if not enabled and experimentEnabled then
+                status("Desative o clone experimental antes de ligar o modo de servidor.")
+                return
+            end
             busy = true
             repaint()
             task.spawn(function()
@@ -1789,6 +1795,106 @@ local function bootMonarca()
             10, theme.muted, 53)
         footnote.TextWrapped = true
         footnote.TextYAlignment = Enum.TextYAlignment.Top
+
+        -- An explicitly opt-in LOCAL prototype. It does not pretend that
+        -- another player's client has confirmed real invisibility.
+        local experimentalRow = card(section, 70)
+        new("TextLabel", {
+            Name = "CloneInvisibilityLabel",
+            Position = UDim2.fromOffset(11, 7),
+            Size = UDim2.new(1, -113, 0, 24),
+            BackgroundTransparency = 1,
+            Text = "Invisível · experimental",
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            TextColor3 = theme.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+        }, experimentalRow)
+        new("TextLabel", {
+            Position = UDim2.fromOffset(11, 34),
+            Size = UDim2.new(1, -113, 0, 22),
+            BackgroundTransparency = 1,
+            Text = "Proxy local · pode causar desync",
+            Font = Enum.Font.GothamMedium,
+            TextSize = 10,
+            TextColor3 = theme.muted,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        }, experimentalRow)
+        local experimentButton = new("TextButton", {
+            Name = "XCloneInvisibility",
+            Position = UDim2.new(1, -98, 0, 19),
+            Size = UDim2.fromOffset(86, 31),
+            BackgroundColor3 = theme.background,
+            TextColor3 = theme.text,
+            Text = "OFF",
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            AutoButtonColor = false,
+            BorderSizePixel = 0,
+        }, experimentalRow)
+        rounded(experimentButton, 2)
+        local experimentStroke = new("UIStroke", {
+            Color = theme.whiteLine, Thickness = 1, Transparency = 0.22,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        }, experimentButton)
+        local experimentGlow = new("UIStroke", {
+            Color = theme.whiteLine, Thickness = 3, Transparency = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        }, experimentButton)
+        local function repaintExperimental()
+            experimentButton.Text = experimentBusy and "..." or
+                (experimentEnabled and "ON" or "OFF")
+            experimentButton.BackgroundColor3 = experimentEnabled
+                and theme.primary or theme.background
+            experimentButton.TextColor3 = experimentEnabled
+                and theme.background or theme.text
+            experimentStroke.Transparency = experimentEnabled and 0 or 0.22
+            experimentGlow.Transparency = experimentEnabled and 0.82 or 1
+        end
+        experimentButton.Activated:Connect(function()
+            if experimentBusy or busy then return end
+            if not experimentEnabled and enabled then
+                status("Desative a invisibilidade do servidor antes de testar o clone.")
+                return
+            end
+            experimentBusy = true
+            repaintExperimental()
+            task.spawn(function()
+                local desired = not experimentEnabled
+                if desired then
+                    stopFlyForTarget()
+                    resetModes()
+                end
+                local ok, result, message = pcall(function()
+                    local module = loadAuxiliary("clone_invisibility")
+                    if desired then return module:enable() end
+                    return module:disable()
+                end)
+                if destroyed then
+                    local module = auxiliaryModules.clone_invisibility
+                    if module then pcall(module.disable, module) end
+                    return
+                end
+                local module = auxiliaryModules.clone_invisibility
+                experimentEnabled = module and module.isActive
+                    and module:isActive() or false
+                experimentBusy = false
+                repaintExperimental()
+                if ok and result then
+                    status(desired and "Clone ativo (local). Verifique com outro jogador."
+                        or "Personagem original restaurado.")
+                else
+                    status("Clone indisponível: " .. tostring(ok and message or result))
+                end
+            end)
+        end)
+        repaintExperimental()
+        local prototypeInfo = label(section,
+            "Teste arriscado: corpo real fica longe; clone visível só para você. Pode falhar, sofrer anticheat ou causar respawn. Não é FE garantido.",
+            10, theme.muted, 69)
+        prototypeInfo.TextWrapped = true
+        prototypeInfo.TextYAlignment = Enum.TextYAlignment.Top
     end
     initializeXPage()
 
@@ -3010,7 +3116,7 @@ local function bootMonarca()
         if destroyed then return end
         stopAlvo()
         cleanupTargetTool()
-        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "server_invisibility"}) do
+        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "server_invisibility", "clone_invisibility"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
             end
