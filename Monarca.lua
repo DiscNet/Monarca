@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.6.5 — local Korblox right-leg preview in 666
+-- Monarca Script Hub v0.6.6 — proper Korblox R15 mesh proportions and attachments
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -466,7 +466,7 @@ local function bootMonarca()
         Position = UDim2.fromOffset(26, 26),
         Size = UDim2.new(1, -110, 0, 12),
         BackgroundTransparency = 1,
-        Text = "VISUAL HUB  /  V0.6.5",
+        Text = "VISUAL HUB  /  V0.6.6",
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextSize = 9,
@@ -1612,7 +1612,7 @@ local function bootMonarca()
     local auxiliaryModules = {}
     local function loadAuxiliary(name)
         if auxiliaryModules[name] then return auxiliaryModules[name] end
-        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua")
+        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.6.6-" .. tostring(os.time()))
         if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
         local compiled, err = loadstring(source, "Monarca/" .. name)
         if not compiled then error(err or "Módulo inválido.") end
