@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.2**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.3**.
 
 ## Executar
 
@@ -84,6 +84,14 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Botão fixo para invisibilidade no HUD — v0.7.3
+
+Na aba **X?**, a opção **Botão fixo no HUD** ativa ou oculta um controle compacto `INVIS OFF/ON` ancorado ao lado direito da tela (38% da altura, 14 px da borda, 94×38 px), **sem arrastar** e independente da janela principal do Monarca. Assim, continua disponível mesmo com o painel minimizado. Usa o estilo escuro com borda branca quando OFF e fundo branco com texto escuro e halo violeta discreto quando ON.
+
+O botão alterna **exclusivamente o modo Invisível · experimental (clone)**; não aciona a opção que depende de servidor. Ambos usam a mesma função de acionamento e se mantêm sincronizados, inclusive quando a invisibilidade experimental é interrompida automaticamente devido a falha, morte ou respawn. Durante transições exibe `...` e ignora toques repetidos. Evita ativação simultânea com o modo de invisibilidade de servidor.
+
+A opção só aparece para o username `samulucas7419` no cliente. A preferência `invisibilityHudEnabled` é salva com as demais configurações quando `writefile` está disponível. A posição é fixa e não se altera com movimentação ou zoom da câmera. Fechar ou reiniciar o Hub remove o botão antigo, evitando controles duplicados. Não garante replicação da invisibilidade; o protótipo continua experimental.
 
 ## Invisibilidade por clone — experimento v0.7.2
 
