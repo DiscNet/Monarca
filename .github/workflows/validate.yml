@@ -62,7 +62,7 @@ jobs:
           assert main.index('gui.Parent = parent') < main.index('game:HttpGet(repository')
           assert 'local ok, failure = xpcall(bootMonarca' in core
           assert core.strip().endswith('return ok, failure')
-          assert 'hub_core.lua?v=0.8.7-' in main, 'Old core can be cached'
+          assert 'hub_core.lua?v=0.8.8-' in main, 'Old core can be cached'
           for marker in (
               'end -- Player/Emote/666 block: release its many UI locals.',
               'end -- Settings + Visual block: release temporary UI registers.',
@@ -130,6 +130,8 @@ jobs:
           assert 'local opened, loading, playing = true, false, false' in core, 'List must be initially visible'
           assert 'loadAuxiliary("emote_catalog"):getCatalog()' in core
           assert 'loadAuxiliary("emote_catalog"):play(choice)' in core
+          assert '(item.catalogId or "")' in core, 'Search must include original Marketplace IDs'
+          assert '".lua?v=0.8.8-" .. tostring(os.time())' in core, 'Auxiliary module cache was not bumped'
           assert '"antifling", "emote_catalog", "server_invisibility"' in core
           catalog = Path('modules/emote_catalog.lua').read_text(encoding='utf-8')
           import re
@@ -137,6 +139,21 @@ jobs:
           ids = re.findall('id = "([0-9]+)"', raw_catalog)
           assert len(ids) == 50, f'Expected 50 curated emotes, got {len(ids)}'
           assert len(set(ids)) == len(ids), 'Duplicate catalog emote ID'
+          -- Marketplace emote IDs are not playable animation sequence IDs.
+          for name, animation_id in (
+              ('Point2', '3344585679'), ('Shrug', '3334392772'),
+              ('Hello', '3344650532'), ('Salute', '3333474484'),
+              ('Floss Dance', '5917459365'), ('Happy', '4841405708'),
+              ('Hero Landing', '5104344710'), ('Zombie', '4210116953'),
+          ):
+              assert f'name = "{name}", id = "{animation_id}"' in catalog, (
+                  f'Old Marketplace ID still used for {name}')
+          assert 'catalogId = "3576823880"' in catalog, 'Keep the old catalog ID searchable'
+          assert 'while track.Length <= 0' in catalog, 'Must check asynchronous animation loading'
+          assert 'if track.Length <= 0 then' in catalog, 'Must reject unloadable animation'
+          for unavailable in ('Floating Aura', 'Helicopter', 'Rat Dance', 'Take The L', 'Worm'):
+              assert f'name = "{unavailable}"' not in catalog, (
+                  f'Unverified emote still shown as playable: {unavailable}')
           for feature in ('function Catalog:getCatalog()', 'function Catalog:play(item)',
                           'function Catalog:enable()', 'self:enable()',
                           'function Catalog:stop()', 'function Catalog:disable()',
