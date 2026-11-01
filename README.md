@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.0**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.1**.
 
 ## Executar
 
@@ -31,7 +31,9 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `modules/headless_local.lua` — controle independente `</>`: oculta apenas `Head` e decals/texturas do rosto no cliente por `LocalTransparencyModifier`, mantendo cabelos/acessórios e restaurando tudo ao desativar.
 - `modules/korblox_right_leg.lua` — opção alternável de prévia **local e reversível** da perna direita original do Korblox Deathspeaker (asset Roblox `139607718`). No R15 preserva o **tamanho nativo de cada `MeshPart`** da geometria Korblox (sem esticá-la até as dimensões da perna anterior) e alinha as peças por `RightHipRigAttachment`, `RightKneeRigAttachment` e `RightAnkleRigAttachment`. No R6 mantém `CharacterMesh`. Não concede propriedade do item e depende de o carregamento desse asset ser permitido pela experiência.
 - `modules/owner_tag.lua` — tag exclusiva projetada via `WorldToViewportPoint`, com `UIScale` controlado pela altura aparente do avatar: quando o personagem diminui na tela ao afastar a câmera, a tag também diminui, evitando o aparente crescimento desproporcional. RGB ONDA suave (~5,6 segundos por ciclo). Restrição visual/cliente ao username `samulucas7419`, não é whitelist segura de servidor.
-- `modules/radioactive_trail.lua` — rastro local verde neon na aba 666, com partículas, brilho limitado, manchas temporárias no chão, tingimento temporário de blocos pequenos e retorno progressivo à aparência original. Limite de 22 marcas simultâneas e baixa frequência de raycasts para reduzir custo no Android.
+- `modules/radioactive_trail.lua` — rastro verde radioativo (cliente) redesenhado: tenta tingir o **bloco tocado**, não apenas a superfície, em peças ancoradas de até 230 studs de largura; manchas direcionais mais contínuas, partículas e luz limitada, que encolhem tanto no comprimento quanto na largura conforme desvanecem. Até 90 trechos efêmeros, amostragem a cada 0,075 s. Bases gigantes e Terrain usam projeção local em vez de mudar o chão inteiro.
+- `modules/server_invisibility.lua` — botão da aba **X?** que solicita invisibilidade com resposta explícita do servidor. Não mente sobre FE quando o RemoteEvent não existe.
+- `server/MonarcaInvisibility.server.lua` — integração opcional para jogo **próprio**: restringe a solicitação no servidor ao username `samulucas7419`, esconde partes, decals e acessórios do próprio jogador para os demais clientes e restaura os valores anteriores ao desligar. Instalação manual no `ServerScriptService`.
 - `server/MonarcaRigSwitch.server.lua` — integração **opcional** para experiências próprias; cria um novo personagem R6/R15 no servidor e retorna sucesso/erro ao painel.
 - `studio/GenerateZombieR6Animation.lua` — gera no Roblox Studio um `KeyframeSequence` original para publicação como asset de animação.
 
@@ -81,6 +83,14 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Rastro contínuo + aba X? — v0.7.1
+
+**Rastro radioativo (666):** o efeito anterior só tingia peças de até 9 studs de lado; por isso, em boa parte dos mapas as manchas pareciam lâminas sobrepostas, sem modificar o bloco. Agora o contato altera a cor e material `Neon` da peça atingida (quando ancorada e até 230 studs no plano), e restaura o estado depois. Trechos locais de rastro são espaçados a cada ~0,37 stud de deslocamento, amostrados a cada 0,075 s. O comprimento de cada trecho segue a distância percorrida entre amostras; largura e comprimento diminuem durante os 4,1 segundos de desaparecimento. Um limite de 90 marcas evita crescimento infinito de instâncias. `Terrain` e bases gigantes continuam recebendo **projeção local**, não recoloração total. Não altera o servidor nem os outros jogadores.
+
+**Aba X?:** localizada entre Visual e Player. Primeiro alternável **Invisível**, com aparência preta/contorno branco em OFF e branca/texto preto em ON. Só confirma ON quando o servidor responde pelo `ReplicatedStorage.MonarcaInvisibility` à solicitação do jogador. **Para funcionar de verdade para outros jogadores**, instale o arquivo `server/MonarcaInvisibility.server.lua` como Script em `ServerScriptService` **de uma experiência que você administra**. O servidor verifica `Player.Name == samulucas7419`, torna `BasePart`, `Decal`, `Texture` e efeitos de aparência do próprio personagem invisíveis/desativados para todos, esconde o nome por `Humanoid.DisplayDistanceType = None`, repete o estado no respawn e restaura as propriedades originais ao desligar. Não confere invisibilidade contra scripts de detecção, colisões, sons ou ferramentas ESP especiais; é invisibilidade de renderização replicada, **não invulnerabilidade**.
+
+Sem a integração de servidor, nenhum código executado exclusivamente no cliente pode impor invisibilidade visual replicada de forma confiável em jogos de terceiros. O botão informa a ausência do servidor e permanece OFF. A instalação no servidor não acontece apenas por alterar o GitHub.
 
 ## Ajuste da tag e rastro radioativo — v0.7.0
 
