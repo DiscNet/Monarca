@@ -139,7 +139,7 @@ jobs:
           ids = re.findall('id = "([0-9]+)"', raw_catalog)
           assert len(ids) == 50, f'Expected 50 curated emotes, got {len(ids)}'
           assert len(set(ids)) == len(ids), 'Duplicate catalog emote ID'
-          -- Marketplace emote IDs are not playable animation sequence IDs.
+          # Marketplace emote IDs are not playable animation sequence IDs.
           for name, animation_id in (
               ('Point2', '3344585679'), ('Shrug', '3334392772'),
               ('Hello', '3344650532'), ('Salute', '3333474484'),
