@@ -137,6 +137,50 @@ local function tween(object, properties, duration)
     end
 end
 
+-- Fetch the official image from this repository and adapt it for executors
+-- that support local image files. ImageLabel cannot render a raw HTTPS URL.
+-- If these APIs are absent, the rest of the hub remains fully functional.
+local function loadMonarcaIcon(onLoaded)
+    task.spawn(function()
+        local resolver = nil
+        if type(getcustomasset) == "function" then
+            resolver = getcustomasset
+        elseif type(getsynasset) == "function" then
+            resolver = getsynasset
+        end
+        if not resolver then return end
+
+        local localPath = "Monarca/monarca-icon-v1.jpg"
+        local available = false
+        if type(isfile) == "function" then
+            local ok, exists = pcall(isfile, localPath)
+            available = ok and exists == true
+        end
+        if not available and type(writefile) == "function" then
+            local ok, bytes = pcall(function()
+                return game:HttpGet(repository .. "assets/monarca-icon.jpg")
+            end)
+            -- Check the JPEG signature and cap downloaded data.
+            if ok and type(bytes) == "string" and #bytes > 100
+                and #bytes < 250000
+                and bytes:sub(1, 3) == string.char(255, 216, 255) then
+                pcall(function()
+                    if type(makefolder) == "function" then
+                        if type(isfolder) ~= "function" or not isfolder("Monarca") then
+                            makefolder("Monarca")
+                        end
+                    end
+                    writefile(localPath, bytes)
+                end)
+            end
+        end
+        local ok, id = pcall(resolver, localPath)
+        if ok and type(id) == "string" and id ~= "" and not destroyed then
+            onLoaded(id)
+        end
+    end)
+end
+
 local gui = new("ScreenGui", {
     Name = "MonarcaHubV1",
     ResetOnSpawn = false,
@@ -214,15 +258,29 @@ local header = new("Frame", {
     BorderSizePixel = 0,
     Active = true,
 }, main)
-new("Frame", {
-    Position = UDim2.fromOffset(12, 12),
-    Size = UDim2.fromOffset(3, 22),
-    BackgroundColor3 = theme.accent,
+local headerIcon = new("ImageLabel", {
+    Name = "MonarcaBrandIcon",
+    Position = UDim2.fromOffset(10, 8),
+    Size = UDim2.fromOffset(30, 30),
+    BackgroundTransparency = 1,
     BorderSizePixel = 0,
+    ScaleType = Enum.ScaleType.Fit,
+    Image = "",
+    Visible = false,
+}, header)
+rounded(headerIcon, 6)
+local headerPlaceholder = new("TextLabel", {
+    Position = UDim2.fromOffset(10, 8),
+    Size = UDim2.fromOffset(30, 30),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamBold,
+    TextSize = 22,
+    Text = "M",
+    TextColor3 = theme.accent,
 }, header)
 new("TextLabel", {
-    Position = UDim2.fromOffset(23, 6),
-    Size = UDim2.new(1, -107, 0, 20),
+    Position = UDim2.fromOffset(48, 6),
+    Size = UDim2.new(1, -132, 0, 20),
     BackgroundTransparency = 1,
     Text = "MONARCA",
     Font = Enum.Font.GothamBold,
@@ -231,31 +289,50 @@ new("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left,
 }, header)
 new("TextLabel", {
-    Position = UDim2.fromOffset(23, 26),
-    Size = UDim2.new(1, -107, 0, 12),
+    Position = UDim2.fromOffset(48, 26),
+    Size = UDim2.new(1, -132, 0, 12),
     BackgroundTransparency = 1,
-    Text = "SCRIPT HUB  /  V0.1",
+    Text = "SCRIPT HUB  /  V0.2",
     Font = Enum.Font.Gotham,
     TextColor3 = theme.muted,
     TextSize = 9,
     TextXAlignment = Enum.TextXAlignment.Left,
 }, header)
 
--- Small independent floating launcher, visible while the window is minimized.
-local floating = button(gui, "M", UDim2.fromOffset(14, 92), UDim2.fromOffset(38, 38), nil, true)
-floating.Name = "MonarcaFloatingLauncher"
-floating.Visible = false
-floating.ZIndex = 20
-floating.TextSize = 14
-floating.TextColor3 = theme.text
-floating.Active = true
-local floatingCorner = floating:FindFirstChildOfClass("UICorner")
-if floatingCorner then floatingCorner.CornerRadius = UDim.new(0, 8) end
-new("UIStroke", {
-    Color = Color3.fromRGB(213, 185, 255),
-    Thickness = 1.4,
-    Transparency = 0.15,
+-- Floating icon uses the exact repository image when available, not a plain M.
+local floating = new("ImageButton", {
+    Name = "MonarcaFloatingLauncher",
+    Position = UDim2.fromOffset(14, 92),
+    Size = UDim2.fromOffset(40, 40),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    AutoButtonColor = false,
+    Image = "",
+    ScaleType = Enum.ScaleType.Fit,
+    Visible = false,
+    ZIndex = 20,
+    Active = true,
+}, gui)
+rounded(floating, 8)
+local floatingPlaceholder = new("TextLabel", {
+    Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = theme.surface,
+    Text = "M",
+    Font = Enum.Font.GothamBold,
+    TextSize = 19,
+    TextColor3 = theme.accent,
+    ZIndex = 21,
 }, floating)
+rounded(floatingPlaceholder, 8)
+
+loadMonarcaIcon(function(asset)
+    if destroyed then return end
+    headerIcon.Image = asset
+    headerIcon.Visible = true
+    headerPlaceholder.Visible = false
+    floating.Image = asset
+    floatingPlaceholder.Visible = false
+end)
 local function minimize()
     main.Visible = false
     floating.Visible = true
