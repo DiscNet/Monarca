@@ -552,16 +552,16 @@ new("UIPadding", {
     PaddingLeft = UDim.new(0, 7),
     PaddingRight = UDim.new(0, 7),
 }, sidebar)
+-- Divider is parented outside the UIListLayout, so it never consumes a tab slot.
 new("Frame", {
     Name = "TabsDivider",
-    AnchorPoint = Vector2.new(0, 1),
-    Position = UDim2.new(0, 0, 1, 0),
+    Position = UDim2.new(0, 0, 0, HEADER_HEIGHT + NAV_HEIGHT - 1),
     Size = UDim2.new(1, 0, 0, 1),
     BackgroundColor3 = theme.border,
     BackgroundTransparency = 0.2,
     BorderSizePixel = 0,
     ZIndex = 2,
-}, sidebar)
+}, main)
 
 local area = new("Frame", {
     BackgroundTransparency = 1,
