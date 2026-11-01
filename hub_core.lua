@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.8.9 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.9.0 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -124,7 +124,7 @@ local function bootMonarca()
         local ok, moduleOrError = pcall(function()
             if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
             local source = game:HttpGet(repository .. "modules/" .. name
-                .. ".lua?v=0.8.9-" .. tostring(os.time()))
+                .. ".lua?v=0.9.0-" .. tostring(os.time()))
             if type(source) ~= "string" or #source < 20 then
                 error("Resposta vazia ao carregar " .. name)
             end
@@ -2809,7 +2809,7 @@ local function bootMonarca()
             marketNextButton.Visible = false
 
             local feedback = label(emotePage,
-                "R15: IDs de animação corrigidos. Acesso e replicação dependem do jogo; alguns emotes podem estar bloqueados.",
+                "Emotes UGC agora usam a API nativa do Roblox. Posse e permissões da experiência ainda são exigidas.",
                 11, theme.muted, 56)
             feedback.TextWrapped = true
 
@@ -2882,7 +2882,7 @@ local function bootMonarca()
                         searchBox.Text = ""
                         repaintPicker()
                         if item.marketplace then
-                            feedback.Text = "UGC/Marketplace: este é o ID do item; reproduzir depende da animação e do acesso no jogo."
+                            feedback.Text = "UGC: o Monarca usará HumanoidDescription e PlayEmoteAsync para este item. A reprodução depende da posse e das permissões."
                         end
                     end)
                     if item.id == previousId and not selected then selected = item end
@@ -3008,9 +3008,9 @@ local function bootMonarca()
                     playing = false
                     playButton.Text = "REPRODUZIR"
                     if ok and worked then
-                        feedback.Text = "Emote carregado: " .. choice.name ..
-                            ". Para confirmar FE, verifique com outro jogador."
-                        status("Emote: " .. choice.name .. " carregado.")
+                        feedback.Text = "Emote iniciado: " .. choice.name ..
+                            ". Confirme a replicação com outro jogador."
+                        status("Emote: " .. choice.name .. " iniciado.")
                     else
                         local message = tostring(ok and reason or worked)
                         feedback.Text = "Falha: " .. message
