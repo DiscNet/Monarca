@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.7.0 — avatar-relative tag and radioactive ground trail
+-- Monarca Script Hub v0.7.1 — denser radioactive effect and server X? tab
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -475,7 +475,7 @@ local function bootMonarca()
         Position = UDim2.fromOffset(26, 26),
         Size = UDim2.new(1, -110, 0, 12),
         BackgroundTransparency = 1,
-        Text = "VISUAL HUB  /  V0.7.0",
+        Text = "VISUAL HUB  /  V0.7.1",
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextSize = 9,
@@ -642,7 +642,7 @@ local function bootMonarca()
     local function page(name)
         -- Home retains its compact profile layout, while Player/Emote use tighter lists.
         local isHome = name == "Home"
-        local compactList = name == "Player" or name == "Emote" or name == "666"
+        local compactList = name == "Player" or name == "Emote" or name == "666" or name == "X?"
         local scroller = new("ScrollingFrame", {
             Name = name,
             BackgroundTransparency = 1,
@@ -692,7 +692,7 @@ local function bootMonarca()
             }, 0.22)
         end
     end
-    for index, name in ipairs({"Home", "Alvo", "Visual", "Player", "Emote", "666", "Settings"}) do
+    for index, name in ipairs({"Home", "Alvo", "Visual", "X?", "Player", "Emote", "666", "Settings"}) do
         page(name)
         local b = new("TextButton", {
             Name = "Tab" .. name,
@@ -1684,7 +1684,7 @@ local function bootMonarca()
     local auxiliaryModules = {}
     local function loadAuxiliary(name)
         if auxiliaryModules[name] then return auxiliaryModules[name] end
-        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.7.0-" .. tostring(os.time()))
+        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.7.1-" .. tostring(os.time()))
         if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
         local compiled, err = loadstring(source, "Monarca/" .. name)
         if not compiled then error(err or "Módulo inválido.") end
@@ -1694,6 +1694,104 @@ local function bootMonarca()
         auxiliaryModules[name] = module
         return module
     end
+    -- X? is deliberately separate from the purely client-only Visual tab.
+    -- A successful result needs a remote installed by the game's OWNER.
+    local function initializeXPage()
+        local section = pages["X?"]
+        title(section, "X?", "Funções com autorização do servidor")
+        local row = card(section, 68)
+        new("TextLabel", {
+            Position = UDim2.fromOffset(11, 7),
+            Size = UDim2.new(1, -113, 0, 23),
+            BackgroundTransparency = 1,
+            Text = "Invisível",
+            Font = Enum.Font.GothamBold,
+            TextSize = 13,
+            TextColor3 = theme.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        }, row)
+        new("TextLabel", {
+            Position = UDim2.fromOffset(11, 33),
+            Size = UDim2.new(1, -113, 0, 23),
+            BackgroundTransparency = 1,
+            Text = "FE somente com suporte do servidor",
+            Font = Enum.Font.GothamMedium,
+            TextSize = 10,
+            TextColor3 = theme.muted,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        }, row)
+        local toggleButton = new("TextButton", {
+            Name = "XServerInvisibility",
+            Position = UDim2.new(1, -98, 0, 18),
+            Size = UDim2.fromOffset(86, 31),
+            BackgroundColor3 = theme.background,
+            TextColor3 = theme.text,
+            Text = "OFF",
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            AutoButtonColor = false,
+            BorderSizePixel = 0,
+        }, row)
+        rounded(toggleButton, 2)
+        local stroke = new("UIStroke", {
+            Color = theme.whiteLine,
+            Thickness = 1,
+            Transparency = 0.22,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        }, toggleButton)
+        local glow = new("UIStroke", {
+            Color = theme.whiteLine,
+            Thickness = 3,
+            Transparency = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        }, toggleButton)
+        local enabled = false
+        local busy = false
+        local function repaint()
+            toggleButton.Text = busy and "..." or (enabled and "ON" or "OFF")
+            toggleButton.BackgroundColor3 = enabled and theme.primary or theme.background
+            toggleButton.TextColor3 = enabled and theme.background or theme.text
+            stroke.Transparency = enabled and 0 or 0.22
+            glow.Transparency = enabled and 0.82 or 1
+        end
+        toggleButton.Activated:Connect(function()
+            if busy then return end
+            busy = true
+            repaint()
+            task.spawn(function()
+                local desired = not enabled
+                local ok, result, reason = pcall(function()
+                    local module = loadAuxiliary("server_invisibility")
+                    if desired then return module:enable() end
+                    return module:disable()
+                end)
+                if destroyed then
+                    local mod = auxiliaryModules.server_invisibility
+                    if mod then pcall(mod.disable, mod) end
+                    return
+                end
+                local module = auxiliaryModules.server_invisibility
+                enabled = module and module.isActive
+                    and module:isActive() or false
+                busy = false
+                repaint()
+                if ok and result then
+                    status(enabled and "Invisibilidade confirmada pelo servidor."
+                        or "Personagem visível novamente.")
+                else
+                    status("X? indisponível: " .. tostring(ok and reason or result))
+                end
+            end)
+        end)
+        repaint()
+        local footnote = label(section,
+            "Requer MonarcaInvisibility em ServerScriptService de um jogo próprio. Sem resposta do servidor, o botão não simula FE.",
+            10, theme.muted, 53)
+        footnote.TextWrapped = true
+        footnote.TextYAlignment = Enum.TextYAlignment.Top
+    end
+    initializeXPage()
+
     bootStage = "Construindo aba Player"
     local playerPage = pages.Player
     title(playerPage, "Player", "Movimento, câmera e aparência do personagem.")
@@ -2912,7 +3010,7 @@ local function bootMonarca()
         if destroyed then return end
         stopAlvo()
         cleanupTargetTool()
-        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail"}) do
+        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "server_invisibility"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
             end
