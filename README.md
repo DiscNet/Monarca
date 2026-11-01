@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas Home/Visual/Player/Settings e layout adaptável a telas pequenas. Primeira versão: **0.1.0**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Settings** e layout adaptável ao Android. Versão atual: **0.4.0**.
 
 ## Executar
 
@@ -41,6 +41,13 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Animação de inicialização com transição de escala, barra de carregamento, mensagens de progresso e entrada suave do painel após a sincronização inicial.
 - Áudio **Arise** reproduzido uma vez ao executar, quando o ambiente oferecer `writefile` e `getcustomasset`/`getsynasset`. Se o executor bloquear áudio local, a interface inicia normalmente sem som; não toca ao reabrir o ícone flutuante.
 - Ícone oficial **exclusivamente no botão flutuante**. Quando disponíveis `writefile` e `getcustomasset` ou `getsynasset`, o Hub baixa e guarda automaticamente a imagem do repositório. Sem essas APIs, exibe a letra **M** como alternativa.
+- Aba **Alvo**: pesquisa outros jogadores por **Nick/Username**, **DisplayName/apelido**, prefixos, trechos do nome e aproximação ortográfica; oferece quatro sugestões selecionáveis, avatar compacto, Nick, apelido, ID e distância.
+- **Headsit**: posicionamento local acima da cabeça do jogador selecionado, atualizado a cada frame visível; **Backpack**: posição local nas costas, voltada para trás.
+- **Follow**: movimentação com `Humanoid:MoveTo` atualizada continuamente enquanto estiver habilitada; pode ser impedida por obstáculos.
+- **View**: câmera local presa ao ponto de vista aproximado da cabeça do alvo; não permite ler a câmera real ou os comandos de visão de outro jogador. A câmera anterior é restaurada ao desativar.
+- **TP**: teletransporte pontual para perto do alvo. O botão conserva o estado ligado até ser desativado, mas não acompanha o jogador.
+- Estados dos botões de Alvo: fundo preto e contorno branco quando desligados; branco com texto preto e halo discreto quando ligados; cantos de 2 px. Headsit/Follow/Backpack são mutuamente exclusivos. Trocar ou perder o alvo desativa os modos e restaura a câmera.
+- **Limitações físicas**: movimentos e posicionamentos são locais e podem sofrer correções de física ou replicação do servidor. Não há garantia de ausência de latência ou de resultado idêntico em todos os jogos.
 - Aba **Visual** com controles organizados por Personagens, Iluminação, Interface e Desempenho.
 - **X-Ray**: destaca personagens de outros jogadores através de obstáculos; **ESP**: exibe apelido e distância.
 - **Horário**: opções Padrão/Dia/Noite, com restauração ao desligar; Fullbright e Sem neblina são independentes.
