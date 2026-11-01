@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.6**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.7**.
 
 ## Executar
 
@@ -25,7 +25,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `modules/esp.lua` — etiquetas com apelido e distância até outros personagens.
 - `modules/timecycle.lua` — ajuste local de horário (Dia/Noite/Padrão).
 - `modules/nofog.lua` — remoção local de neblina e névoa atmosférica.
-- `modules/player_fly.lua` — voo local com velocidade de 5–160 studs/s, controle analógico de movimento e comandos para subir/descer.
+- `modules/player_fly.lua` — voo local de 5–160 studs/s na direção completa da câmera. Joystick/WASD para avançar, subir e descer conforme o ângulo de visão; rotação corporal com pitch/roll e aceleração suave. Não mostra comandos SUBIR/DESCER.
 - `modules/zombie_r6.lua` — emote R6 corrigido: braços à frente, pernas alternadas no plano de caminhada; reprodução FE por animação publicada quando autorizada, ou alternativa local.
 - `modules/pose_666.lua` — animação R6 local aprimorada: postura menos inclinada, braços soltos, idle com respiração e oscilação, caminhada com passos mais expressivos e transição idle/walk gradual.
 - `modules/headless_local.lua` — controle independente `</>`: oculta apenas `Head` e decals/texturas do rosto no cliente por `LocalTransparencyModifier`, mantendo cabelos/acessórios e restaurando tudo ao desativar.
@@ -57,7 +57,7 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - **View**: usa `CameraType.Custom` e `CameraSubject` no Humanoid do alvo, com `CameraMode.Classic` e zoom de terceira pessoa entre 7 e 18 studs. Não reproduz a câmera particular do outro jogador; ao desativar, restaura câmera, foco, modo e limites de zoom anteriores.
 - **TP**: **ação por clique**, teletransporte pontual para perto do alvo. Não é alternável nem permanece ativo.
 - Estados dos botões de Alvo: fundo preto e contorno branco quando desligados; branco com texto preto e halo discreto quando ligados; cantos de 2 px. Headsit/Follow/Backpack são mutuamente exclusivos. Trocar ou perder o alvo desativa os modos e restaura a câmera.
-- **Marcar Alvo por toque**: botão em Alvo entrega um Tool `Marcar Alvo` na mochila. Ao equipá-lo e clicar/tocar no personagem de outro jogador, ele é selecionado automaticamente, sem digitar nick. A seleção depende do personagem visível/atingido e pode não funcionar em jogos que substituem a mochila ou captura de input.
+- **Marcar Alvo por toque**: botão na aba Alvo entrega um Tool sem Handle, com **ícone nativo de mira** (`rbxasset://textures/MouseLockedCursor.png`). Ao tocar nele na mochila, o modo de seleção é ativado e a ferramenta é desequipada imediatamente, evitando a pose de segurar um item. Em seguida, toque/clique num personagem visível: um raycast identifica o jogador e o seleciona no menu Alvo. A mira pode ser cancelada tocando o ícone novamente. Gestos de câmera são ignorados por limite de deslocamento. O comportamento pode variar conforme o executor ou mochila personalizada.
 
 - **Limitações físicas**: os novos constraints reduzem a oscilação causada pelo teletransporte a cada frame, mas a replicação do servidor e a latência ainda podem causar correções. O sistema desativa os modos ao trocar o alvo, quando ele sai ou quando o personagem reaparece.
 - Aba **Visual** com controles organizados por Personagens, Iluminação, Interface e Desempenho.
@@ -65,7 +65,7 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - **Horário**: opções Padrão/Dia/Noite, com restauração ao desligar; Fullbright e Sem neblina são independentes.
 - **Mira roxa** e **Gráficos leves**, com ativação local e reversível.
 - **Player**: FOV e controles de velocidade `8–160` (10× o padrão 16) e pulo `25–500` (10× o padrão 50). Painel com menor espaçamento entre sliders.
-- **Fly**: velocidade ajustável de 5 a 160, toggle no Player, comandos SUBIR/DESCER na tela do celular e Space/Ctrl no teclado. Usa `LinearVelocity`, pode ser limitado pelo jogo e é desativado ao entrar em modos de Alvo.
+- **Fly**: velocidade ajustável de 5 a 160, toggle no Player, deslocamento na direção da câmera (com componente vertical) controlado pelo joystick/WASD, inclinação para a frente/trás e lateral, estabilização via `AlignOrientation` e aceleração suave. A direção da câmera substitui os antigos comandos de subir/descer; utiliza `LinearVelocity`, pode ser limitado pelo jogo e é desativado ao entrar em modos de Alvo.
 - **R6/R15**: o painel só envia uma solicitação quando a experiência fornece `ReplicatedStorage.MonarcaRigSwitch`. O script `server/MonarcaRigSwitch.server.lua`, instalado em **ServerScriptService de um jogo próprio**, cria o novo modelo R6 ou R15 com `Players:CreateHumanoidModelFromDescriptionAsync`, troca `Player.Character`, destrói o modelo antigo e responde ao cliente com o resultado. Esse processo recria o personagem de verdade, disparando `CharacterAdded`. A implementação precisa ser testada com os scripts e regras de avatar da experiência. Em jogos de terceiros sem essa integração, a troca não funciona. Alterar só `Humanoid.RigType` pode matar o personagem.
 - **Aba 666 — ? (v0.6.4)**: idle com braços abaixados ao lado do corpo, torso 9° levemente inclinado para trás, perna direita 21° à frente, esquerda 11° atrás e oscilação suave de distribuição de peso. A caminhada percorre os estágios **Contact → Down → Passing → Up**, com passos alternados mais amplos, elevação dos pés, deslocamento individual dos quadris, braços em contrabalanço, rotação de tronco e movimentos da cabeça. A transição idle/walk conserva suavização exponencial em cada junta e velocidade adaptativa. O Zombie continua mutuamente exclusivo. **Limitante do R6:** cada perna e braço é uma peça rígida, sem joelhos/cotovelos articulados; para dobrar a perna de fato é necessário um rig R15 ou segmentado. `Motor6D.Transform` continua local, não FE.
 - **Aba 666 — </>**: novo botão alternável imediatamente abaixo de **?**, independente da animação. Quando ativo, torna somente a cabeça invisível localmente usando `LocalTransparencyModifier = 1`, ocultando também decal/textura do rosto, mas **não** remove cabelo, chapéus, acessórios, `Humanoid` ou juntas. Continua no respawn enquanto ativo; ao desativar ou fechar o Hub, restaura a transparência original. Outros jogadores continuam enxergando a cabeça.
@@ -79,6 +79,10 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Ajustes Fly e marcador de Alvo — v0.6.7
+
+O Fly passa a usar os vetores `Camera.CFrame.LookVector` e `RightVector` para gerar movimento 3D. O ângulo vertical da câmera afeta diretamente a altitude, sem botões separados. A rotação corporal usa `AlignOrientation` com pitch e roll suaves. O marcador do Alvo agora é um atalho de hotbar com ícone de mira e seleção por toque: ele **retorna automaticamente à mochila** quando selecionado, para não manter os braços na pose de ferramenta equipada. Continua sem peça `Handle`.
 
 ## Correção da perna Korblox R15 — v0.6.6
 
