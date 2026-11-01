@@ -50,11 +50,25 @@ jobs:
           done < <(find . -name '*.lua' -type f -not -path './.git/*' -print0)
           echo "All Luau sources compiled successfully"
 
+      - name: Verify small diagnostic loader delegates to core
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          main = Path('Monarca.lua').read_text(encoding='utf-8')
+          core = Path('hub_core.lua').read_text(encoding='utf-8')
+          assert len(main.encode()) < 12000, 'Entrypoint should stay small'
+          assert 'MonarcaBootstrap' in main and 'retry.Activated:Connect(launch)' in main
+          assert 'hub_core.lua?v=' in main
+          assert main.index('gui.Parent = parent') < main.index('game:HttpGet(repository')
+          assert 'local ok, failure = xpcall(bootMonarca' in core
+          assert core.strip().endswith('return ok, failure')
+          print('Diagnostic bootstrap, retry and separate boot result validated')
+          PY
       - name: Verify local module files
         run: |
           python - <<'PY'
           from pathlib import Path
-          for path in ('Monarca.lua', 'manifest.lua', 'modules/fullbright.lua',
+          for path in ('Monarca.lua', 'hub_core.lua', 'manifest.lua', 'modules/fullbright.lua',
                        'modules/lowgraphics.lua', 'modules/crosshair.lua',
                        'modules/player_fly.lua', 'modules/player_reverse.lua',
                        'modules/zombie_r6.lua',
