@@ -1,4 +1,4 @@
--- Monarca / Emote catalog v0.8.8
+-- Monarca / Emote catalog v0.8.9
 -- Curated R15 animation sequence IDs (not Marketplace item IDs).
 -- Catalog IDs from earlier versions are kept in catalogId for search only.
 -- Non-classic animation IDs cross-checked against Eazvy/Public-Scripts.
@@ -233,6 +233,9 @@ function Catalog:play(item)
     end
     if track.Length <= 0 then
         releaseTrack()
+        if item.marketplace then
+            return false, "Emote encontrado no Marketplace, mas o ID do item UGC não fornece uma sequência reproduzível aqui. Equipe o emote no seu avatar ou use-o em uma experiência com acesso ao ativo."
+        end
         return false, "Animação não carregada pelo Roblox. O ativo pode não estar disponível ou autorizado neste jogo."
     end
     return true, "Emote carregado. A replicação ainda depende do jogo."
