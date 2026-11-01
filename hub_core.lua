@@ -3200,6 +3200,7 @@ local function bootMonarca()
             {id = "levitation", name = "Levitation Animation Pack", short = "Levitation"},
             {id = "mage", name = "Mage Animation Pack", short = "Mage"},
             {id = "ninja", name = "Ninja Animation Pack", short = "Ninja"},
+            {id = "oldschool", name = "Oldschool Animation Pack", short = "Oldschool"},
             {id = "pirate", name = "Pirate Animation Pack", short = "Pirate"},
             {id = "robot", name = "Robot Animation Pack", short = "Robot"},
             {id = "rthro", name = "Rthro Animation Pack", short = "Rthro"},
