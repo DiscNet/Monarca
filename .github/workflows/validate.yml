@@ -62,7 +62,7 @@ jobs:
           assert main.index('gui.Parent = parent') < main.index('game:HttpGet(repository')
           assert 'local ok, failure = xpcall(bootMonarca' in core
           assert core.strip().endswith('return ok, failure')
-          assert 'hub_core.lua?v=0.7.8-' in main, 'Old core can be cached'
+          assert 'hub_core.lua?v=0.7.9-' in main, 'Old core can be cached'
           for marker in (
               'end -- Player/Emote/666 block: release its many UI locals.',
               'end -- Settings + Visual block: release temporary UI registers.',
@@ -75,7 +75,19 @@ jobs:
               'end -- Settings + Visual block:')
           assert core.index('end -- Settings + Visual block:') < core.index(
               'local dragging, dragInput, dragStart, offsetStart')
-          print('Bootstrap and scoped-register refactor validated')
+          module = Path('modules/clone_invisibility.lua').read_text(encoding='utf-8')
+          for marker in (
+              'local function parkBody(realModel, root)',
+              'local function restoreBody()',
+              'cloneRoot.AssemblyLinearVelocity = initialVelocity',
+              'if (root.Position - remotePivot.Position).Magnitude > MAX_PARK_DRIFT then',
+              'function CloneInvisible:disable()',
+              'return restoreWorldCharacter()',
+          ):
+              assert marker in module, f'Invisibility stabilization missing: {marker}'
+          assert 'hum:Move(cloneHum.MoveDirection, false)' not in module
+          assert 'hum.Jump = true' not in module
+          print('Bootstrap, register scopes and invisibility stabilization validated')
           PY
       - name: Verify local module files
         run: |
