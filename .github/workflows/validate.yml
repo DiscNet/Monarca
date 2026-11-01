@@ -104,14 +104,25 @@ jobs:
               assert re.search(r'^    ' + name + r' = \{', anim, re.M), f'Missing R15 pack: {name}'
               assert ('id = "' + name + '", name = "') in core, f'Missing UI pack: {name}'
           assert anim.split('local SLOT_PATHS')[0].count('title = "') == len(expected), 'Wrong number of catalog entries'
-          assert 'local previous = PRESETS[currentPreset]' in anim, 'Restore must use selected preset'
+          assert 'stopTracksUsing(animator, lastAppliedIds)' in anim, 'Restore must stop active tracks'
+          assert 'function AnimPacks:enableMixed(basePreset, overrides)' in anim, 'Mixed R15 API missing'
+          assert 'function AnimPacks:enable(presetName)' in anim, 'Complete pack API missing'
+          assert 'function AnimPacks:getConfig()' in anim, 'Configuration readback missing'
+          assert 'local chosen = overrides[PATH_TO_GROUP[path]] or base' in anim, 'Per-slot overrides missing'
+          for movement in ('idle', 'walk', 'run', 'jump', 'fall', 'climb', 'swim', 'swimidle'):
+              assert ('id = "' + movement + '", title = "') in anim, f'Missing animation state: {movement}'
+              assert ('id = "' + movement + '", name = "') in core, f'Missing per-state UI: {movement}'
+          assert 'paths = {"idle.Animation1", "idle.Animation2"}' in anim, 'Idle must set both clips'
+          for marker in ('module:enableMixed(base, mixture)', 'APLICAR MISTURA', 'LIMPAR CAMPOS',
+                         'Name = "AnimPicker_" .. movement.id', 'local resetOverrides = function() end'):
+              assert marker in core, f'Missing mix picker feature: {marker}'
           assert 'restoreCurrent()\n    currentPreset = "default"' in anim
           for marker in ('Name = "AnimationSearch"', 'Name = "AnimationPackList"',
                          'local function filterChoices()', 'local requestPreset, requestLabel = selected, selectedLabel',
                          'end -- Anim page: release temporary UI locals.'):
               assert marker in core, f'Missing Anim search feature: {marker}'
           assert 'rbxassetid://' in anim and '1083473930' in anim
-          print('Bootstrap, 18 R15 packs, dropdown search, restore and register scopes validated')
+          print('Bootstrap, 18 R15 packs, mixed R15 slots, UI and restore scopes validated')
           PY
       - name: Verify local module files
         run: |
