@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.3**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.4**.
 
 ## Executar
 
@@ -26,6 +26,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `modules/timecycle.lua` — ajuste local de horário (Dia/Noite/Padrão).
 - `modules/nofog.lua` — remoção local de neblina e névoa atmosférica.
 - `modules/player_fly.lua` — voo local de 5–160 studs/s na direção completa da câmera. Joystick/WASD para avançar, subir e descer conforme a visão; agora o personagem também acompanha a inclinação vertical da câmera **parado no ar**, mantendo pitch/roll suaves. Não mostra comandos SUBIR/DESCER.
+- `modules/player_reverse.lua` — Reverse/Flashback baseado no código original enviado (posição/rotação, velocidade, estado do Humanoid, PlatformStand e ferramenta equipada). Histórico circular de até 60 s a 30 amostras por segundo para reduzir custo no Android, tecla E para segurar, botões `start()/stop()` para o HUD, parada segura em morte ou respawn. É uma rebobinagem local do personagem, não do servidor.
 - `modules/zombie_r6.lua` — emote R6 corrigido: braços à frente, pernas alternadas no plano de caminhada; reprodução FE por animação publicada quando autorizada, ou alternativa local.
 - `modules/pose_666.lua` — animação R6 local aprimorada: postura menos inclinada, braços soltos, idle com respiração e oscilação, caminhada com passos mais expressivos e transição idle/walk gradual.
 - `modules/headless_local.lua` — controle independente `</>`: oculta apenas `Head` e decals/texturas do rosto no cliente por `LocalTransparencyModifier`, mantendo cabelos/acessórios e restaurando tudo ao desativar.
@@ -84,6 +85,15 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Reverse / Flashback com botão físico — v0.7.4
+
+- **Local:** aba **Player**, controle **Reverse no HUD** (ativado por padrão). Quando habilitado, inicia a gravação do histórico de movimento e mantém um botão fixo no canto lateral direito, aproximadamente a 54% da altura da tela, sem depender da janela aberta.
+- **Ícone:** `⟲` (seta circular de rebobinagem, não a letra E); controle compacto de **48×48 px**, cantos de 11 px, borda branca, brilho violeta discreto e sombra deslocada para dar sensação de botão físico. Ao pressionar, o controle afunda 3 px e troca as cores. Ao soltar, retorna à posição e encerra o Reverse.
+- **Ativação:** pressione e segure o botão no Android ou a tecla **E** no teclado. Não é um alternável de um toque: ao soltar, a reprodução retroativa para. O mesmo módulo responde aos dois meios de entrada.
+- **Base original:** o script fornecido grava `CFrame`, `Velocity`, estado do `Humanoid`, `PlatformStand` e `Tool` equipado. A adaptação preserva esses campos, substitui `Velocity` por `AssemblyLinearVelocity`, usa buffer circular (até **1.800 estados**, ~60 segundos a 30 Hz) para evitar `table.remove(frames, 1)` e previne leitura de frames inexistentes.
+- **Segurança operacional:** o Reverse restaura o estado ancorado, `AutoRotate` e `PlatformStand` ao soltar, interrompe em morte ou troca de personagem, desconecta os listeners ao encerrar o hub, impede concorrência com Fly ativo e não tenta rebobinar o clone experimental de invisibilidade. Ao desativar a opção no Player, apaga o histórico e remove o botão. A preferência é salva quando disponível.
+- **Limitação:** trata-se de um efeito de posição e estados do avatar no cliente. Não restaura pontos de vida, itens destruídos, outras pessoas nem o tempo do servidor. Servidores podem recusar ou corrigir posições; ferramentas/estados antigos podem deixar de existir. Precisa de teste dentro do Roblox Android para confirmar a suavidade e o posicionamento do controle.
 
 ## Botão fixo para invisibilidade no HUD — v0.7.3
 
