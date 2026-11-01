@@ -39,6 +39,7 @@ jobs:
           for path in ('Monarca.lua', 'manifest.lua', 'modules/fullbright.lua',
                        'modules/lowgraphics.lua', 'modules/crosshair.lua',
                        'modules/player_fly.lua', 'modules/zombie_r6.lua',
+                       'modules/pose_666.lua',
                        'server/MonarcaRigSwitch.server.lua'):
               assert Path(path).is_file(), f'Missing {path}'
           print('All expected files present')
