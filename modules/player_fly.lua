@@ -1,4 +1,4 @@
--- Monarca Fly v0.6.7
+-- Monarca Fly v0.6.8
 -- Camera-relative flight: thumbstick/WASD forward climbs or dives with camera.
 -- No on-screen UP/DOWN actions. Tilt into forward/backward and lateral motion.
 local Players = game:GetService("Players")
@@ -167,11 +167,11 @@ function Fly:enable()
             -- Sideways input introduces a roll/bank, backward input relaxes
             -- the lean. All three axes are smoothed between directions.
             local cameraPitch = math.asin(math.clamp(look.Y, -1, 1))
-            local leanPitch = moving
-                and (cameraPitch * forward * 0.82
-                    - math.rad(13) * math.max(0, forward)
-                    + math.rad(7) * math.max(0, -forward))
-                or 0
+            -- Pitch must follow the camera even at zero velocity; previously
+            -- movement=false forced pitch to zero and locked the idle body flat.
+            local leanPitch = cameraPitch * (moving and 0.90 or 0.97)
+                - math.rad(13) * math.max(0, forward)
+                + math.rad(7) * math.max(0, -forward)
             local bank = moving and math.rad(-29) * sideways or 0
             local pitch = math.clamp(leanPitch, math.rad(-76), math.rad(76))
             local target = CFrame.lookAt(Vector3.zero, yawForward.Unit)
