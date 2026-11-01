@@ -32,6 +32,24 @@ jobs:
               print('OK', file)
           print(f'Validated {len(files)} Lua files')
           PY
+      - name: Compile every script with real Luau compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/luau-tools"
+          curl -fL --retry 3 --connect-timeout 15 \
+            -o "$RUNNER_TEMP/luau-ubuntu.zip" \
+            "https://github.com/luau-lang/luau/releases/download/0.745/luau-ubuntu.zip"
+          unzip -q "$RUNNER_TEMP/luau-ubuntu.zip" -d "$RUNNER_TEMP/luau-tools"
+          COMPILER="$(find "$RUNNER_TEMP/luau-tools" -type f -name luau-compile -print -quit)"
+          test -n "$COMPILER"
+          chmod +x "$COMPILER"
+          while IFS= read -r -d '' file; do
+            echo "Luau compile: $file"
+            "$COMPILER" --null "$file" > /dev/null
+          done < <(find . -name '*.lua' -type f -not -path './.git/*' -print0)
+          echo "All Luau sources compiled successfully"
+
       - name: Verify local module files
         run: |
           python - <<'PY'
