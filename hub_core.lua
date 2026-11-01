@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.8.8 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.8.9 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -124,7 +124,7 @@ local function bootMonarca()
         local ok, moduleOrError = pcall(function()
             if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
             local source = game:HttpGet(repository .. "modules/" .. name
-                .. ".lua?v=0.8.8-" .. tostring(os.time()))
+                .. ".lua?v=0.8.9-" .. tostring(os.time()))
             if type(source) ~= "string" or #source < 20 then
                 error("Resposta vazia ao carregar " .. name)
             end
@@ -2718,7 +2718,7 @@ local function bootMonarca()
         -- Isolated function keeps the hub below Luau's 200-local-register cap.
         local function initializeCatalogUI()
             title(emotePage, "Catálogo de emotes",
-                "50 emotes de referência + emotes disponíveis no seu avatar · R15.")
+                "50 de referência + emotes do avatar + busca online Roblox/UGC · R15.")
             local pickerRow = card(emotePage, 61)
             cardText(pickerRow, "Selecionar emote", "Toque para buscar.", 176)
             local pickerButton = button(pickerRow, "EMOTES  ▾",
@@ -2743,7 +2743,7 @@ local function bootMonarca()
                 BackgroundTransparency = 0.08,
                 TextColor3 = theme.text,
                 PlaceholderColor3 = theme.muted,
-                PlaceholderText = "Buscar emote por nome ou ID...",
+                PlaceholderText = "Buscar emote, ID ou UGC...",
                 ClearTextOnFocus = false,
                 Text = "",
                 Font = Enum.Font.Gotham,
@@ -2771,6 +2771,8 @@ local function bootMonarca()
             }, emoteList)
 
             local selected, choices, choiceButtons = nil, {}, {}
+            local baseline, marketResults = {}, {}
+            local marketQuery, hasNextPage, marketBusy = "", false, false
             local opened, loading, playing = true, false, false
             local selectionRow = card(emotePage, 46)
             local selectedName = label(selectionRow,
@@ -2795,6 +2797,17 @@ local function bootMonarca()
                 UDim2.new(1, -101, 0, 4), UDim2.fromOffset(90, 28))
             reloadButton.Name = "EmoteRefresh"
             reloadButton.TextSize = 11
+
+            local marketRow = card(emotePage, 48)
+            local marketSearchButton = button(marketRow, "BUSCAR UGC",
+                UDim2.fromOffset(9, 8), UDim2.new(0.5, -15, 0, 31), nil, true)
+            marketSearchButton.Name = "EmoteMarketplaceSearch"
+            local marketNextButton = button(marketRow, "MAIS EMOTES",
+                UDim2.new(0.5, 6, 0, 8), UDim2.new(0.5, -15, 0, 31))
+            marketNextButton.Name = "EmoteMarketplaceNext"
+            marketNextButton.TextSize = 11
+            marketNextButton.Visible = false
+
             local feedback = label(emotePage,
                 "R15: IDs de animação corrigidos. Acesso e replicação dependem do jogo; alguns emotes podem estar bloqueados.",
                 11, theme.muted, 56)
@@ -2807,7 +2820,9 @@ local function bootMonarca()
                     local haystack = string.lower(item.name .. " " ..
                         (item.aliases or "") .. " " .. (item.group or "") ..
                         " " .. (item.id or "") .. " " .. (item.catalogId or ""))
-                    local shown = term == "" or string.find(haystack, term, 1, true) ~= nil
+                    local shown = term == ""
+                        or string.find(haystack, term, 1, true) ~= nil
+                        or (item.marketplace and term == string.lower(marketQuery))
                     choiceButtons[i].Visible = shown
                     if shown then visibleCount = visibleCount + 1 end
                 end
@@ -2833,6 +2848,99 @@ local function bootMonarca()
                     (selected.name .. "  ·  " .. selected.group .. "  ·  " .. selected.id)
                     or "Nenhum emote selecionado."
             end
+            local function rebuildCatalog()
+                local previousId = selected and selected.id
+                choices, selected = {}, nil
+                local seen = {}
+                for _, collection in ipairs({baseline, marketResults}) do
+                    for _, item in ipairs(collection) do
+                        local key = tostring(item.catalogId or item.id)
+                        if not seen[key] then
+                            seen[key] = true
+                            table.insert(choices, item)
+                        end
+                    end
+                end
+                for _, previousButton in ipairs(choiceButtons) do
+                    previousButton:Destroy()
+                end
+                table.clear(choiceButtons)
+                for i, item in ipairs(choices) do
+                    local rowButton = button(emoteList,
+                        item.name .. "  ·  " .. (item.group or "Emote"),
+                        UDim2.new(), UDim2.new(1, -7, 0, 33))
+                    rowButton.LayoutOrder = i
+                    rowButton.Name = "EmoteChoice_" .. tostring(i)
+                    rowButton.TextSize = 12
+                    rowButton.TextXAlignment = Enum.TextXAlignment.Left
+                    rowButton.TextTruncate = Enum.TextTruncate.AtEnd
+                    new("UIPadding", {PaddingLeft = UDim.new(0, 9)}, rowButton)
+                    table.insert(choiceButtons, rowButton)
+                    rowButton.Activated:Connect(function()
+                        selected = item
+                        opened = false
+                        searchBox.Text = ""
+                        repaintPicker()
+                        if item.marketplace then
+                            feedback.Text = "UGC/Marketplace: este é o ID do item; reproduzir depende da animação e do acesso no jogo."
+                        end
+                    end)
+                    if item.id == previousId and not selected then selected = item end
+                end
+                filterResults()
+                repaintPicker()
+            end
+
+            local function searchMarketplace(more)
+                if marketBusy or loading then return end
+                if more and not hasNextPage then return end
+                local requested = more and marketQuery
+                    or searchBox.Text:match("^%s*(.-)%s*$")
+                if #requested > 70 then requested = requested:sub(1, 70) end
+                marketBusy = true
+                marketSearchButton.Text = "..."
+                marketNextButton.Text = "..."
+                countLabel.Text = "Consultando Marketplace..."
+                task.spawn(function()
+                    local ok, result, nextPageOrError = pcall(function()
+                        return loadAuxiliary("emote_marketplace"):search(requested, more)
+                    end)
+                    if destroyed then return end
+                    marketBusy = false
+                    marketSearchButton.Text = "BUSCAR UGC"
+                    marketNextButton.Text = "MAIS EMOTES"
+                    if not ok or type(result) ~= "table" then
+                        local reason = tostring(ok and nextPageOrError or result)
+                        feedback.Text = "Busca online indisponível: " .. reason
+                        status("UGC: " .. reason)
+                        marketNextButton.Visible = hasNextPage
+                        filterResults()
+                        return
+                    end
+                    if not more then
+                        marketResults = {}
+                        marketQuery = requested
+                    end
+                    local seen = {}
+                    for _, item in ipairs(marketResults) do
+                        seen[tostring(item.catalogId or item.id)] = true
+                    end
+                    for _, item in ipairs(result) do
+                        local key = tostring(item.catalogId or item.id)
+                        if not seen[key] then
+                            seen[key] = true
+                            table.insert(marketResults, item)
+                        end
+                    end
+                    hasNextPage = nextPageOrError == true
+                    marketNextButton.Visible = hasNextPage
+                    rebuildCatalog()
+                    feedback.Text = "Marketplace: " .. tostring(#marketResults) ..
+                        " emotes online encontrados, inclusive UGC. Os próximos resultados são carregados por página; reprodução requer acesso ao ativo."
+                    status("UGC: " .. tostring(#marketResults) .. " emotes encontrados.")
+                end)
+            end
+
             local function refreshCatalog()
                 if loading then return end
                 loading = true
@@ -2846,41 +2954,30 @@ local function bootMonarca()
                     loading = false
                     reloadButton.Text = "ATUALIZAR"
                     if not ok or type(result) ~= "table" then
-                        local err = tostring(result)
+                        local reason = tostring(result)
                         countLabel.Text = "Não foi possível carregar."
-                        feedback.Text = "Emotes: " .. err
-                        status("Emotes: " .. err)
+                        feedback.Text = "Emotes: " .. reason
+                        status("Emotes: " .. reason)
                         return
                     end
-                    local formerId = selected and selected.id
-                    choices = result
-                    selected = nil
-                    for _, b in ipairs(choiceButtons) do b:Destroy() end
-                    table.clear(choiceButtons)
-                    for i, item in ipairs(choices) do
-                        local rowButton = button(emoteList,
-                            item.name .. "  ·  " .. item.group,
-                            UDim2.new(), UDim2.new(1, -7, 0, 33))
-                        rowButton.LayoutOrder = i
-                        rowButton.Name = "EmoteChoice_" .. tostring(i)
-                        rowButton.TextSize = 12
-                        rowButton.TextXAlignment = Enum.TextXAlignment.Left
-                        rowButton.TextTruncate = Enum.TextTruncate.AtEnd
-                        new("UIPadding", {PaddingLeft = UDim.new(0, 9)}, rowButton)
-                        table.insert(choiceButtons, rowButton)
-                        rowButton.Activated:Connect(function()
-                            selected = item
-                            opened = false
-                            searchBox.Text = ""
-                            repaintPicker()
-                        end)
-                        if item.id == formerId and not selected then selected = item end
-                    end
-                    filterResults()
-                    repaintPicker()
-                    feedback.Text = "Use REPRODUZIR para testar. O sistema verifica se a animação carregou; os ativos ainda dependem das permissões do Roblox."
+                    baseline = result
+                    rebuildCatalog()
+                    feedback.Text = "Catálogo local carregado. Use BUSCAR UGC para consultar emotes de todos os criadores."
+                    -- Load the first page without blocking the fixed catalog.
+                    if #marketResults == 0 then searchMarketplace(false) end
                 end)
             end
+
+            -- Enter on the mobile keyboard submits the Marketplace query.
+            connect(searchBox.FocusLost, function(enterPressed)
+                if enterPressed then searchMarketplace(false) end
+            end)
+            marketSearchButton.Activated:Connect(function()
+                searchMarketplace(false)
+            end)
+            marketNextButton.Activated:Connect(function()
+                searchMarketplace(true)
+            end)
 
             pickerButton.Activated:Connect(function()
                 opened = not opened
@@ -4341,7 +4438,7 @@ local function bootMonarca()
         if auxiliaryModules.fling_touch then
             pcall(auxiliaryModules.fling_touch.shutdown, auxiliaryModules.fling_touch)
         end
-        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "antifling", "emote_catalog", "server_invisibility", "clone_invisibility", "anim_packs", "player_reverse"}) do
+        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "antifling", "emote_catalog", "emote_marketplace", "server_invisibility", "clone_invisibility", "anim_packs", "player_reverse"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
             end
