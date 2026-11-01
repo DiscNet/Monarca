@@ -62,7 +62,7 @@ jobs:
           assert main.index('gui.Parent = parent') < main.index('game:HttpGet(repository')
           assert 'local ok, failure = xpcall(bootMonarca' in core
           assert core.strip().endswith('return ok, failure')
-          assert 'hub_core.lua?v=0.8.4-' in main, 'Old core can be cached'
+          assert 'hub_core.lua?v=0.8.5-' in main, 'Old core can be cached'
           for marker in (
               'end -- Player/Emote/666 block: release its many UI locals.',
               'end -- Settings + Visual block: release temporary UI registers.',
@@ -115,11 +115,13 @@ jobs:
                           'remote:InvokeServer(action, desired)'):
               assert feature in bounce, f'Missing bounce client feature: {feature}'
           bounce_server = Path('server/MonarcaTouchBounce.server.lua').read_text(encoding='utf-8')
-          for feature in ('game.PrivateServerId ~= ""', 'otherState.receiving',
+          for feature in ('otherState.receiving',
                           'state.sending', 'target:ApplyImpulse(impulse)',
                           'Players.PlayerRemoving:Connect(', 'remote.OnServerInvoke'):
               assert feature in bounce_server, f'Missing bounce server guard: {feature}'
           assert 'Humanoid:TakeDamage' not in bounce_server
+          assert 'game.PrivateServerId' not in bounce_server, 'Public sessions must be supported'
+          assert 'validSession' not in bounce_server, 'Old private-session gate remains'
           assert 'AssemblyLinearVelocity =' not in bounce_server
           assert 'restoreButton:Activate()' not in core
           anim = Path('modules/anim_packs.lua').read_text(encoding='utf-8')
