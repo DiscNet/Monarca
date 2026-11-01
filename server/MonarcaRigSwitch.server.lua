@@ -26,8 +26,8 @@ local function reply(player, rig, ok, description)
 end
 
 local function supplyCharacterScripts(oldCharacter, replacement)
-    -- Generated rig may already include a suitable Animate for its rig.
-    if replacement:FindFirstChild("Animate") then return end
+    -- Preserve all StarterCharacterScripts, even if the generated rig
+    -- already provides the rig-specific Animate script.
     local scripts = StarterPlayer:FindFirstChild("StarterCharacterScripts")
     if scripts then
         for _, child in ipairs(scripts:GetChildren()) do
