@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.7**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.8**.
 
 ## Executar
 
@@ -25,11 +25,12 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `modules/esp.lua` — etiquetas com apelido e distância até outros personagens.
 - `modules/timecycle.lua` — ajuste local de horário (Dia/Noite/Padrão).
 - `modules/nofog.lua` — remoção local de neblina e névoa atmosférica.
-- `modules/player_fly.lua` — voo local de 5–160 studs/s na direção completa da câmera. Joystick/WASD para avançar, subir e descer conforme o ângulo de visão; rotação corporal com pitch/roll e aceleração suave. Não mostra comandos SUBIR/DESCER.
+- `modules/player_fly.lua` — voo local de 5–160 studs/s na direção completa da câmera. Joystick/WASD para avançar, subir e descer conforme a visão; agora o personagem também acompanha a inclinação vertical da câmera **parado no ar**, mantendo pitch/roll suaves. Não mostra comandos SUBIR/DESCER.
 - `modules/zombie_r6.lua` — emote R6 corrigido: braços à frente, pernas alternadas no plano de caminhada; reprodução FE por animação publicada quando autorizada, ou alternativa local.
 - `modules/pose_666.lua` — animação R6 local aprimorada: postura menos inclinada, braços soltos, idle com respiração e oscilação, caminhada com passos mais expressivos e transição idle/walk gradual.
 - `modules/headless_local.lua` — controle independente `</>`: oculta apenas `Head` e decals/texturas do rosto no cliente por `LocalTransparencyModifier`, mantendo cabelos/acessórios e restaurando tudo ao desativar.
 - `modules/korblox_right_leg.lua` — opção alternável de prévia **local e reversível** da perna direita original do Korblox Deathspeaker (asset Roblox `139607718`). No R15 preserva o **tamanho nativo de cada `MeshPart`** da geometria Korblox (sem esticá-la até as dimensões da perna anterior) e alinha as peças por `RightHipRigAttachment`, `RightKneeRigAttachment` e `RightAnkleRigAttachment`. No R6 mantém `CharacterMesh`. Não concede propriedade do item e depende de o carregamento desse asset ser permitido pela experiência.
+- `modules/owner_tag.lua` — tag personalizada local acima da cabeça, com `BillboardGui`, texto editável, controles RGB 0–255 e modo arco-íris rápido (~3,5 ciclos/s). A UI e o módulo exigem que `LocalPlayer.Name` seja exatamente `samulucas7419` (sem diferenciar maiúsculas). Acesso apenas visual/cliente, não é whitelist segura de servidor.
 - `server/MonarcaRigSwitch.server.lua` — integração **opcional** para experiências próprias; cria um novo personagem R6/R15 no servidor e retorna sucesso/erro ao painel.
 - `studio/GenerateZombieR6Animation.lua` — gera no Roblox Studio um `KeyframeSequence` original para publicação como asset de animação.
 
@@ -79,6 +80,12 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Tag exclusiva e Fly parado — v0.6.8
+
+- Na aba **Player**, a seção **Tag pessoal** só é exibida para o nome de usuário **samulucas7419** (Username, não DisplayName). É possível ligar/desligar a tag, escrever até 32 caracteres, ajustar **Vermelho / Verde / Azul** por sliders de 0–255 com prévia e ativar **RGB FAST** (aprox. 3,5 ciclos completos de cor por segundo).
+- A tag usa `BillboardGui` ligado à cabeça do próprio personagem e reaparece após respawn enquanto ativa. Texto, cor e modo RGB são gravados em `Monarca/settings.json` nos ambientes que oferecem `writefile`. Ela é **visível somente no cliente local**. A whitelist do cliente não é um mecanismo seguro para permissões de servidor.
+- O Fly corrigiu o `leanPitch` calculado como zero quando o personagem estava parado. Agora a orientação usa o `LookVector.Y` da câmera mesmo sem movimento, com interpolação para evitar giros bruscos.
 
 ## Ajustes Fly e marcador de Alvo — v0.6.7
 
