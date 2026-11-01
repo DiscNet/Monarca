@@ -258,29 +258,16 @@ local header = new("Frame", {
     BorderSizePixel = 0,
     Active = true,
 }, main)
-local headerIcon = new("ImageLabel", {
-    Name = "MonarcaBrandIcon",
-    Position = UDim2.fromOffset(10, 8),
-    Size = UDim2.fromOffset(30, 30),
-    BackgroundTransparency = 1,
+-- Keep the branding image exclusive to the floating launcher.
+new("Frame", {
+    Position = UDim2.fromOffset(12, 12),
+    Size = UDim2.fromOffset(3, 22),
+    BackgroundColor3 = theme.accent,
     BorderSizePixel = 0,
-    ScaleType = Enum.ScaleType.Fit,
-    Image = "",
-    Visible = false,
-}, header)
-rounded(headerIcon, 6)
-local headerPlaceholder = new("TextLabel", {
-    Position = UDim2.fromOffset(10, 8),
-    Size = UDim2.fromOffset(30, 30),
-    BackgroundTransparency = 1,
-    Font = Enum.Font.GothamBold,
-    TextSize = 22,
-    Text = "M",
-    TextColor3 = theme.accent,
 }, header)
 new("TextLabel", {
-    Position = UDim2.fromOffset(48, 6),
-    Size = UDim2.new(1, -132, 0, 20),
+    Position = UDim2.fromOffset(26, 6),
+    Size = UDim2.new(1, -110, 0, 20),
     BackgroundTransparency = 1,
     Text = "MONARCA",
     Font = Enum.Font.GothamBold,
@@ -289,8 +276,8 @@ new("TextLabel", {
     TextXAlignment = Enum.TextXAlignment.Left,
 }, header)
 new("TextLabel", {
-    Position = UDim2.fromOffset(48, 26),
-    Size = UDim2.new(1, -132, 0, 12),
+    Position = UDim2.fromOffset(26, 26),
+    Size = UDim2.new(1, -110, 0, 12),
     BackgroundTransparency = 1,
     Text = "SCRIPT HUB  /  V0.2",
     Font = Enum.Font.Gotham,
@@ -325,11 +312,10 @@ local floatingPlaceholder = new("TextLabel", {
 }, floating)
 rounded(floatingPlaceholder, 8)
 
+-- The provided purple image is the floating launcher's full visual.
+-- Keep the fallback only when the runtime cannot load local image assets.
 loadMonarcaIcon(function(asset)
     if destroyed then return end
-    headerIcon.Image = asset
-    headerIcon.Visible = true
-    headerPlaceholder.Visible = false
     floating.Image = asset
     floatingPlaceholder.Visible = false
 end)
