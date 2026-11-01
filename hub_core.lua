@@ -3201,6 +3201,7 @@ local function bootMonarca()
         }
         local selected = "vampire"
         local selectedLabel = "Vampire Animation Pack"
+        local selectedDetail
         local drop = ordered(animPage, new("Frame", {
             Name = "AnimationChoices",
             Size = UDim2.new(1, -2, 0, 76),
@@ -3228,6 +3229,11 @@ local function bootMonarca()
                 selected, selectedLabel = choice.id, choice.name
                 dropdownOpened = false
                 repaintSelection()
+                if selected == "default" then
+                    selectedDetail.Text = "Animações originais do personagem."
+                else
+                    selectedDetail.Text = selectedLabel .. " · 9 clips · R15"
+                end
             end)
         end
         chooseButton.Activated:Connect(function()
@@ -3237,7 +3243,12 @@ local function bootMonarca()
         repaintSelection()
 
         local selectedRow = card(animPage, 51)
-        cardText(selectedRow, "Selecionado", "Vampire Animation Pack · 9 clips · R15")
+        local selectedCaption = label(selectedRow, "Selecionado", 13, theme.text, 21)
+        selectedCaption.Position = UDim2.fromOffset(10, 4)
+        selectedDetail = label(selectedRow, "Vampire Animation Pack · 9 clips · R15",
+            11, theme.muted, 21)
+        selectedDetail.Position = UDim2.fromOffset(10, 27)
+        selectedDetail.Size = UDim2.new(1, -20, 0, 21)
         local actionsRow = card(animPage, 49)
         local applyButton = button(actionsRow, "APLICAR",
             UDim2.fromOffset(9, 10),
@@ -3254,10 +3265,26 @@ local function bootMonarca()
             info.Text = textValue
             info.TextColor3 = success and theme.accent or theme.muted
         end
+        local function restoreSelected()
+            if busy then return end
+            busy = true
+            local ok, worked, reason = pcall(function()
+                local module = auxiliaryModules.anim_packs
+                if module then return module:disable() end
+                return true, "Nenhum pacote ativo."
+            end)
+            busy = false
+            if ok and worked then
+                updateInfo("Padrão do mapa restaurado.", true)
+                status("Anim: pacote restaurado.")
+            else
+                updateInfo("Erro ao restaurar: " .. tostring(ok and reason or worked), false)
+            end
+        end
         applyButton.Activated:Connect(function()
             if busy then return end
             if selected == "default" then
-                restoreButton:Activate()
+                restoreSelected()
                 return
             end
             busy = true
@@ -3284,22 +3311,7 @@ local function bootMonarca()
                 end
             end)
         end)
-        restoreButton.Activated:Connect(function()
-            if busy then return end
-            busy = true
-            local ok, worked, reason = pcall(function()
-                local module = auxiliaryModules.anim_packs
-                if module then return module:disable() end
-                return true, "Nenhum pacote ativo."
-            end)
-            busy = false
-            if ok and worked then
-                updateInfo("Padrão do mapa restaurado.", true)
-                status("Anim: pacote restaurado.")
-            else
-                updateInfo("Erro ao restaurar: " .. tostring(ok and reason or worked), false)
-            end
-        end)
+        restoreButton.Activated:Connect(restoreSelected)
     end -- Anim page: release temporary UI locals.
 
     bootStage = "Construindo Settings e Visual"
