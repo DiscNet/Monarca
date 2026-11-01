@@ -62,7 +62,7 @@ jobs:
           assert main.index('gui.Parent = parent') < main.index('game:HttpGet(repository')
           assert 'local ok, failure = xpcall(bootMonarca' in core
           assert core.strip().endswith('return ok, failure')
-          assert 'hub_core.lua?v=0.8.8-' in main, 'Old core can be cached'
+          assert 'hub_core.lua?v=0.8.9-' in main, 'Old core can be cached'
           for marker in (
               'end -- Player/Emote/666 block: release its many UI locals.',
               'end -- Settings + Visual block: release temporary UI registers.',
@@ -93,7 +93,7 @@ jobs:
           assert '"clone_invisibility", "anim_packs", "player_reverse"' in core
           assert 'Name = "AntiflingLabel"' in core and 'Name = "AntiflingToggle"' in core
           assert 'loadAuxiliary("antifling"):enable()' in core, 'Antifling toggle missing'
-          assert '"radioactive_trail", "antifling", "emote_catalog", "server_invisibility"' in core, 'Anti-fling and emote cleanup missing'
+          assert '"radioactive_trail", "antifling", "emote_catalog", "emote_marketplace", "server_invisibility"' in core, 'Anti-fling and emote cleanup missing'
           antifling = Path('modules/antifling.lua').read_text(encoding='utf-8')
           for marker in ('function Antifling:enable()', 'function Antifling:disable()',
                          'player.CharacterAdded:Connect(', 'Workspace.DescendantAdded:Connect(',
@@ -125,14 +125,19 @@ jobs:
           assert 'AssemblyLinearVelocity =' not in bounce_server
           assert 'Name = "EmoteSearch"' in core and 'Name = "EmoteSearchResults"' in core
           assert 'Name = "EmoteCatalogPicker"' in core
+          assert 'Name = "EmoteMarketplaceSearch"' in core
+          assert 'Name = "EmoteMarketplaceNext"' in core
+          assert 'searchMarketplace(true)' in core
+          assert 'loadAuxiliary("emote_marketplace"):search(requested, more)' in core
+          assert 'marketResults' in core and 'hasNextPage' in core
           assert 'Name = "EmotePlay"' in core and 'Name = "EmoteStop"' in core
           assert 'initializeCatalogUI()' in core
           assert 'local opened, loading, playing = true, false, false' in core, 'List must be initially visible'
           assert 'loadAuxiliary("emote_catalog"):getCatalog()' in core
           assert 'loadAuxiliary("emote_catalog"):play(choice)' in core
           assert '(item.catalogId or "")' in core, 'Search must include original Marketplace IDs'
-          assert '".lua?v=0.8.8-" .. tostring(os.time())' in core, 'Auxiliary module cache was not bumped'
-          assert '"antifling", "emote_catalog", "server_invisibility"' in core
+          assert '".lua?v=0.8.9-" .. tostring(os.time())' in core, 'Auxiliary module cache was not bumped'
+          assert '"antifling", "emote_catalog", "emote_marketplace", "server_invisibility"' in core
           catalog = Path('modules/emote_catalog.lua').read_text(encoding='utf-8')
           import re
           raw_catalog = catalog.split("local STATIC = {", 1)[1].split("\n}\n", 1)[0]
@@ -162,7 +167,18 @@ jobs:
                           'animator:LoadAnimation(animation)', 'Enum.HumanoidRigType.R15',
                           'characterConnection:Disconnect()'):
               assert feature in catalog, f'Missing emote behavior: {feature}'
-          assert 'Instance.new("Animator")' not in catalog, 'Must use server-created Animator'
+          assert 'Instance.new("Animator")' not in catalog
+          market = Path('modules/emote_marketplace.lua').read_text(encoding='utf-8')
+          for marker in ('function Marketplace:search(query, nextPage)',
+                         'function Marketplace:enable()', 'function Marketplace:disable()',
+                         'CatalogSearchParams.new()', 'Enum.AvatarAssetType.EmoteAnimation',
+                         'AvatarEditorService:SearchCatalogAsync(params)',
+                         'params.SearchKeyword = query', 'params.Limit = 30',
+                         'activePages:AdvanceToNextPageAsync()', 'not activePages.IsFinished',
+                         'item.CreatorName'):
+              assert marker in market, f'Missing UGC discovery behavior: {marker}'
+          assert 'params.CreatorName = "Roblox"' not in market, 'Must not restrict to Roblox creators'
+          assert 'if item.marketplace then' in catalog, 'Must clarify UGC playback limitations', 'Must use server-created Animator'
           assert 'type(module.enable) == "function"' in core, 'Loader contract must be explicit'
           assert 'restoreButton:Activate()' not in core
           anim = Path('modules/anim_packs.lua').read_text(encoding='utf-8')
@@ -210,6 +226,7 @@ jobs:
                        'modules/radioactive_trail.lua',
                        'modules/antifling.lua',
                        'modules/emote_catalog.lua',
+                       'modules/emote_marketplace.lua',
                        'modules/fling_touch.lua',
                        'modules/server_invisibility.lua',
                        'modules/clone_invisibility.lua',
