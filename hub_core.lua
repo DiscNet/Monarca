@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.7.9 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.8.0 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -124,7 +124,7 @@ local function bootMonarca()
         local ok, moduleOrError = pcall(function()
             if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
             local source = game:HttpGet(repository .. "modules/" .. name
-                .. ".lua?v=0.7.9-" .. tostring(os.time()))
+                .. ".lua?v=0.8.0-" .. tostring(os.time()))
             if type(source) ~= "string" or #source < 20 then
                 error("Resposta vazia ao carregar " .. name)
             end
@@ -695,7 +695,7 @@ local function bootMonarca()
     local function page(name)
         -- Home retains its compact profile layout, while Player/Emote use tighter lists.
         local isHome = name == "Home"
-        local compactList = name == "Player" or name == "Emote" or name == "666" or name == "X?"
+        local compactList = name == "Player" or name == "Emote" or name == "Anim" or name == "666" or name == "X?"
         local scroller = new("ScrollingFrame", {
             Name = name,
             BackgroundTransparency = 1,
@@ -745,7 +745,7 @@ local function bootMonarca()
             }, 0.22)
         end
     end
-    for index, name in ipairs({"Home", "Alvo", "Visual", "X?", "Player", "Emote", "666", "Settings"}) do
+    for index, name in ipairs({"Home", "Alvo", "Visual", "X?", "Player", "Emote", "Anim", "666", "Settings"}) do
         page(name)
         local b = new("TextButton", {
             Name = "Tab" .. name,
@@ -3183,6 +3183,125 @@ local function bootMonarca()
     initializeEmoteTabs()
     end -- Player/Emote/666 block: release its many UI locals.
 
+    -- Dedicated Anim page: animation PACKS, not R6 procedural emotes.
+    -- Scope remains isolated to avoid the 200-local-register executor limit.
+    bootStage = "Construindo Anim"
+    do
+        local animPage = pages.Anim
+        title(animPage, "Anim", "Pacotes de animação para personagem R15.")
+
+        local chooseRow = card(animPage, 66)
+        cardText(chooseRow, "Pacote", "Escolha um pacote da lista.", 140)
+        local chooseButton = button(
+            chooseRow, "VAMPIRE  ▾",
+            UDim2.new(1, -144, 0, 17), UDim2.fromOffset(132, 31))
+        local choices = {
+            { id = "vampire", name = "Vampire Animation Pack", short = "VAMPIRE" },
+            { id = "default", name = "Padrão do mapa", short = "PADRÃO" },
+        }
+        local selected = "vampire"
+        local selectedLabel = "Vampire Animation Pack"
+        local drop = ordered(animPage, new("Frame", {
+            Name = "AnimationChoices",
+            Size = UDim2.new(1, -2, 0, 76),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Visible = false,
+        }, animPage))
+        local dropdownOpened = false
+        local function repaintSelection()
+            chooseButton.Text = (selected == "default" and "PADRÃO" or "VAMPIRE")
+                .. (dropdownOpened and "  ▴" or "  ▾")
+            chooseButton.BackgroundColor3 = dropdownOpened and theme.primary or theme.card
+            chooseButton.TextColor3 = dropdownOpened and theme.background or theme.text
+            drop.Visible = dropdownOpened
+        end
+        for i, choice in ipairs(choices) do
+            local itemButton = button(
+                drop, choice.name,
+                UDim2.fromOffset(5, (i - 1) * 38),
+                UDim2.new(1, -10, 0, 34))
+            itemButton.Font = Enum.Font.GothamMedium
+            itemButton.TextXAlignment = Enum.TextXAlignment.Left
+            itemButton.TextSize = 12
+            itemButton.Activated:Connect(function()
+                selected, selectedLabel = choice.id, choice.name
+                dropdownOpened = false
+                repaintSelection()
+            end)
+        end
+        chooseButton.Activated:Connect(function()
+            dropdownOpened = not dropdownOpened
+            repaintSelection()
+        end)
+        repaintSelection()
+
+        local selectedRow = card(animPage, 51)
+        cardText(selectedRow, "Selecionado", "Vampire Animation Pack · 9 clips · R15")
+        local actionsRow = card(animPage, 49)
+        local applyButton = button(actionsRow, "APLICAR",
+            UDim2.fromOffset(9, 10),
+            UDim2.new(0.5, -15, 0, 30), nil, true)
+        local restoreButton = button(actionsRow, "RESTAURAR",
+            UDim2.new(0.5, 6, 0, 10),
+            UDim2.new(0.5, -15, 0, 30))
+        local info = label(animPage,
+            "FE: usa o Animator original replicado. É necessário R15 e um Animate compatível.",
+            11, theme.muted, 54)
+        info.TextWrapped = true
+        local busy = false
+        local function updateInfo(textValue, success)
+            info.Text = textValue
+            info.TextColor3 = success and theme.accent or theme.muted
+        end
+        applyButton.Activated:Connect(function()
+            if busy then return end
+            if selected == "default" then
+                restoreButton:Activate()
+                return
+            end
+            busy = true
+            applyButton.Text = "APLICANDO..."
+            task.spawn(function()
+                local ok, applied, reason = pcall(function()
+                    local module = loadAuxiliary("anim_packs")
+                    return module:enable(selected)
+                end)
+                if destroyed then
+                    local module = auxiliaryModules.anim_packs
+                    if module then pcall(module.disable, module) end
+                    return
+                end
+                busy = false
+                applyButton.Text = "APLICAR"
+                if ok and applied then
+                    updateInfo("Ativo: " .. selectedLabel .. " · R15. Confirme FE com outro jogador.", true)
+                    status("Anim: " .. selectedLabel .. " aplicado ao seu personagem.")
+                else
+                    local message = tostring(ok and reason or applied)
+                    updateInfo("Não foi possível aplicar: " .. message, false)
+                    status("Anim: " .. message)
+                end
+            end)
+        end)
+        restoreButton.Activated:Connect(function()
+            if busy then return end
+            busy = true
+            local ok, worked, reason = pcall(function()
+                local module = auxiliaryModules.anim_packs
+                if module then return module:disable() end
+                return true, "Nenhum pacote ativo."
+            end)
+            busy = false
+            if ok and worked then
+                updateInfo("Padrão do mapa restaurado.", true)
+                status("Anim: pacote restaurado.")
+            else
+                updateInfo("Erro ao restaurar: " .. tostring(ok and reason or worked), false)
+            end
+        end)
+    end -- Anim page: release temporary UI locals.
+
     bootStage = "Construindo Settings e Visual"
     -- Keep only the functions needed by the final destroy/intro sequence.
     local disableAll, refresh
@@ -3533,7 +3652,7 @@ local function bootMonarca()
         if destroyed then return end
         stopAlvo()
         cleanupTargetTool()
-        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "server_invisibility", "clone_invisibility", "player_reverse"}) do
+        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "server_invisibility", "clone_invisibility", "anim_packs", "player_reverse"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
             end
