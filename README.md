@@ -1,6 +1,18 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.0**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.1**.
+
+## Ampliação da aba Anim: 18 pacotes R15 — v0.8.1
+
+A lista de pacotes foi ampliada de um para **18**, mantendo o Vampire existente. Os **17 pacotes documentados no Roblox Creator Hub** são: Astronaut, Bubbly, Cartoony, Elder, Knight, Levitation, Mage, Ninja, Pirate, Robot, Rthro, Stylish, Superhero, Toy, Vampire, Werewolf e Zombie. **Oldschool** foi incluído separadamente com os nove IDs encontrados e conferidos em tabelas comunitárias. Todos têm as nove referências esperadas pelo `Animate` tradicional: Idle1, Idle2, Walk, Run, Jump, Fall, Climb, Swim e SwimIdle.
+
+A nova seleção na aba **Anim** abre uma lista com altura limitada e rolagem interna, campo **Buscar pacote**, botões pequenos e o pacote selecionado no painel. O painel principal não aumenta verticalmente para mostrar 18 opções simultâneas. A pesquisa filtra os nomes sem nova requisição e a lista mantém o estado. Ao escolher **Padrão do mapa** e clicar em Aplicar, restaura o pacote anterior; **Restaurar** faz o mesmo a qualquer momento.
+
+`modules/anim_packs.lua` mantém o mesmo uso do `Animator` original do avatar R15, sem criar controladores locais. Corrigimos um detalhe da versão anterior: a parada de tracks e a restauração deixaram de estar fixas no Vampire; agora usam o último pacote realmente ativo, inclusive ao alternar de Vampire para Ninja ou outro.
+
+A expansão está limitada aos **18 conjuntos clássicos cujos IDs foram conferidos**. Não anuncia cobertura de todos os pacotes promocionais recentes (Bold, adidas, Glow Motion, KATSEYE etc.), que possuem requisitos de acesso e IDs ainda não auditados para esta versão. A replicação FE permanece dependente do `Animator` e do acesso a cada asset, devendo ser testada com outro jogador.
+
+Fontes: https://create.roblox.com/docs/animation/using ; https://github.com/Eazvy/Public-Scripts/blob/main/Universal_Animations_Emotes.lua
 
 ## Aba Anim: pacote Vampire R15 — v0.8.0
 
