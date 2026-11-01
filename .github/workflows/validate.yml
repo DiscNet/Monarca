@@ -145,8 +145,8 @@ jobs:
                           'animator:LoadAnimation(animation)', 'Enum.HumanoidRigType.R15',
                           'characterConnection:Disconnect()'):
               assert feature in catalog, f'Missing emote behavior: {feature}'
-          assert 'Instance.new("Animator")' not in catalog
-          assert 'type(module.enable) == "function"' in core, 'Loader contract must be explicit', 'Must use server-created Animator'
+          assert 'Instance.new("Animator")' not in catalog, 'Must use server-created Animator'
+          assert 'type(module.enable) == "function"' in core, 'Loader contract must be explicit'
           assert 'restoreButton:Activate()' not in core
           anim = Path('modules/anim_packs.lua').read_text(encoding='utf-8')
           import re
