@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.6.3 — fluid 666 pose and local headless toggle
+-- Monarca Script Hub v0.6.4 — idle contrapposto and realistic R6 walk cycle
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -466,7 +466,7 @@ local function bootMonarca()
         Position = UDim2.fromOffset(26, 26),
         Size = UDim2.new(1, -110, 0, 12),
         BackgroundTransparency = 1,
-        Text = "VISUAL HUB  /  V0.6.3",
+        Text = "VISUAL HUB  /  V0.6.4",
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextSize = 9,
@@ -1962,7 +1962,7 @@ local function bootMonarca()
             Position = UDim2.fromOffset(11, 34),
             Size = UDim2.new(1, -113, 0, 17),
             BackgroundTransparency = 1,
-            Text = "R6  •  Animação local",
+            Text = "R6  •  Idle e caminhada fluida",
             TextSize = 10,
             Font = Enum.Font.GothamMedium,
             TextColor3 = theme.muted,
