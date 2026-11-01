@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.1**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.2**.
 
 ## Executar
 
@@ -33,6 +33,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `modules/owner_tag.lua` — tag exclusiva projetada via `WorldToViewportPoint`, com `UIScale` controlado pela altura aparente do avatar: quando o personagem diminui na tela ao afastar a câmera, a tag também diminui, evitando o aparente crescimento desproporcional. RGB ONDA suave (~5,6 segundos por ciclo). Restrição visual/cliente ao username `samulucas7419`, não é whitelist segura de servidor.
 - `modules/radioactive_trail.lua` — rastro verde radioativo (cliente) redesenhado: tenta tingir o **bloco tocado**, não apenas a superfície, em peças ancoradas de até 230 studs de largura; manchas direcionais mais contínuas, partículas e luz limitada, que encolhem tanto no comprimento quanto na largura conforme desvanecem. Até 90 trechos efêmeros, amostragem a cada 0,075 s. Bases gigantes e Terrain usam projeção local em vez de mudar o chão inteiro.
 - `modules/server_invisibility.lua` — botão da aba **X?** que solicita invisibilidade com resposta explícita do servidor. Não mente sobre FE quando o RemoteEvent não existe.
+- `modules/clone_invisibility.lua` — **protótipo experimental local**, separado do modo de servidor: clona o avatar local, alterna `LocalPlayer.Character` e `CameraSubject` para o clone semitransparente e reposiciona repetidamente o personagem real em uma posição distante, restaurando-o ao desligar. Depende do comportamento de simulação e replicação da experiência. **Não garante invisibilidade FE** nem compatibilidade com anticheat; pode provocar desync, falhas de câmera, interrupções ou respawn. Requer verificação com uma segunda conta.
 - `server/MonarcaInvisibility.server.lua` — integração opcional para jogo **próprio**: restringe a solicitação no servidor ao username `samulucas7419`, esconde partes, decals e acessórios do próprio jogador para os demais clientes e restaura os valores anteriores ao desligar. Instalação manual no `ServerScriptService`.
 - `server/MonarcaRigSwitch.server.lua` — integração **opcional** para experiências próprias; cria um novo personagem R6/R15 no servidor e retorna sucesso/erro ao painel.
 - `studio/GenerateZombieR6Animation.lua` — gera no Roblox Studio um `KeyframeSequence` original para publicação como asset de animação.
@@ -83,6 +84,14 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Invisibilidade por clone — experimento v0.7.2
+
+A aba **X?** mantém a opção **Invisível · servidor** para experiências administradas pelo usuário, e adiciona **Invisível · experimental** como segundo botão opcional. O segundo não precisa de instalação no servidor, mas **não possui confirmação de visibilidade por outras contas**.
+
+Implementação experimental: realiza uma cópia local do personagem (desliga scripts locais duplicados, com exceção do Animate), posiciona a cópia no lugar de origem e troca `LocalPlayer.Character` e `Workspace.CurrentCamera.CameraSubject` para ela. O personagem real é movido repetidamente para uma posição distante. O clone aparece semitransparente apenas no próprio cliente. Ao desligar, o script restaura o personagem e a câmera na posição atual do clone e o destrói. Também tenta reverter em caso de morte, respawn ou encerramento do hub.
+
+**Não é invisibilidade FE comprovada**: o servidor pode rejeitar ou corrigir a movimentação do corpo real, o jogo pode bloquear a troca local do personagem, e o clone não substitui interações válidas para o servidor. A confirmação exige teste com outra conta. Acesso ao experimento está limitado no cliente ao Username `samulucas7419`, sem representar segurança de servidor. Evite utilizar durante Fly, Follow, Headsit e Backpack; ao ativar, o Monarca interrompe esses modos. A ativação é manual e o botão mostra avisos de instabilidade. Uma proteção do jogo pode levar a respawn.
 
 ## Rastro contínuo + aba X? — v0.7.1
 
