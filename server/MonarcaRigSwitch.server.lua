@@ -1,7 +1,7 @@
--- MonarcaRigSwitch.server.lua
--- OPTIONAL: install this as a Script in ServerScriptService of an experience
--- you own. It cannot run from a client-side Script Hub in third-party games.
--- Safely accepts R6/R15 requests from each player for THEIR OWN character.
+-- MonarcaRigSwitch.server.lua v0.5.1
+-- Install as a real Script in ServerScriptService in an EXPERIENCE YOU OWN.
+-- A client-only script or GitHub file cannot gain authority to change rig type.
+-- This swaps the player's character model server-side, causing a real respawn.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayer = game:GetService("StarterPlayer")
@@ -13,69 +13,111 @@ if not event then
     event.Name = REMOTE_NAME
     event.Parent = ReplicatedStorage
 end
-local changing = {}
-local lastUse = {}
-local COOLDOWN = 6
 
-local function copyAnimationScripts(oldCharacter, newCharacter)
-    -- Re-use the source game's Animate character script when provided.
-    local oldAnimate = oldCharacter:FindFirstChild("Animate")
-    if oldAnimate and oldAnimate:IsA("LocalScript") and
-        not newCharacter:FindFirstChild("Animate") then
-        local copy = oldAnimate:Clone()
-        copy.Disabled = false
-        copy.Parent = newCharacter
+local busy, recentRequest = {}, {}
+local COOLDOWN_SECONDS = 4
+
+local function reply(player, rig, ok, description)
+    if player.Parent == Players then
+        pcall(function()
+            event:FireClient(player, rig, ok, description)
+        end)
     end
-    for _, item in ipairs(StarterPlayer.StarterCharacterScripts:GetChildren()) do
-        if item:IsA("LocalScript") or item:IsA("Script") then
-            if not newCharacter:FindFirstChild(item.Name) then
-                item:Clone().Parent = newCharacter
+end
+
+local function supplyCharacterScripts(oldCharacter, replacement)
+    -- Generated rig may already include a suitable Animate for its rig.
+    if replacement:FindFirstChild("Animate") then return end
+    local scripts = StarterPlayer:FindFirstChild("StarterCharacterScripts")
+    if scripts then
+        for _, child in ipairs(scripts:GetChildren()) do
+            if (child:IsA("LocalScript") or child:IsA("Script"))
+                and not replacement:FindFirstChild(child.Name) then
+                local scriptCopy = child:Clone()
+                scriptCopy.Parent = replacement
             end
+        end
+    end
+    -- The default Animate script can differ between R6 and R15. Copy it
+    -- only as a fallback when the newly generated rig has no Animate.
+    if not replacement:FindFirstChild("Animate") then
+        local oldAnimate = oldCharacter:FindFirstChild("Animate")
+        if oldAnimate and oldAnimate:IsA("LocalScript") then
+            local fallback = oldAnimate:Clone()
+            fallback.Disabled = false
+            fallback.Parent = replacement
         end
     end
 end
 
+local function replacePlayerRig(player, desiredRig)
+    local oldCharacter = player.Character
+    local oldHumanoid = oldCharacter
+        and oldCharacter:FindFirstChildOfClass("Humanoid")
+    if not oldHumanoid or oldHumanoid.Health <= 0 then
+        return false, "Personagem não está pronto."
+    end
+    if oldHumanoid.RigType == desiredRig then
+        return true, "Seu corpo já utiliza esse rig."
+    end
+    local description = oldHumanoid:GetAppliedDescription()
+    local position = oldCharacter:GetPivot()
+    local replacement = Players:CreateHumanoidModelFromDescriptionAsync(
+        description, desiredRig
+    )
+    if not replacement then return false, "Falha ao gerar o modelo." end
+    local newHumanoid = replacement:FindFirstChildOfClass("Humanoid")
+    local newRoot = replacement:FindFirstChild("HumanoidRootPart")
+    local validTorso = desiredRig == Enum.HumanoidRigType.R6
+        and replacement:FindFirstChild("Torso")
+        or desiredRig == Enum.HumanoidRigType.R15
+        and replacement:FindFirstChild("UpperTorso")
+    if not newHumanoid or not newRoot or not validTorso
+        or newHumanoid.RigType ~= desiredRig then
+        replacement:Destroy()
+        return false, "O rig gerado não passou na validação."
+    end
+    if player.Character ~= oldCharacter or player.Parent ~= Players then
+        replacement:Destroy()
+        return false, "O jogador mudou de personagem durante a operação."
+    end
+    supplyCharacterScripts(oldCharacter, replacement)
+    replacement.Name = player.Name
+    newHumanoid.DisplayName = player.DisplayName
+    -- Respawn at the previous position, slightly above the ground.
+    replacement:PivotTo(position * CFrame.new(0, 1.5, 0))
+    replacement.Parent = workspace
+    player.Character = replacement
+    -- CharacterAdded is fired by the server assignment; all clients now see
+    -- a real R6 or R15 model, not an unreplicated cosmetic transformation.
+    oldCharacter:Destroy()
+    return true, "Personagem reiniciado como " .. desiredRig.Name .. "."
+end
+
 event.OnServerEvent:Connect(function(player, requested)
     if requested ~= "R6" and requested ~= "R15" then return end
-    if changing[player] then return end
+    if busy[player] then
+        reply(player, requested, false, "Outra troca está em andamento.")
+        return
+    end
     local now = os.clock()
-    if lastUse[player] and now - lastUse[player] < COOLDOWN then return end
-    local character = player.Character
-    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    if not humanoid or humanoid.Health <= 0 then return end
-    local newRig = requested == "R6"
+    if recentRequest[player] and now - recentRequest[player] < COOLDOWN_SECONDS then
+        reply(player, requested, false, "Aguarde alguns segundos para trocar novamente.")
+        return
+    end
+    recentRequest[player] = now
+    busy[player] = true
+    local desired = requested == "R6"
         and Enum.HumanoidRigType.R6 or Enum.HumanoidRigType.R15
-    if humanoid.RigType == newRig then return end
-    changing[player] = true
-    lastUse[player] = now
-
-    local ok, err = pcall(function()
-        local originalPosition = character:GetPivot()
-        local description = humanoid:GetAppliedDescription()
-        local replacement = Players:CreateHumanoidModelFromDescriptionAsync(
-            description, newRig
-        )
-        if not replacement then error("Não foi possível criar novo rig.") end
-        if player.Parent ~= Players or player.Character ~= character then
-            replacement:Destroy()
-            return
-        end
-        replacement.Name = player.Name
-        local newHumanoid = replacement:FindFirstChildOfClass("Humanoid")
-        if not newHumanoid or newHumanoid.RigType ~= newRig then
-            replacement:Destroy()
-            error("O modelo gerado não corresponde ao rig solicitado.")
-        end
-        copyAnimationScripts(character, replacement)
-        replacement:PivotTo(originalPosition)
-        replacement.Parent = workspace
-        player.Character = replacement
-        character:Destroy()
-    end)
-    changing[player] = nil
-    if not ok then warn("Monarca rig change failed:", err) end
+    local ok, success, message = pcall(replacePlayerRig, player, desired)
+    busy[player] = nil
+    if ok then
+        reply(player, requested, success, message)
+    else
+        warn("MonarcaRigSwitch failed for", player.UserId, success)
+        reply(player, requested, false, "Falha no servidor: " .. tostring(success))
+    end
 end)
 Players.PlayerRemoving:Connect(function(player)
-    changing[player] = nil
-    lastUse[player] = nil
+    busy[player], recentRequest[player] = nil, nil
 end)
