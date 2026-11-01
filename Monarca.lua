@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.7.5 — stable invisibility camera, compact eye HUD, immediate Reverse history
+-- Monarca Script Hub v0.7.6 — nonblocking startup and resilient optional HUD
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -108,29 +108,53 @@ local function bootMonarca()
     -- Start the Flashback recorder immediately after settings and the previous
     -- Monarca instance have been processed; do not wait for intro, tabs, or HUD.
     local auxiliaryModules = {}
+    local auxiliaryLoading = {}
     local function loadAuxiliary(name)
         if auxiliaryModules[name] then return auxiliaryModules[name] end
-        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.7.5-" .. tostring(os.time()))
-        if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
-        local compiled, err = loadstring(source, "Monarca/" .. name)
-        if not compiled then error(err or "Módulo inválido.") end
-        local module = compiled()
-        assert(type(module) == "table" and type(module.enable) == "function"
-            and type(module.disable) == "function", "Módulo incompleto.")
-        auxiliaryModules[name] = module
-        return module
+        -- One in-flight fetch per module: avoids creating duplicate listeners
+        -- when early startup and a fast HUD tap request the same file.
+        if auxiliaryLoading[name] then
+            while auxiliaryLoading[name] and not destroyed do
+                task.wait(0.05)
+            end
+            if auxiliaryModules[name] then return auxiliaryModules[name] end
+            if destroyed then error("Monarca encerrado.") end
+        end
+        auxiliaryLoading[name] = true
+        local ok, moduleOrError = pcall(function()
+            if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
+            local source = game:HttpGet(repository .. "modules/" .. name
+                .. ".lua?v=0.7.6-" .. tostring(os.time()))
+            if type(source) ~= "string" or #source < 20 then
+                error("Resposta vazia ao carregar " .. name)
+            end
+            local compiled, err = loadstring(source, "Monarca/" .. name)
+            if not compiled then error(err or "Módulo inválido.") end
+            local module = compiled()
+            assert(type(module) == "table" and type(module.enable) == "function"
+                and type(module.disable) == "function", "Módulo incompleto.")
+            if destroyed then error("Monarca encerrado.") end
+            auxiliaryModules[name] = module
+            return module
+        end)
+        auxiliaryLoading[name] = nil
+        if not ok then error(tostring(moduleOrError), 2) end
+        return moduleOrError
     end
 
+    -- Start recording as the script starts, but NEVER block construction
+    -- of the UI on HTTP requests. Old v0.7.5 awaited game:HttpGet here.
     local reverseEarlyError = nil
-    do
+    task.spawn(function()
         local ok, started, reason = pcall(function()
+            if destroyed then return false, "Monarca encerrado." end
             return loadAuxiliary("player_reverse"):enable()
         end)
         if not ok or not started then
             reverseEarlyError = tostring(ok and reason or started)
             warn("[Monarca] Reverse startup: " .. reverseEarlyError)
         end
-    end
+    end)
 
     local function new(class, props, parent)
         local object = Instance.new(class)
@@ -2062,7 +2086,11 @@ local function bootMonarca()
                 end)
         end
     end
-    initializeXPage()
+    local okX, errorX = pcall(initializeXPage)
+    if not okX then
+        warn("[Monarca] Aba X? indisponível: " .. tostring(errorX))
+        status("Aba X? indisponível; os demais menus continuam funcionando.")
+    end
 
     bootStage = "Construindo aba Player"
     local playerPage = pages.Player
