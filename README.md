@@ -1,6 +1,16 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.9**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.9.0**.
+
+## Correção da reprodução de emotes UGC — v0.9.0
+
+**Causa confirmada no código:** a busca online retornava o ID de um ativo do tipo `EmoteAnimation` — o objeto `Animation` comercializado no Marketplace — e o módulo tentava reproduzir esse mesmo ID como uma sequência via `Animator:LoadAnimation()`. São dois tipos de ativo distintos: o objeto de emote contém uma propriedade `Animation.AnimationId` que aponta para a sequência. Quando não é possível carregar essa sequência diretamente, `AnimationTrack.Length` permanece zero e o Monarca exibia o erro observado.
+
+**Correção:** os emotes da pesquisa online agora usam o caminho nativo indicado pela documentação Roblox: o módulo consulta os emotes existentes no `HumanoidDescription`, registra temporariamente o ID do ativo por `HumanoidDescription:AddEmote()` quando necessário e reproduz pelo nome com `Humanoid:PlayEmoteAsync()`. Caso o avatar exija que o emote esteja equipado, há uma tentativa com slot livre, **sem substituir nenhum dos oito emotes já equipados**. As alterações temporárias são restauradas ao parar, escolher outro emote, fechar o hub ou após renascer. Os 50 emotes de referência continuam usando IDs internos de animação e `Animator:LoadAnimation()`.
+
+**Importante:** o Roblox pode negar a execução de um emote não adquirido, não permitido ou incompatível com uma experiência. Não é possível garantir que todos os UGC serão reproduzidos apenas por aparecerem na busca. A validação do GitHub cobre sintaxe, compilação e verificações estáticas; o comportamento dentro de servidores Roblox exige teste em jogo.
+
+Referências: [Roblox — emotes de personagem](https://create.roblox.com/docs/characters/emotes), [HumanoidDescription](https://create.roblox.com/docs/reference/engine/classes/HumanoidDescription), [Humanoid:PlayEmoteAsync](https://create.roblox.com/docs/reference/engine/classes/Humanoid#PlayEmoteAsync), [importar emotes](https://create.roblox.com/docs/avatar/emotes/import).
 
 ## Emotes UGC e busca online — v0.8.9
 
