@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.7.8 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.7.9 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -124,7 +124,7 @@ local function bootMonarca()
         local ok, moduleOrError = pcall(function()
             if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
             local source = game:HttpGet(repository .. "modules/" .. name
-                .. ".lua?v=0.7.8-" .. tostring(os.time()))
+                .. ".lua?v=0.7.9-" .. tostring(os.time()))
             if type(source) ~= "string" or #source < 20 then
                 error("Resposta vazia ao carregar " .. name)
             end
