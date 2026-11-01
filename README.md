@@ -1,6 +1,16 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.8**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.9**.
+
+## Emotes UGC e busca online — v0.8.9
+
+A aba **Emote** não se limita mais às 50 entradas predefinidas e aos emotes equipados no avatar. Adicionamos `modules/emote_marketplace.lua`, que usa a API oficial `AvatarEditorService:SearchCatalogAsync()` com `Enum.AvatarAssetType.EmoteAnimation` para listar **emotes do Roblox e de criadores UGC**, sem filtrar pela conta Roblox. O catálogo fixo permanece disponível se a pesquisa online falhar.
+
+**Como usar:** abra a aba Emote, digite o nome de um emote na busca e toque **BUSCAR UGC** (ou Enter). Os resultados online aparecem junto com os emotes predefinidos e identificam o criador UGC. O botão **MAIS EMOTES** busca a página seguinte (30 itens por consulta). **ATUALIZAR** recarrega os emotes do avatar e a lista local, preservando os resultados online. A primeira consulta sem palavra-chave acontece automaticamente após carregar a lista local.
+
+**Limitações:** o Marketplace é paginado; não é possível baixar literalmente todos os emotes em uma única resposta. A disponibilidade da pesquisa depende de permissões de API e limites da própria experiência. **Listar um emote UGC não concede o direito de reproduzi-lo:** o ID do item de Marketplace pode ser diferente do ID da sequência de animação, e a reprodução de emotes não equipados pode falhar. Os emotes equipados no avatar continuam usando `Humanoid:PlayEmoteAsync()`; o sistema nunca tenta contornar propriedade ou permissão de uso de ativos.
+
+Documentação: https://create.roblox.com/docs/reference/engine/classes/AvatarEditorService e https://create.roblox.com/docs/reference/engine/datatypes/CatalogSearchParams
 
 ## Correção de emotes que não reproduziam — v0.8.8
 
