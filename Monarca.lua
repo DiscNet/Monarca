@@ -2132,7 +2132,7 @@ local function bootMonarca()
     }, reverseButton)
 
     local reversePressed = nil
-    local reverseLoading = false
+    local reverseInitBusy = false
     local reverseClock = 0
     local function repaintReverse()
         local module = auxiliaryModules.player_reverse
@@ -2150,12 +2150,20 @@ local function bootMonarca()
     end
 
     local function ensureReverseModule()
+        -- The deferred startup load and a quick HUD tap can overlap. Serialize
+        -- module loading so no orphan Heartbeat/input listeners are created.
+        while reverseInitBusy and not destroyed do task.wait(0.04) end
+        if destroyed or not settings.reverseHudEnabled then
+            return false, "Reverse desativado."
+        end
+        reverseInitBusy = true
         local ok, success, message = pcall(function()
             local module = loadAuxiliary("player_reverse")
             local started, why = module:enable()
             if not started then return false, why end
             return true
         end)
+        reverseInitBusy = false
         if not ok or not success then
             return false, tostring(ok and message or success)
         end
@@ -2170,11 +2178,8 @@ local function bootMonarca()
             and input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
         reversePressed = input
         repaintReverse()
-        if reverseLoading then return end
-        reverseLoading = true
         task.spawn(function()
             local started, reason = ensureReverseModule()
-            reverseLoading = false
             if destroyed then return end
             if not started then
                 status("Reverse indisponível: " .. tostring(reason))
