@@ -32,6 +32,9 @@ O layout de Monarca v0.3 foi alinhado aos princípios do `kxlynn666/SkyNetApi`, 
 
 A tipografia usa Gotham, disponível no Roblox, como aproximação da hierarquia do site, que usa IBM Plex Sans. Não existe dependência entre os dois projetos: a referência é somente visual. A imagem roxa personalizada continua exclusiva do ícone flutuante e a abertura com barra de carregamento permanece.
 
+Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de aba ativa complementam os detalhes roxos. Os botões de ação principal também passam a usar branco. Somente **Visual, Player e Settings** receberam controles tipográficos menores, divisórias leves e mais espaço entre opções e categorias; o layout do **Home permanece inalterado**. A interface geral continua com janela compacta e raio de 8 px.
+
+
 ## Funcionalidades
 
 - Janela arrastável (mouse/toque), minimizável e que se ajusta à resolução.
