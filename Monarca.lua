@@ -2101,7 +2101,7 @@ local function bootMonarca()
         Size = UDim2.fromOffset(48, 48),
         BackgroundColor3 = theme.card,
         BackgroundTransparency = 0.02,
-        Text = "⟲", -- reverse symbol; NO letter/keyboard key
+        Text = "", -- icon made from real UI line segments, not a font glyph
         Font = Enum.Font.GothamBold,
         TextSize = 32,
         TextColor3 = theme.text,
@@ -2131,6 +2131,47 @@ local function bootMonarca()
         ZIndex = 37,
     }, reverseButton)
 
+    -- Draw a curved counterclockwise arrow with Roblox Frames.
+    -- A geometric icon remains legible even if the phone's font lacks glyphs.
+    local reverseIcon = new("Frame", {
+        Name = "ReverseVectorIcon",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(28, 28),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Active = false,
+        ZIndex = 38,
+    }, reverseButton)
+    local reverseIconLines = {}
+    local function lineBetween(x1, y1, x2, y2, thickness)
+        local dx, dy = x2 - x1, y2 - y1
+        local length = math.sqrt(dx * dx + dy * dy)
+        local line = new("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromOffset((x1 + x2) / 2, (y1 + y2) / 2),
+            Size = UDim2.fromOffset(length + 0.6, thickness),
+            Rotation = math.deg(math.atan2(dy, dx)),
+            BackgroundColor3 = theme.text,
+            BorderSizePixel = 0,
+            Active = false,
+            ZIndex = 39,
+        }, reverseIcon)
+        rounded(line, 2)
+        table.insert(reverseIconLines, line)
+    end
+    -- Nearly full ring, with a leftward-pointing arrowhead at the top.
+    for i = 0, 11 do
+        local a = math.rad(150 - i * 20)
+        local b = math.rad(150 - (i + 1) * 20)
+        lineBetween(
+            14 + math.cos(a) * 10, 14 + math.sin(a) * 10,
+            14 + math.cos(b) * 10, 14 + math.sin(b) * 10, 2.4
+        )
+    end
+    lineBetween(14, 4, 20, 1, 2.4)
+    lineBetween(14, 4, 20, 7, 2.4)
+
     local reversePressed = nil
     local reverseInitBusy = false
     local reverseClock = 0
@@ -2144,6 +2185,9 @@ local function bootMonarca()
         reverseShadow.Position = UDim2.new(1, -18, 0.54, pressed and 4 or 4)
         reverseButton.BackgroundColor3 = pressed and theme.primary or theme.card
         reverseButton.TextColor3 = pressed and theme.background or theme.text
+        for _, line in ipairs(reverseIconLines) do
+            line.BackgroundColor3 = pressed and theme.background or theme.text
+        end
         reverseOutline.Transparency = pressed and 0.02 or 0.36
         reverseGlow.Transparency = pressed and 0.66 or 1
         reverseTopLine.BackgroundTransparency = pressed and 0.88 or 0.65
