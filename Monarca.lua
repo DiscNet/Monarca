@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.6.6 — proper Korblox R15 mesh proportions and attachments
+-- Monarca Script Hub v0.6.7 — camera-direction Fly and hands-free target marker
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -466,7 +466,7 @@ local function bootMonarca()
         Position = UDim2.fromOffset(26, 26),
         Size = UDim2.new(1, -110, 0, 12),
         BackgroundTransparency = 1,
-        Text = "VISUAL HUB  /  V0.6.6",
+        Text = "VISUAL HUB  /  V0.6.7",
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextSize = 9,
@@ -1460,64 +1460,127 @@ local function bootMonarca()
             if #rankedMatches>0 then choosePlayer(rankedMatches[1].player) end
         end
     end)
-    -- Tool activation uses the clicked character, not a typed player name.
+    -- Target-picker hotbar shortcut. It has no Handle and immediately returns
+    -- to Backpack after activation, so Animate does not keep a held-tool pose.
+    -- The hotbar uses a built-in Roblox crosshair texture instead of an item.
     local targetTool
-    local targetToolConnection
+    local targetToolConnections = {}
+    local targetSelectionActive = false
+    local selectionArmedAt = 0
+    local pendingTap
+
     local function cleanupTargetTool()
-        if targetToolConnection then targetToolConnection:Disconnect(); targetToolConnection = nil end
+        targetSelectionActive = false
+        pendingTap = nil
+        for _, connection in ipairs(targetToolConnections) do
+            connection:Disconnect()
+        end
+        table.clear(targetToolConnections)
         if targetTool and targetTool.Parent then targetTool:Destroy() end
         targetTool = nil
     end
-    local function playerAtTap()
-        local mouse = player:GetMouse()
-        local part = mouse and mouse.Target
-        if not part then
-            local cam = workspace.CurrentCamera
-            if not cam then return nil end
-            local p = Services.UserInputService:GetMouseLocation()
-            local ray = cam:ViewportPointToRay(p.X, p.Y)
-            local params = RaycastParams.new()
-            params.FilterType = Enum.RaycastFilterType.Exclude
-            params.FilterDescendantsInstances = player.Character and {player.Character} or {}
-            local hit = workspace:Raycast(ray.Origin, ray.Direction * 900, params)
-            part = hit and hit.Instance
-        end
+
+    local function playerAtTap(point)
+        local camera = workspace.CurrentCamera
+        if not camera or not point then return nil end
+        local ray = camera:ViewportPointToRay(point.X, point.Y)
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = player.Character
+            and {player.Character} or {}
+        local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, params)
+        local part = result and result.Instance
         while part and part ~= workspace do
             if part:IsA("Model") and part:FindFirstChildOfClass("Humanoid") then
-                local target = Services.Players:GetPlayerFromCharacter(part)
-                if target and target ~= player then return target end
+                local candidate = Services.Players:GetPlayerFromCharacter(part)
+                if candidate and candidate ~= player then return candidate end
             end
             part = part.Parent
         end
         return nil
     end
+
+    local Input = Services.UserInputService
+    -- A tap, rather than a drag or camera swipe, selects the world character.
+    connect(Input.InputBegan, function(input, processed)
+        if destroyed or not targetSelectionActive or processed
+            or os.clock() < selectionArmedAt then return end
+        if input.UserInputType ~= Enum.UserInputType.MouseButton1
+            and input.UserInputType ~= Enum.UserInputType.Touch then return end
+        pendingTap = {
+            object = input,
+            point = Vector2.new(input.Position.X, input.Position.Y),
+            time = os.clock(),
+        }
+    end)
+    connect(Input.InputEnded, function(input)
+        if not targetSelectionActive or not pendingTap
+            or pendingTap.object ~= input then return end
+        local tap = pendingTap
+        pendingTap = nil
+        local endPoint = Vector2.new(input.Position.X, input.Position.Y)
+        if (endPoint - tap.point).Magnitude > 24
+            or os.clock() - tap.time > 0.7 then return end
+        local candidate = playerAtTap(endPoint)
+        if candidate then
+            choosePlayer(candidate)
+            targetSelectionActive = false
+            status("Alvo marcado: @" .. candidate.Name)
+        else
+            status("Nenhum jogador atingido. Toque em um personagem ou use o ícone de mira para cancelar.")
+        end
+    end)
+
     grantTargetTool.Activated:Connect(function()
         local backpack = player:FindFirstChildOfClass("Backpack")
             or player:WaitForChild("Backpack", 5)
-        if not backpack then status("Mochila não disponível.") return end
+        if not backpack then
+            status("Mochila não disponível.")
+            return
+        end
         if targetTool and targetTool.Parent then
-            status("A ferramenta já está na mochila; equipe-a e toque em alguém.")
+            status("O marcador já está na mochila. Toque no ícone de mira para selecionar.")
             return
         end
         cleanupTargetTool()
         local tool = new("Tool", {
-            Name = "Marcar Alvo", RequiresHandle = false, CanBeDropped = false,
-            ToolTip = "Equipe e toque em um jogador para selecioná-lo no Monarca.",
+            Name = "Marcar Alvo",
+            RequiresHandle = false,
+            CanBeDropped = false,
+            ManualActivationOnly = true,
+            TextureId = "rbxasset://textures/MouseLockedCursor.png",
+            ToolTip = "Toque para marcar um jogador sem segurar um objeto.",
         }, backpack)
         targetTool = tool
-        targetToolConnection = tool.Activated:Connect(function()
-            if destroyed then return end
-            local candidate = playerAtTap()
-            if candidate then
-                choosePlayer(candidate)
-                status("Jogador marcado: @" .. candidate.Name)
+        table.insert(targetToolConnections, tool.Equipped:Connect(function()
+            targetSelectionActive = not targetSelectionActive
+            pendingTap = nil
+            selectionArmedAt = os.clock() + 0.30
+            -- Returning the Tool to Backpack immediately clears the default
+            -- pose which many R6/R15 Animate scripts apply to equipped Tools.
+            task.defer(function()
+                if destroyed or not tool.Parent then return end
+                local own = player.Character
+                local humanoid = own and own:FindFirstChildOfClass("Humanoid")
+                if humanoid and tool.Parent == own then
+                    humanoid:UnequipTools()
+                end
+            end)
+            if targetSelectionActive then
+                status("Mira ativa: toque no personagem que deseja marcar.")
             else
-                status("Toque diretamente no personagem de outro jogador.")
+                status("Seleção de alvo cancelada.")
             end
-        end)
-        status("Ferramenta entregue: equipe e clique/toque em outro jogador.")
+        end))
+        table.insert(targetToolConnections, tool.AncestryChanged:Connect(function()
+            if not tool.Parent then
+                targetSelectionActive = false
+                pendingTap = nil
+            end
+        end))
+        status("Marcador de alvo adicionado à mochila (ícone de mira).")
     end)
-    
+
     for i,name in ipairs({"Headsit","Follow","View","TP","Backpack"}) do
         local b=new("TextButton",{
             Name="Action"..name,LayoutOrder=i,BackgroundColor3=theme.background,
@@ -1612,7 +1675,7 @@ local function bootMonarca()
     local auxiliaryModules = {}
     local function loadAuxiliary(name)
         if auxiliaryModules[name] then return auxiliaryModules[name] end
-        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.6.6-" .. tostring(os.time()))
+        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.6.7-" .. tostring(os.time()))
         if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
         local compiled, err = loadstring(source, "Monarca/" .. name)
         if not compiled then error(err or "Módulo inválido.") end
@@ -1681,7 +1744,7 @@ local function bootMonarca()
     }, flyRow)
     local flyLabel = new("TextLabel", {
         Position = UDim2.fromOffset(10, 29), Size = UDim2.new(1, -113, 0, 18),
-        BackgroundTransparency = 1, Text = "Voo local",
+        BackgroundTransparency = 1, Text = "Voe na direção da câmera",
         TextSize = 11, Font = Enum.Font.Gotham,
         TextColor3 = theme.muted, TextXAlignment = Enum.TextXAlignment.Left,
     }, flyRow)
@@ -1714,7 +1777,7 @@ local function bootMonarca()
                 return mod:enable()
             end)
             flyActive = ok and success == true
-            if flyActive then status("Fly ativado: use SUBIR/DESCER.")
+            if flyActive then status("Fly ativo: mova o joystick/WASD na direção da câmera.")
             else status("Falha no Fly: " .. tostring(ok and why or success)) end
         end
         repaintFly()
