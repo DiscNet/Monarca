@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.6**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.7.7**.
 
 ## Executar
 
@@ -14,7 +14,8 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 
 ## Estrutura
 
-- `Monarca.lua` — interface principal, navegação, controles, animações, salvamento e ciclo de vida.
+- `Monarca.lua` — carregador de ~7 KB com diagnóstico visível, tentativas de download e botão de repetir em caso de erro.
+- `hub_core.lua` — interface principal completa, navegação, controles, animações, salvamento e ciclo de vida; carregado apenas após a tela de diagnóstico já estar visível.
 - `assets/monarca-icon.jpg` — imagem oficial roxa do Monarca, adaptada para 128×128 px para a interface.
 - `assets/arise-intro.mp3` — efeito sonoro de abertura enviado pelo usuário, em versão MP3 otimizada.
 - `manifest.lua` — catálogo de módulos remotos aprovados.
@@ -85,6 +86,20 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Carregador de diagnóstico — v0.7.7
+
+A execução continua usando **o mesmo comando**:
+
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/Monarca.lua"))()
+```
+
+**Mudança estrutural:** `Monarca.lua` não contém mais a interface gigante (~155 KB), e sim um carregador enxuto (~7 KB) que monta uma tela **antes** de buscar `hub_core.lua`. O núcleo contém toda a UI e retorna `ok, failure` ao carregador. Qualquer problema no download, no `loadstring` do núcleo ou na inicialização é mostrado diretamente no HUD, com um botão **TENTAR NOVAMENTE**. Uma verificação de demora após 10 segundos também exibe a opção de repetir. Tentativas antigas que terminarem após uma nova solicitação não executam duplicadas.
+
+**Por quê:** as versões anteriores podiam falhar antes de desenhar a interface, deixando a impressão de que nenhuma execução havia acontecido. A aprovação do CI confirma que o Lua/Luau compila, mas não substitui um teste dentro do executor mobile. O novo caminho permite identificar o estágio de falha em vez de mascarar o erro.
+
+O Reverse continua inicializado em paralelo, assim que o núcleo do Monarca começa a executar. As configurações, tabs e visual do Hub permanecem no `hub_core.lua`.
 
 ## Correção de inicialização — v0.7.6
 
