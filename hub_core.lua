@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.8.7 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.8.8 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -124,7 +124,7 @@ local function bootMonarca()
         local ok, moduleOrError = pcall(function()
             if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
             local source = game:HttpGet(repository .. "modules/" .. name
-                .. ".lua?v=0.8.1-" .. tostring(os.time()))
+                .. ".lua?v=0.8.8-" .. tostring(os.time()))
             if type(source) ~= "string" or #source < 20 then
                 error("Resposta vazia ao carregar " .. name)
             end
@@ -2796,7 +2796,7 @@ local function bootMonarca()
             reloadButton.Name = "EmoteRefresh"
             reloadButton.TextSize = 11
             local feedback = label(emotePage,
-                "Emotes R15 usam o Animator existente. Alguns exigem posse, equipar ou permissão do jogo; FE não é garantido.",
+                "R15: IDs de animação corrigidos. Acesso e replicação dependem do jogo; alguns emotes podem estar bloqueados.",
                 11, theme.muted, 56)
             feedback.TextWrapped = true
 
@@ -2806,7 +2806,7 @@ local function bootMonarca()
                 for i, item in ipairs(choices) do
                     local haystack = string.lower(item.name .. " " ..
                         (item.aliases or "") .. " " .. (item.group or "") ..
-                        " " .. (item.id or ""))
+                        " " .. (item.id or "") .. " " .. (item.catalogId or ""))
                     local shown = term == "" or string.find(haystack, term, 1, true) ~= nil
                     choiceButtons[i].Visible = shown
                     if shown then visibleCount = visibleCount + 1 end
@@ -2878,7 +2878,7 @@ local function bootMonarca()
                     end
                     filterResults()
                     repaintPicker()
-                    feedback.Text = "Escolha um emote e toque em REPRODUZIR. Alguns emotes exigem posse/equipamento ou permissão do jogo."
+                    feedback.Text = "Use REPRODUZIR para testar. O sistema verifica se a animação carregou; os ativos ainda dependem das permissões do Roblox."
                 end)
             end
 
@@ -2911,9 +2911,9 @@ local function bootMonarca()
                     playing = false
                     playButton.Text = "REPRODUZIR"
                     if ok and worked then
-                        feedback.Text = "Emote: " .. choice.name ..
-                            ". Confira se aparece para outros jogadores."
-                        status("Emote: " .. choice.name .. " iniciado.")
+                        feedback.Text = "Emote carregado: " .. choice.name ..
+                            ". Para confirmar FE, verifique com outro jogador."
+                        status("Emote: " .. choice.name .. " carregado.")
                     else
                         local message = tostring(ok and reason or worked)
                         feedback.Text = "Falha: " .. message
