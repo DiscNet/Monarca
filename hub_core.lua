@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.8.3 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.8.4 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -3265,6 +3265,94 @@ local function bootMonarca()
             paintAntifling()
         end
 
+
+        -- 666 / Fling: server-authorized touch knockback in consenting private games.
+        do
+            local function addFlingControl(titleText, descriptionText, remoteOperation)
+                local row = card(mysteryPage, 60)
+                new("TextLabel", {
+                    Position = UDim2.fromOffset(11, 8),
+                    Size = UDim2.new(1, -113, 0, 23),
+                    BackgroundTransparency = 1,
+                    Text = titleText,
+                    Font = Enum.Font.GothamBold,
+                    TextSize = 13,
+                    TextColor3 = theme.text,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                }, row)
+                new("TextLabel", {
+                    Position = UDim2.fromOffset(11, 33),
+                    Size = UDim2.new(1, -113, 0, 19),
+                    BackgroundTransparency = 1,
+                    Text = descriptionText,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    Font = Enum.Font.GothamMedium,
+                    TextSize = 10,
+                    TextColor3 = theme.muted,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                }, row)
+                local toggleButton = button(row, "OFF",
+                    UDim2.new(1, -98, 0, 14), UDim2.fromOffset(86, 31))
+                toggleButton.Name = remoteOperation == "sending"
+                    and "FlingToggle" or "FlingConsentToggle"
+                rounded(toggleButton, 2)
+                local outline = new("UIStroke", {
+                    Color = theme.whiteLine, Thickness = 1,
+                    Transparency = 0.22, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                }, toggleButton)
+                local active, busy = false, false
+                local function repaint()
+                    toggleButton.Text = busy and "..." or (active and "ON" or "OFF")
+                    toggleButton.BackgroundColor3 =
+                        active and theme.primary or theme.background
+                    toggleButton.TextColor3 =
+                        active and theme.background or theme.text
+                    outline.Transparency = active and 0 or 0.22
+                end
+                toggleButton.Activated:Connect(function()
+                    if busy then return end
+                    busy = true
+                    repaint()
+                    local desired = not active
+                    task.spawn(function()
+                        local ok, applied, message = pcall(function()
+                            local module = loadAuxiliary("fling_touch")
+                            if remoteOperation == "receiving" then
+                                return module:allowReceiving(desired)
+                            elseif desired then
+                                return module:enable()
+                            else
+                                return module:disable()
+                            end
+                        end)
+                        if destroyed then
+                            if auxiliaryModules.fling_touch then
+                                pcall(auxiliaryModules.fling_touch.shutdown,
+                                    auxiliaryModules.fling_touch)
+                            end
+                            return
+                        end
+                        if ok and applied then
+                            active = desired
+                            status(titleText .. ": " .. (active and "ON" or "OFF"))
+                        else
+                            status(titleText .. ": " ..
+                                tostring(ok and message or applied))
+                        end
+                        busy = false
+                        repaint()
+                    end)
+                end)
+                repaint()
+            end
+            addFlingControl("Fling", "Empurrar ao tocar · partida privada", "sending")
+            addFlingControl("Aceitar Fling", "Permite ser empurrado por amigos", "receiving")
+            local hint = label(mysteryPage,
+                "Fling exige integração no servidor do seu jogo. Participantes precisam aceitar Fling.",
+                11, theme.muted, 49)
+            hint.TextWrapped = true
+        end
+
     end
     bootStage = "Construindo Emote e 666"
     initializeEmoteTabs()
@@ -4029,6 +4117,9 @@ local function bootMonarca()
         if destroyed then return end
         stopAlvo()
         cleanupTargetTool()
+        if auxiliaryModules.fling_touch then
+            pcall(auxiliaryModules.fling_touch.shutdown, auxiliaryModules.fling_touch)
+        end
         for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "antifling", "server_invisibility", "clone_invisibility", "anim_packs", "player_reverse"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
