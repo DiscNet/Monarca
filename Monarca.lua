@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.3.1 — spacious minimal UI + white line work
+-- Monarca Script Hub v0.4.0 — compact target controls
 -- Interface local. Os modulos sao carregados exclusivamente deste repositorio.
 local Services = {
     Players = game:GetService("Players"),
@@ -434,7 +434,7 @@ new("TextLabel", {
     Position = UDim2.fromOffset(26, 26),
     Size = UDim2.new(1, -110, 0, 12),
     BackgroundTransparency = 1,
-    Text = "VISUAL HUB  /  V0.3.1",
+    Text = "VISUAL HUB  /  V0.4",
     Font = Enum.Font.Gotham,
     TextColor3 = theme.muted,
     TextSize = 9,
@@ -628,11 +628,11 @@ local function switch(name)
         end
     end
 end
-for index, name in ipairs({"Home", "Visual", "Player", "Settings"}) do
+for index, name in ipairs({"Home", "Alvo", "Visual", "Player", "Settings"}) do
     page(name)
     local b = new("TextButton", {
         Name = "Tab" .. name,
-        Size = UDim2.new(0.25, -1, 0, NAV_HEIGHT),
+        Size = UDim2.new(0.2, -1, 0, NAV_HEIGHT),
         LayoutOrder = index,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -936,6 +936,414 @@ task.spawn(function()
         task.wait(1)
     end
 end)
+
+
+-- ALVO. All actions run on the local player's character/camera only.
+local alvo = pages.Alvo
+local alvoHeading = ordered(alvo, new("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 22), BackgroundTransparency = 1,
+    Text = "Alvo", Font = Enum.Font.GothamBold, TextSize = 16,
+    TextColor3 = theme.text, TextXAlignment = Enum.TextXAlignment.Left,
+}, alvo))
+local alvoSearchBox = ordered(alvo, new("Frame", {
+    Size = UDim2.new(1, 0, 0, 37), BackgroundColor3 = theme.surface,
+    BorderSizePixel = 0,
+}, alvo))
+rounded(alvoSearchBox, 3)
+new("UIStroke", {
+    Color = theme.whiteLine, Thickness = 1, Transparency = 0.63,
+    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+}, alvoSearchBox)
+local alvoSearch = new("TextBox", {
+    Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -20, 1, 0),
+    Text = "", PlaceholderText = "Pesquisar nick ou apelido...",
+    PlaceholderColor3 = theme.muted, ClearTextOnFocus = false,
+    TextColor3 = theme.text, TextSize = 12, Font = Enum.Font.Gotham,
+    TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 1,
+}, alvoSearchBox)
+
+local matchesFrame = ordered(alvo, new("Frame", {
+    Name = "AlvoMatches", Size = UDim2.new(1, 0, 0, 0),
+    AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1,
+}, alvo))
+new("UIListLayout", {
+    SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5),
+}, matchesFrame)
+local alvoProfile = ordered(alvo, new("Frame", {
+    Name = "AlvoProfile", Size = UDim2.new(1, 0, 0, 98),
+    BackgroundTransparency = 1,
+}, alvo))
+local alvoAvatar = new("ImageLabel", {
+    Position = UDim2.fromOffset(0, 1), Size = UDim2.fromOffset(88, 96),
+    BackgroundTransparency = 1, Image = "", ScaleType = Enum.ScaleType.Fit,
+}, alvoProfile)
+local profileDetails = new("Frame", {
+    Position = UDim2.fromOffset(100, 5),
+    Size = UDim2.new(1, -100, 1, -10), BackgroundTransparency = 1,
+}, alvoProfile)
+new("UIListLayout", {
+    SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 2),
+}, profileDetails)
+local function infoLine(n, text, sz, color)
+    return new("TextLabel", {
+        Name = "TargetInfo" .. n, LayoutOrder = n,
+        Size = UDim2.new(1, 0, 0, n == 1 and 24 or 19),
+        BackgroundTransparency = 1, Text = text,
+        TextColor3 = color, TextSize = sz,
+        Font = n == 1 and Enum.Font.GothamBold or Enum.Font.GothamMedium,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+    }, profileDetails)
+end
+local alvoName = infoLine(1, "Selecione um jogador", 15, theme.text)
+local alvoNick = infoLine(2, "Nick ou apelido", 12, theme.accent)
+local alvoId = infoLine(3, "ID: —", 11, theme.muted)
+local alvoDist = infoLine(4, "Distância: —", 11, theme.muted)
+local alvoDivider = ordered(alvo, new("Frame", {
+    Size = UDim2.new(1, 0, 0, 1), BackgroundColor3 = theme.whiteLine,
+    BackgroundTransparency = 0.86, BorderSizePixel = 0,
+}, alvo))
+local actionCaption = ordered(alvo, new("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 19), BackgroundTransparency = 1,
+    Text = "CONTROLES", TextSize = 10, Font = Enum.Font.GothamBold,
+    TextColor3 = theme.muted, TextXAlignment = Enum.TextXAlignment.Left,
+}, alvo))
+local actionGrid = ordered(alvo, new("Frame", {
+    Name = "ActionGrid", Size = UDim2.new(1, 0, 0, 123),
+    BackgroundTransparency = 1,
+}, alvo))
+new("UIGridLayout", {
+    CellSize = UDim2.new(0.5, -5, 0, 34),
+    CellPadding = UDim2.fromOffset(10, 10),
+    FillDirection = Enum.FillDirection.Horizontal,
+    SortOrder = Enum.SortOrder.LayoutOrder,
+}, actionGrid)
+local alvoFootnote = ordered(alvo, new("TextLabel", {
+    Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1,
+    Text = "Headsit, Follow e Backpack não funcionam simultaneamente. TP é pontual.",
+    TextSize = 10, Font = Enum.Font.Gotham, TextColor3 = theme.muted,
+    TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top,
+}, alvo))
+local selectedPlayer, savedPose, savedCamera = nil, nil, nil
+local modes = {Headsit=false, Follow=false, View=false, TP=false, Backpack=false}
+local modeButtons = {}
+local rankedMatches = {}
+local hiddenMatches = false
+local thumbVersion = 0
+local tickFollow, tickDistance = 0, 0
+local runService = game:GetService("RunService")
+
+local function root(char)
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+local function targetParts()
+    if not selectedPlayer or not selectedPlayer.Parent then return nil, nil end
+    local char = selectedPlayer.Character
+    return root(char), char and char:FindFirstChild("Head")
+end
+local function restorePose()
+    if not savedPose then return end
+    local hum = savedPose.hum
+    if hum and hum.Parent then
+        hum.AutoRotate = savedPose.rotate
+        hum.Sit = false
+        pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+    end
+    savedPose = nil
+end
+local function restoreCamera()
+    if not savedCamera then return end
+    local cam = workspace.CurrentCamera
+    if cam then
+        local previous = savedCamera
+        pcall(function()
+            cam.CameraType = previous.kind
+            if previous.subject and previous.subject.Parent then
+                cam.CameraSubject = previous.subject
+            else
+                local char = player.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                if hum then cam.CameraSubject = hum end
+            end
+            if previous.kind == Enum.CameraType.Scriptable then cam.CFrame = previous.cframe end
+        end)
+    end
+    savedCamera = nil
+end
+local function redrawModes()
+    for name, ui in pairs(modeButtons) do
+        local on = modes[name]
+        ui.button.BackgroundColor3 = on and theme.primary or theme.background
+        ui.button.TextColor3 = on and theme.background or theme.text
+        ui.stroke.Thickness = on and 2 or 1
+        ui.stroke.Transparency = on and 0 or 0.28
+        ui.glow.Transparency = on and 0.78 or 1
+    end
+end
+local function resetModes()
+    for name in pairs(modes) do modes[name] = false end
+    restorePose()
+    restoreCamera()
+    redrawModes()
+end
+local function setMode(name, enabled)
+    if enabled and not selectedPlayer then
+        status("Selecione um jogador primeiro.")
+        return
+    end
+    if name == "Headsit" or name == "Backpack" or name == "Follow" then
+        for _, other in ipairs({"Headsit", "Backpack", "Follow", "TP"}) do
+            modes[other] = enabled and other == name
+        end
+        restorePose()
+        if enabled and name ~= "Follow" then
+            local char = player.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                savedPose = {hum=hum, rotate=hum.AutoRotate}
+                hum.AutoRotate = false
+                hum.Sit = true
+            end
+        end
+    elseif name == "View" then
+        if not enabled then
+            restoreCamera()
+            modes.View = false
+        else
+            local cam = workspace.CurrentCamera
+            if cam then
+                savedCamera = {
+                    kind = cam.CameraType,
+                    subject = cam.CameraSubject,
+                    cframe = cam.CFrame,
+                }
+                cam.CameraType = Enum.CameraType.Scriptable
+                modes.View = true
+            end
+        end
+    elseif name == "TP" and enabled then
+        for _, other in ipairs({"Headsit", "Backpack", "Follow"}) do modes[other] = false end
+        restorePose()
+        local own = root(player.Character)
+        local their = targetParts()
+        if own and their then
+            own.CFrame = their.CFrame * CFrame.new(0, 0, 3.5)
+            modes.TP = true
+        else
+            modes.TP = false
+            status("O alvo não está com o personagem disponível.")
+        end
+    else
+        modes[name] = enabled
+    end
+    redrawModes()
+end
+
+local function choosePlayer(candidate)
+    if not candidate or candidate == player or not candidate.Parent then return end
+    if selectedPlayer ~= candidate then resetModes() end
+    selectedPlayer = candidate
+    alvoName.Text = candidate.DisplayName
+    alvoNick.Text = "@" .. candidate.Name
+    alvoId.Text = "ID: " .. candidate.UserId
+    alvoDist.Text = "Distância: —"
+    alvoAvatar.Image = ""
+    thumbVersion = thumbVersion + 1
+    local ticket = thumbVersion
+    hiddenMatches = true
+    alvoSearch.Text = candidate.DisplayName
+    matchesFrame.Visible = false
+    task.spawn(function()
+        local ok, image = pcall(function()
+            return Services.Players:GetUserThumbnailAsync(
+                candidate.UserId, Enum.ThumbnailType.AvatarBust, Enum.ThumbnailSize.Size420x420
+            )
+        end)
+        if ok and image and not destroyed and thumbVersion == ticket then
+            alvoAvatar.Image = image
+        end
+    end)
+    status("Alvo: @" .. candidate.Name)
+end
+local function normalize(value)
+    return tostring(value or ""):lower():gsub("^%s+", ""):gsub("%s+$", ""):gsub("^@", "")
+end
+local function edits(a,b)
+    if math.abs(#a-#b)>3 then return 99 end
+    local last={}
+    for j=0,#b do last[j]=j end
+    for i=1,#a do
+        local row={[0]=i}
+        for j=1,#b do
+            local cost=a:sub(i,i)==b:sub(j,j) and 0 or 1
+            row[j]=math.min(row[j-1]+1,last[j]+1,last[j-1]+cost)
+        end
+        last=row
+    end
+    return last[#b]
+end
+local function nameRank(name,q)
+    local n=normalize(name)
+    if n==q then return 0 end
+    if n:sub(1,#q)==q then return 10+(#n-#q)*0.01 end
+    if n:find(q,1,true) then return 30 end
+    if #q>=3 and edits(q:sub(1,32),n:sub(1,32)) <= math.min(3,math.max(2,math.floor(#q*.35))) then
+        return 50+edits(q:sub(1,32),n:sub(1,32))
+    end
+    return nil
+end
+local function searchPlayers()
+    local q=normalize(alvoSearch.Text)
+    local result={}
+    for _,candidate in ipairs(Services.Players:GetPlayers()) do
+        if candidate~=player then
+            local a,b=q=="" and 100 or nameRank(candidate.Name,q),
+                      q=="" and 100 or nameRank(candidate.DisplayName,q)
+            local score=a and b and math.min(a,b) or a or b
+            if score then table.insert(result,{player=candidate,score=score}) end
+        end
+    end
+    table.sort(result,function(a,b)
+        if a.score==b.score then return a.player.Name:lower()<b.player.Name:lower() end
+        return a.score<b.score
+    end)
+    return result
+end
+local function showMatches()
+    rankedMatches=searchPlayers()
+    for _,ui in ipairs(matchesFrame:GetChildren()) do
+        if ui:IsA("GuiObject") then ui:Destroy() end
+    end
+    matchesFrame.Visible=not hiddenMatches
+    if hiddenMatches then return end
+    for i=1,math.min(4,#rankedMatches) do
+        local candidate=rankedMatches[i].player
+        local b=new("TextButton",{
+            LayoutOrder=i,Size=UDim2.new(1,0,0,31),BackgroundColor3=theme.surface,
+            Text="  "..candidate.DisplayName.."   /  @"..candidate.Name,
+            TextSize=12,Font=Enum.Font.GothamMedium,TextColor3=theme.text,
+            TextXAlignment=Enum.TextXAlignment.Left,TextTruncate=Enum.TextTruncate.AtEnd,
+            BorderSizePixel=0,AutoButtonColor=false,
+        },matchesFrame)
+        rounded(b,2)
+        b.Activated:Connect(function() choosePlayer(candidate) end)
+    end
+    if #rankedMatches==0 then
+        new("TextLabel",{
+            Size=UDim2.new(1,0,0,30),BackgroundTransparency=1,
+            Text="Nenhum jogador encontrado.",TextColor3=theme.muted,
+            TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,
+        },matchesFrame)
+    end
+end
+connect(alvoSearch.Focused,function()
+    hiddenMatches=false
+    showMatches()
+end)
+connect(alvoSearch:GetPropertyChangedSignal("Text"),function()
+    if not hiddenMatches then showMatches() end
+end)
+connect(alvoSearch.FocusLost,function(entered)
+    if entered then
+        rankedMatches=searchPlayers()
+        if #rankedMatches>0 then choosePlayer(rankedMatches[1].player) end
+    end
+end)
+for i,name in ipairs({"Headsit","Follow","View","TP","Backpack"}) do
+    local b=new("TextButton",{
+        Name="Action"..name,LayoutOrder=i,BackgroundColor3=theme.background,
+        Text=name,TextSize=12,Font=Enum.Font.GothamBold,TextColor3=theme.text,
+        BorderSizePixel=0,AutoButtonColor=false,
+    },actionGrid)
+    rounded(b,2)
+    local stroke=new("UIStroke",{
+        Color=theme.whiteLine,Thickness=1,Transparency=.28,
+        ApplyStrokeMode=Enum.ApplyStrokeMode.Border,
+    },b)
+    local glow=new("UIStroke",{
+        Color=theme.whiteLine,Thickness=4,Transparency=1,
+        ApplyStrokeMode=Enum.ApplyStrokeMode.Border,
+    },b)
+    modeButtons[name]={button=b,stroke=stroke,glow=glow}
+    b.Activated:Connect(function() setMode(name,not modes[name]) end)
+end
+redrawModes()
+showMatches()
+connect(Services.Players.PlayerAdded,function() if not hiddenMatches then showMatches() end end)
+connect(Services.Players.PlayerRemoving,function(leaving)
+    if leaving==selectedPlayer then
+        resetModes()
+        selectedPlayer=nil
+        thumbVersion=thumbVersion+1
+        alvoAvatar.Image=""
+        alvoName.Text="Selecione um jogador"
+        alvoNick.Text="Alvo saiu da sessão"
+        alvoId.Text="ID: —"
+        alvoDist.Text="Distância: —"
+        hiddenMatches=false
+        alvoSearch.Text=""
+    end
+    if not hiddenMatches then showMatches() end
+end)
+connect(player.CharacterAdded,function()
+    for _,name in ipairs({"Headsit","Follow","Backpack","TP"}) do modes[name]=false end
+    restorePose()
+    redrawModes()
+end)
+connect(runService.RenderStepped,function()
+    if destroyed or not selectedPlayer then return end
+    local their,head=targetParts()
+    if modes.View and savedCamera and head then
+        local cam=workspace.CurrentCamera
+        if cam then
+            cam.CameraType=Enum.CameraType.Scriptable
+            cam.CFrame=head.CFrame*CFrame.new(0,0,-0.5)
+        end
+    end
+    if not (modes.Headsit or modes.Backpack) or not their then return end
+    local own=root(player.Character)
+    if not own then return end
+    local position
+    if modes.Headsit and head then
+        position=head.CFrame*CFrame.new(0,1.55,0)*CFrame.Angles(0,math.pi,0)
+    elseif modes.Backpack then
+        position=their.CFrame*CFrame.new(0,0.1,1.4)*CFrame.Angles(0,math.pi,0)
+    end
+    if position then
+        own.CFrame=position
+        own.AssemblyLinearVelocity=Vector3.zero
+        own.AssemblyAngularVelocity=Vector3.zero
+    end
+end)
+connect(runService.Heartbeat,function(dt)
+    if destroyed or not selectedPlayer then return end
+    tickDistance=tickDistance+dt
+    tickFollow=tickFollow+dt
+    local their=targetParts()
+    if tickDistance>.35 then
+        tickDistance=0
+        local own=root(player.Character)
+        alvoDist.Text=own and their and ("Distância: %d studs"):format(
+            math.floor((own.Position-their.Position).Magnitude+0.5)
+        ) or "Distância: —"
+    end
+    if tickFollow>.3 then
+        tickFollow=0
+        if modes.Follow and their then
+            local char=player.Character
+            local hum=char and char:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health>0 then
+                hum:MoveTo(their.Position+their.CFrame.LookVector*3)
+            end
+        end
+    end
+end)
+local function stopAlvo()
+    resetModes()
+    selectedPlayer=nil
+    thumbVersion=thumbVersion+1
+end
 
 local playerPage = pages.Player
 title(playerPage, "Player", "Ajustes locais do personagem e da câmera.")
@@ -1330,6 +1738,7 @@ connect(Services.UserInputService.InputEnded, function(input)
 end)
 local function destroy()
     if destroyed then return end
+    stopAlvo()
     disableAll()
     destroyed = true
     for _, connection in ipairs(connections) do connection:Disconnect() end
