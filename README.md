@@ -1,6 +1,16 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.7**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.8.8**.
+
+## Correção de emotes que não reproduziam — v0.8.8
+
+O problema com os emotes não clássicos foi causado por uma **confusão entre IDs de itens de emote do Marketplace e IDs da sequência de animação**. A versão anterior enviava vários IDs de itens ao `Animator:LoadAnimation()`, que espera um ID de animação válido. A correção substitui **43 referências não clássicas** por IDs de animação de uma tabela pública e mantém os IDs antigos como `catalogId` somente para busca. Cinco entradas sem correspondência confiável foram substituídas por outras cinco com IDs de animação identificados, mantendo o total de **50 emotes**.
+
+O módulo também deixa de informar que o emote funcionou apenas porque `AnimationTrack:Play()` não apresentou erro. Agora espera até três segundos por `AnimationTrack.Length > 0`; se não carregar, informa indisponibilidade ou falta de permissão e encerra a track. Mesmo uma animação carregada pode não ser visível para os demais, dependendo de direitos de uso e do comportamento do servidor. A busca continua aceitando os IDs antigos dos itens quando estão cadastrados.
+
+**Importante:** os IDs de animação adicionais provêm de uma tabela comunitária (não há validação automática no Roblox real). O Roblox pode restringir alguns ativos; a atualização não contorna controle de propriedade ou de acesso. Teste no próprio jogo, especialmente os emotes que antes falhavam.
+
+**Referência para animações dos emotes:** https://github.com/Eazvy/Public-Scripts/blob/main/Universal_Animations_Emotes.lua
 
 ## Correção dos emotes não exibidos — v0.8.7
 
