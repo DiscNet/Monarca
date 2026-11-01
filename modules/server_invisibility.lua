@@ -57,7 +57,8 @@ function Module:enable()
     return request(true)
 end
 function Module:disable()
-    if not enabled then return true end
+    -- Ask the server even if our previous acknowledgement timed out:
+    -- the remote may have applied invisibility despite losing the reply.
     return request(false)
 end
 function Module:isActive() return enabled end
