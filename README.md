@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.3**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.4**.
 
 ## Executar
 
@@ -66,7 +66,7 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - **Player**: FOV e controles de velocidade `8–160` (10× o padrão 16) e pulo `25–500` (10× o padrão 50). Painel com menor espaçamento entre sliders.
 - **Fly**: velocidade ajustável de 5 a 160, toggle no Player, comandos SUBIR/DESCER na tela do celular e Space/Ctrl no teclado. Usa `LinearVelocity`, pode ser limitado pelo jogo e é desativado ao entrar em modos de Alvo.
 - **R6/R15**: o painel só envia uma solicitação quando a experiência fornece `ReplicatedStorage.MonarcaRigSwitch`. O script `server/MonarcaRigSwitch.server.lua`, instalado em **ServerScriptService de um jogo próprio**, cria o novo modelo R6 ou R15 com `Players:CreateHumanoidModelFromDescriptionAsync`, troca `Player.Character`, destrói o modelo antigo e responde ao cliente com o resultado. Esse processo recria o personagem de verdade, disparando `CharacterAdded`. A implementação precisa ser testada com os scripts e regras de avatar da experiência. Em jogos de terceiros sem essa integração, a troca não funciona. Alterar só `Humanoid.RigType` pode matar o personagem.
-- **Aba 666 — ?**: animação R6 local com idle mais natural, respiração perceptível (tronco, ombros e cabeça), postura menos inclinada, braços soltos, passadas mais amplas, elevação alternada dos pés e balanço de quadril. As poses são interpoladas com suavização exponencial e `CFrame:Lerp` para passar de idle a walk e vice-versa. O emote Zombie permanece mutuamente exclusivo. Ainda utiliza `Motor6D.Transform` e não é FE.
+- **Aba 666 — ? (v0.6.4)**: idle com braços abaixados ao lado do corpo, torso 9° levemente inclinado para trás, perna direita 21° à frente, esquerda 11° atrás e oscilação suave de distribuição de peso. A caminhada percorre os estágios **Contact → Down → Passing → Up**, com passos alternados mais amplos, elevação dos pés, deslocamento individual dos quadris, braços em contrabalanço, rotação de tronco e movimentos da cabeça. A transição idle/walk conserva suavização exponencial em cada junta e velocidade adaptativa. O Zombie continua mutuamente exclusivo. **Limitante do R6:** cada perna e braço é uma peça rígida, sem joelhos/cotovelos articulados; para dobrar a perna de fato é necessário um rig R15 ou segmentado. `Motor6D.Transform` continua local, não FE.
 - **Aba 666 — </>**: novo botão alternável imediatamente abaixo de **?**, independente da animação. Quando ativo, torna somente a cabeça invisível localmente usando `LocalTransparencyModifier = 1`, ocultando também decal/textura do rosto, mas **não** remove cabelo, chapéus, acessórios, `Humanoid` ou juntas. Continua no respawn enquanto ativo; ao desativar ou fechar o Hub, restaura a transparência original. Outros jogadores continuam enxergando a cabeça.
 - **Navegação responsiva**: com sete abas, a faixa superior pode ser rolada horizontalmente no Android. Cada aba mantém 67 px de largura e o indicador de seleção branco. A rolagem automática procura manter a aba ativa visível.
 - **Emote — Zumbi andando R6**: articulações dos ombros e quadris usam o eixo local de pitch correto, detectado pelo `Motor6D.C0/C1`; braços ficam aproximadamente 86° à frente e pernas dão passadas alternadas para frente/trás, com elevação de pés e oscilação sutil. A movimentação depende do personagem estar realmente caminhando e requer um **R6 real**.
@@ -76,6 +76,15 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
 - Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+
+## Referências de animação — revisão v0.6.4
+
+Para o walk de `?`, foram usadas as poses `contact / down / passing / up`, a movimentação oposta dos braços, o eixo de transferência de peso e a oscilação da cabeça/quadris descritos em:
+- [Anatomia de um Walk Cycle (Manual Livre de Animação 2D)](https://nafergo.github.io/manual-livre-animacao2d/walkcycle.html)
+- [Adobe — What Is an Animated Walk Cycle?](https://www.adobe.com/creativecloud/animation/discover/animation-walk-cycle.html)
+- [CAVE Academy — Animating a walk cycle](https://caveacademy.com/wiki/post-production-shots/animation/animation-training/introduction-to-animation-course/animating-a-walk-cycle/)
+
+A pose parada utiliza **contrapposto estilizado**: braços mais baixos, perna direita adiantada, peso apoiado na esquerda e tronco discretamente para trás. Não são copiadas imagens, animações de terceiros ou assets pagos: os movimentos são originais e implementados matematicamente nas juntas R6.
 
 ## Preparar o emote FE no Roblox Studio
 
