@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.6.4 — idle contrapposto and realistic R6 walk cycle
+-- Monarca Script Hub v0.6.5 — local Korblox right-leg preview in 666
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -466,7 +466,7 @@ local function bootMonarca()
         Position = UDim2.fromOffset(26, 26),
         Size = UDim2.new(1, -110, 0, 12),
         BackgroundTransparency = 1,
-        Text = "VISUAL HUB  /  V0.6.4",
+        Text = "VISUAL HUB  /  V0.6.5",
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextSize = 9,
@@ -2116,8 +2116,103 @@ local function bootMonarca()
             refreshHeadless()
         end)
         refreshHeadless()
-    
-    
+
+        -- Third 666 option: authentic Korblox Deathspeaker Right Leg preview.
+        -- The Roblox item is a body-part asset, not an ordinary Accessory.
+        local korbloxRow = card(mysteryPage, 64)
+        new("TextLabel", {
+            Name = "KorbloxRightLeg",
+            Position = UDim2.fromOffset(11, 7),
+            Size = UDim2.new(1, -113, 0, 23),
+            BackgroundTransparency = 1,
+            Text = "Korblox · Perna direita",
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            TextColor3 = theme.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+        }, korbloxRow)
+        new("TextLabel", {
+            Position = UDim2.fromOffset(11, 32),
+            Size = UDim2.new(1, -113, 0, 22),
+            BackgroundTransparency = 1,
+            Text = "139607718  ·  Visual local",
+            Font = Enum.Font.GothamMedium,
+            TextSize = 10,
+            TextColor3 = theme.muted,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        }, korbloxRow)
+        local korbloxButton = new("TextButton", {
+            Name = "KorbloxToggle",
+            Position = UDim2.new(1, -98, 0, 15),
+            Size = UDim2.fromOffset(86, 32),
+            Text = "OFF",
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            TextColor3 = theme.text,
+            BackgroundColor3 = theme.background,
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+        }, korbloxRow)
+        rounded(korbloxButton, 2)
+        local korbloxBorder = new("UIStroke", {
+            Color = theme.whiteLine, Thickness = 1, Transparency = 0.22,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        }, korbloxButton)
+        local korbloxGlow = new("UIStroke", {
+            Color = theme.whiteLine, Thickness = 3, Transparency = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        }, korbloxButton)
+        local korbloxActive, korbloxBusy = false, false
+        local function paintKorblox()
+            korbloxButton.Text = korbloxBusy and "..." or
+                (korbloxActive and "ON" or "OFF")
+            korbloxButton.BackgroundColor3 =
+                korbloxActive and theme.primary or theme.background
+            korbloxButton.TextColor3 =
+                korbloxActive and theme.background or theme.text
+            korbloxBorder.Transparency = korbloxActive and 0 or 0.22
+            korbloxGlow.Transparency = korbloxActive and 0.82 or 1
+        end
+        korbloxButton.Activated:Connect(function()
+            if korbloxBusy then return end
+            if korbloxActive then
+                if auxiliaryModules.korblox_right_leg then
+                    pcall(auxiliaryModules.korblox_right_leg.disable,
+                        auxiliaryModules.korblox_right_leg)
+                end
+                korbloxActive = false
+                status("Perna direita original restaurada.")
+                paintKorblox()
+                return
+            end
+            korbloxBusy = true
+            paintKorblox()
+            status("Carregando geometria original Korblox...")
+            task.spawn(function()
+                local ok, applied, reason = pcall(function()
+                    return loadAuxiliary("korblox_right_leg"):enable()
+                end)
+                if destroyed then
+                    if auxiliaryModules.korblox_right_leg then
+                        pcall(auxiliaryModules.korblox_right_leg.disable,
+                            auxiliaryModules.korblox_right_leg)
+                    end
+                    return
+                end
+                korbloxActive = ok and applied == true
+                korbloxBusy = false
+                paintKorblox()
+                if korbloxActive then
+                    status("Korblox Right Leg: prévia local ativada.")
+                else
+                    status("Korblox indisponível: " ..
+                        tostring(ok and reason or applied))
+                end
+            end)
+        end)
+        paintKorblox()
+
     end
     bootStage = "Construindo Emote e 666"
     initializeEmoteTabs()
@@ -2465,7 +2560,7 @@ local function bootMonarca()
         if destroyed then return end
         stopAlvo()
         cleanupTargetTool()
-        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local"}) do
+        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
             end
