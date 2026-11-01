@@ -1,5 +1,5 @@
 -- Monarca / 666 / ?
--- Distinct R6-only procedural idle/walk with damped crossfades and secondary motion.
+-- Distinct R6-only procedural idle / walk, anatomically referenced gait & contrapposto.
 -- No claims of FE: transforms written locally are not replicated to others.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -48,49 +48,53 @@ local function frontSign(motor, torso)
     return score(math.pi * 0.5) >= score(-math.pi * 0.5) and 1 or -1
 end
 
--- Find a local shoulder twist that keeps the arm pointed FORWARD, while
--- turning it toward the center of the chest (R6 joints are mirrored).
+-- Choose shoulder pitch from the true R6 joint basis. At rest the arms
+-- hang DOWN, not forward. The twist moves them slightly toward the body.
 local function armInward(motor, torso, front, angle, inward, rightArm)
     local base = CFrame.Angles(0, 0, front * angle)
     local inwardWorld = torso.CFrame.RightVector * (rightArm and -1 or 1)
-    local goal = (torso.CFrame.LookVector * 0.92 + inwardWorld * 0.36
-        - torso.CFrame.UpVector * 0.10).Unit
+    local forward = torso.CFrame.LookVector
+    local down = -torso.CFrame.UpVector
+    local goal = (forward * math.sin(angle)
+        + down * math.cos(angle)
+        + inwardWorld * math.sin(inward)).Unit
     local bestTransform, bestScore = base, -math.huge
 
-    local function try(pose)
-        local longAxis = predictedFrame(motor, pose)
+    local function try(candidate)
+        local axis = predictedFrame(motor, candidate)
             :VectorToWorldSpace(Vector3.new(0, -1, 0)).Unit
-        local score = longAxis:Dot(goal)
+        local score = axis:Dot(goal)
         if score > bestScore then
-            bestScore, bestTransform = score, pose
+            bestTransform, bestScore = candidate, score
         end
     end
     try(base)
-    for _, multiplier in ipairs({-1, 1}) do
-        local twist = inward * multiplier
-        local yaw = CFrame.Angles(0, twist, 0)
-        local roll = CFrame.Angles(twist, 0, 0)
-        try(base * yaw)
-        try(yaw * base)
-        try(base * roll)
-        try(roll * base)
+    for _, sign in ipairs({-1, 1}) do
+        local twist = inward * sign
+        try(base * CFrame.Angles(0, twist, 0))
+        try(CFrame.Angles(0, twist, 0) * base)
+        try(base * CFrame.Angles(twist, 0, 0))
+        try(CFrame.Angles(twist, 0, 0) * base)
     end
     return bestTransform
 end
 
--- Choose the torso's forward-lean axis using the actual R6 RootJoint frame.
-local function forwardLean(rootJoint, rootPart, angle)
-    local best, score = CFrame.identity, -math.huge
+-- A pose may lean forwards OR backwards: pick the actual motor axis from
+-- the resulting torso orientation instead of assuming C0 uses world X.
+local function bodyLean(rootJoint, rootPart, angle, backwards)
+    local best, bestScore = CFrame.identity, -math.huge
     for _, sign in ipairs({-1, 1}) do
         for _, axis in ipairs({"X", "Z"}) do
-            local turn = axis == "X"
+            local frame = axis == "X"
                 and CFrame.Angles(sign * angle, 0, 0)
                 or CFrame.Angles(0, 0, sign * angle)
-            local upward = predictedFrame(rootJoint, turn).UpVector
-            local forward = upward:Dot(rootPart.CFrame.LookVector)
-            local sideways = math.abs(upward:Dot(rootPart.CFrame.RightVector))
-            local merit = forward - sideways * 0.5
-            if merit > score then best, score = turn, merit end
+            local torsoUp = predictedFrame(rootJoint, frame).UpVector
+            local forward = torsoUp:Dot(rootPart.CFrame.LookVector)
+            local lateral = math.abs(torsoUp:Dot(rootPart.CFrame.RightVector))
+            local rating = (backwards and -forward or forward) - lateral
+            if rating > bestScore then
+                best, bestScore = frame, rating
+            end
         end
     end
     return best
@@ -146,20 +150,20 @@ function Mystery:enable()
     local rightLeg = frontSign(joints.rightLeg, torso)
     local leftLeg = frontSign(joints.leftLeg, torso)
 
-    -- Neutral relaxed silhouettes with natural head/chest alignment.
-    -- R6 arms have no elbows, so their secondary sway is shoulder-driven.
-    local rightWalk = armInward(joints.rightArm, torso, rightFront,
-        math.rad(87), math.rad(25), true)
-    local leftWalk = armInward(joints.leftArm, torso, leftFront,
-        math.rad(87), math.rad(25), false)
+    -- Stance: arms lowered, a staggered right foot, weight on left leg,
+    -- and a modest backwards chest lean. Walk is much more animated.
     local rightIdle = armInward(joints.rightArm, torso, rightFront,
-        math.rad(70), math.rad(29), true)
+        math.rad(14), math.rad(12), true)
     local leftIdle = armInward(joints.leftArm, torso, leftFront,
-        math.rad(70), math.rad(29), false)
-    -- Reduce the previous 19-degree idle lean (which looked like falling).
-    local leanWalk = forwardLean(joints.root, rootPart, math.rad(7))
-    local leanIdle = forwardLean(joints.root, rootPart, math.rad(8.5))
-    local headUp = liftedHead(joints.neck, torso, math.rad(10))
+        math.rad(11), math.rad(13), false)
+    local rightWalk = armInward(joints.rightArm, torso, rightFront,
+        math.rad(28), math.rad(9), true)
+    local leftWalk = armInward(joints.leftArm, torso, leftFront,
+        math.rad(25), math.rad(10), false)
+    local idleLean = bodyLean(joints.root, rootPart, math.rad(9), true)
+    local walkingLean = bodyLean(joints.root, rootPart, math.rad(3), false)
+    -- The head counters the thorax incline and stays directed forwards.
+    local headUp = liftedHead(joints.neck, torso, math.rad(6))
 
     animateScript = character:FindFirstChild("Animate")
     if animateScript and animateScript:IsA("LocalScript") then
@@ -176,119 +180,155 @@ function Mystery:enable()
     end
 
     motors, active, elapsed = joints, true, 0
-    local movementBlend = 0
+    local transition = 0
     local gaitPhase = 0
-    local idleClock = 0
-    local currentTransforms = {}
-    for name in pairs(joints) do currentTransforms[name] = CFrame.identity end
+    local idleTime = 0
+    local transforms = {}
+    for jointName in pairs(joints) do transforms[jointName] = CFrame.identity end
 
     local ok, err = pcall(function()
-        renderConnection = RunService.PreSimulation:Connect(function(deltaTime)
+        renderConnection = RunService.PreSimulation:Connect(function(frameDelta)
             if not active then return end
             if localPlayer.Character ~= character or human.Health <= 0 then
                 release()
                 return
             end
-            local dt = math.clamp(deltaTime, 0, 0.055)
-            idleClock = idleClock + dt
-            local v = rootPart.AssemblyLinearVelocity
-            local horizontalSpeed = Vector3.new(v.X, 0, v.Z).Magnitude
-            local moving = human.MoveDirection.Magnitude > 0.06
-                and horizontalSpeed > 0.4
 
-            -- Ease idle -> walk and walk -> idle instead of hard pose swaps.
-            -- A mild dead zone avoids flicker from physics velocity noise.
-            local targetBlend = moving
-                and math.clamp((horizontalSpeed - 0.4) / 3.5, 0, 1) or 0
-            local blendTime = targetBlend > movementBlend and 0.24 or 0.34
-            movementBlend = movementBlend
-                + (targetBlend - movementBlend) * (1 - math.exp(-dt / blendTime))
-            if movementBlend < 0.002 and targetBlend == 0 then
-                movementBlend = 0
+            local dt = math.clamp(frameDelta, 0, 0.05)
+            idleTime = idleTime + dt
+            local velocity = rootPart.AssemblyLinearVelocity
+            local flatSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
+            local moving = human.MoveDirection.Magnitude > 0.075
+                and flatSpeed > 0.6
+
+            -- Hysteresis + exponential ramp for smooth starts/stops.
+            local desiredWalk = moving
+                and math.clamp((flatSpeed - 0.4) / 4.1, 0, 1)
+                or 0
+            local fadeSeconds = desiredWalk > transition and 0.26 or 0.39
+            transition = transition + (desiredWalk - transition)
+                * (1 - math.exp(-dt / fadeSeconds))
+            if transition < 0.001 and desiredWalk == 0 then transition = 0 end
+
+            local motion = rootPart.CFrame:VectorToObjectSpace(human.MoveDirection)
+            local backwardStep = motion.Z > 0.35 and -1 or 1
+            local sideStep = math.clamp(motion.X, -1, 1)
+
+            -- Contact -> Down -> Passing -> Up. Each leg is half a cycle apart.
+            -- Faster movement shortens the gait period without hard snapping.
+            if transition > 0.002 then
+                gaitPhase = gaitPhase + dt
+                    * math.clamp(5.7 + flatSpeed * 0.115, 5.7, 11)
             end
-            if movementBlend > 0.002 then
-                gaitPhase = gaitPhase + dt * (5.9 + math.min(horizontalSpeed, 20) * 0.11)
-            end
+            local phase = gaitPhase
+            local contact = math.cos(phase)
+            local pass = math.sin(phase)
+            local downUp = math.sin(2 * phase)
+            local secondHarmonic = math.cos(2 * phase)
+            local rightSwing = contact * backwardStep
+            local leftSwing = -rightSwing
+            local rightLift = math.max(pass, 0) ^ 1.4
+            local leftLift = math.max(-pass, 0) ^ 1.4
 
-            -- Independent rhythms prevent an idle that looks like a frozen pose.
-            local breath = math.sin(idleClock * 2.45)
-            local breathSlow = math.sin(idleClock * 1.22 + 0.7)
-            local weightShift = math.sin(idleClock * 0.8)
-            local step = math.sin(gaitPhase)
-            local opposite = -step
-            local doubleStep = math.sin(2 * gaitPhase)
-            local idleWeight = 1 - movementBlend
+            -- Breathing and weight shifting run on different frequencies,
+            -- preventing a stiff, mechanically repeating idle.
+            local inhale = math.sin(idleTime * 2.0)
+            local exhale = math.sin(idleTime * 1.0 + 0.55)
+            local weight = math.sin(idleTime * 0.74)
+            local shoulderLag = math.sin(phase - 0.34)
+            local oppositeLag = math.sin(phase + math.pi - 0.34)
+            local walkWeight = transition
 
-            -- Head rises slightly during the inhale and follows the chest
-            -- without over-correcting into a backward lean.
-            local idleNeck = headUp
-                * CFrame.Angles(0.018 * breath, 0.025 * weightShift,
-                    0.018 * breathSlow)
-            local walkNeck = headUp
-                * CFrame.Angles(-0.045 * step, 0.035 * doubleStep,
-                    -0.036 * step)
-            local neck = idleNeck:Lerp(walkNeck, movementBlend)
+            -- IDLE: arms hang beside the torso and sway in small, asymmetric
+            -- arcs. WALK: arms counter-swing relative to each leading leg.
+            local idleArmRight = rightIdle
+                * CFrame.Angles(0.028 * inhale, 0.037 * exhale,
+                    rightFront * (0.043 * weight + 0.034 * inhale))
+            local idleArmLeft = leftIdle
+                * CFrame.Angles(-0.022 * inhale, -0.035 * exhale,
+                    leftFront * (-0.035 * weight + 0.038 * inhale))
+            local walkingArmRight = rightWalk
+                * CFrame.Angles(0.13 * shoulderLag, 0.075 * sideStep,
+                    rightFront * (-0.46 * rightSwing
+                        + 0.075 * shoulderLag + 0.025 * secondHarmonic))
+            local walkingArmLeft = leftWalk
+                * CFrame.Angles(-0.13 * oppositeLag, -0.075 * sideStep,
+                    leftFront * (-0.46 * leftSwing
+                        + 0.075 * oppositeLag - 0.025 * secondHarmonic))
+            local rightArm = idleArmRight:Lerp(walkingArmRight, walkWeight)
+            local leftArm = idleArmLeft:Lerp(walkingArmLeft, walkWeight)
 
-            -- Elastic shoulders, tiny lag and gentle variation on each side.
-            local idleRightArm = rightIdle
-                * CFrame.Angles(0.05 * breathSlow, 0.035 * breath,
-                    rightFront * (0.075 * breath + 0.045 * weightShift))
-            local idleLeftArm = leftIdle
-                * CFrame.Angles(-0.05 * breathSlow, -0.035 * breath,
-                    leftFront * (0.07 * breath - 0.040 * weightShift))
-            local walkRightArm = rightWalk
-                * CFrame.Angles(0.065 * doubleStep, 0.05 * step,
-                    rightFront * (0.16 * opposite + 0.045 * doubleStep))
-            local walkLeftArm = leftWalk
-                * CFrame.Angles(-0.065 * doubleStep, -0.05 * step,
-                    leftFront * (0.16 * step - 0.045 * doubleStep))
-            local rightArm = idleRightArm:Lerp(walkRightArm, movementBlend)
-            local leftArm = idleLeftArm:Lerp(walkLeftArm, movementBlend)
+            -- IDLE: right foot clearly in front, left leg slightly behind,
+            -- with weight borne on the left. R6 has no knee joints.
+            local idleRightHip = CFrame.new(0, 0.035, -0.045)
+                * CFrame.Angles(0.014 * weight, 0.015,
+                    rightLeg * (math.rad(21) + 0.022 * weight))
+            local idleLeftHip = CFrame.new(0, -0.023, 0.02)
+                * CFrame.Angles(-0.012 * weight, -0.026,
+                    leftLeg * (-math.rad(11) + 0.019 * weight))
 
-            -- Each leg swings in the sagittal plane; opposing steps get a
-            -- foot lift while airborne. Small pelvis sway adds weight.
-            local stepAmount = 0.72
-            local idleRightLeg = CFrame.Angles(0, 0, rightLeg * 0.028 * weightShift)
-            local idleLeftLeg = CFrame.Angles(0, 0, -leftLeg * 0.028 * weightShift)
-            local walkRightLeg =
-                CFrame.new(0, math.max(0, step) * 0.17, 0)
-                * CFrame.Angles(0.02 * doubleStep, 0,
-                    rightLeg * step * stepAmount)
-            local walkLeftLeg =
-                CFrame.new(0, math.max(0, opposite) * 0.17, 0)
-                * CFrame.Angles(-0.02 * doubleStep, 0,
-                    leftLeg * opposite * stepAmount)
-            local rightHip = idleRightLeg:Lerp(walkRightLeg, movementBlend)
-            local leftHip = idleLeftLeg:Lerp(walkLeftLeg, movementBlend)
+            -- Big opposing thigh swing + swing-foot lift, slight toe-in/out,
+            -- and small independent hip slides to stop the "fixed legs" look.
+            -- These are hip-joint edits, not fake knee bends on the R6 rig.
+            local stride = math.clamp(0.87 + (flatSpeed - 8) * 0.013, 0.75, 1.05)
+            local walkingRightHip = CFrame.new(
+                0.022 * downUp,
+                0.25 * rightLift - 0.028 * math.max(-pass, 0),
+                -0.095 * rightSwing
+            ) * CFrame.Angles(
+                0.085 * pass,
+                0.038 * sideStep + 0.055 * contact,
+                rightLeg * (stride * rightSwing + 0.10 * downUp)
+            )
+            local walkingLeftHip = CFrame.new(
+                -0.022 * downUp,
+                0.25 * leftLift - 0.028 * math.max(pass, 0),
+                -0.095 * leftSwing
+            ) * CFrame.Angles(
+                -0.085 * pass,
+                0.038 * sideStep - 0.055 * contact,
+                leftLeg * (stride * leftSwing - 0.10 * downUp)
+            )
+            local rightHip = idleRightHip:Lerp(walkingRightHip, walkWeight)
+            local leftHip = idleLeftHip:Lerp(walkingLeftHip, walkWeight)
 
-            -- Gentle chest expansion and weighted footsteps. Keep lean
-            -- within 7-9 degrees to avoid the "toppling" posture.
-            local idleChest = leanIdle
-                * CFrame.new(0.012 * weightShift, 0.038 * breath, 0)
-                * CFrame.Angles(0.023 * breathSlow, 0.018 * weightShift,
-                    0.018 * breath)
-            local walkChest = leanWalk
-                * CFrame.new(0.055 * step, -0.09 * math.abs(step), 0)
-                * CFrame.Angles(0.055 * doubleStep, 0.045 * step,
-                    0.035 * doubleStep)
-            local rootPose = idleChest:Lerp(walkChest, movementBlend)
+            -- The body actually transfers weight: low after foot impact,
+            -- high while the opposite foot passes, with a counter-rotation.
+            local idleChest = idleLean
+                * CFrame.new(0.045 * weight, 0.027 * inhale, 0)
+                * CFrame.Angles(0.020 * exhale, 0.024 * weight,
+                    0.018 * inhale)
+            local walkingChest = walkingLean
+                * CFrame.new(0.068 * contact + 0.016 * sideStep,
+                    -0.065 - 0.086 * downUp, 0)
+                * CFrame.Angles(0.040 * downUp, -0.081 * contact,
+                    0.055 * pass)
+            local torsoPose = idleChest:Lerp(walkingChest, walkWeight)
 
-            -- A short per-joint interpolation also smooths abrupt frame-time
-            -- changes without introducing a second state machine.
-            local frameAlpha = 1 - math.exp(-dt / 0.095)
-            local function animateJoint(name, target)
-                local motor = joints[name]
-                local previous = currentTransforms[name]
-                local nextPose = previous:Lerp(target, frameAlpha)
-                currentTransforms[name] = nextPose
-                motor.Transform = nextPose
+            -- Counterweight from the neck (eyes forward) with delayed
+            -- walking nod and an inhale lift.
+            local idleHead = headUp
+                * CFrame.Angles(-0.018 * inhale, -0.017 * weight,
+                    -0.021 * exhale)
+            local walkingHead = headUp
+                * CFrame.Angles(0.067 * downUp, 0.028 * contact,
+                    -0.038 * pass + 0.012 * secondHarmonic)
+            local headPose = idleHead:Lerp(walkingHead, walkWeight)
+
+            -- Per-joint damping prevents instantaneous pose updates while
+            -- preserving distinct rhythms in arms, hips, torso and head.
+            local alpha = 1 - math.exp(-dt / 0.083)
+            local function animateJoint(name, targetPose)
+                local pose = transforms[name]:Lerp(targetPose, alpha)
+                transforms[name] = pose
+                joints[name].Transform = pose
             end
             animateJoint("rightArm", rightArm)
             animateJoint("leftArm", leftArm)
             animateJoint("rightLeg", rightHip)
             animateJoint("leftLeg", leftHip)
-            animateJoint("root", rootPose)
-            animateJoint("neck", neck)
+            animateJoint("root", torsoPose)
+            animateJoint("neck", headPose)
         end)
     end)
 
