@@ -392,7 +392,7 @@ local function switch(name)
         b.TextColor3 = key == name and theme.accent or theme.muted
     end
 end
-for index, name in ipairs({"Home", "Scripts", "Player", "Settings"}) do
+for index, name in ipairs({"Home", "Visual", "Player", "Settings"}) do
     page(name)
     local b = button(sidebar, name, nil, UDim2.new(0.25, -7, 0, 29), function() switch(name) end)
     b.Font = Enum.Font.Gotham
@@ -751,48 +751,34 @@ button(resetSettings, "REDEFINIR PREFERÊNCIAS", UDim2.fromOffset(10, 11), UDim2
     status("Preferências restauradas. Reabra o Hub para atualizar os controles.")
 end)
 
-local scriptsPage = pages.Scripts
-title(scriptsPage, "Scripts", "Módulos locais, organizados por categoria.")
-local controls = card(scriptsPage, 82)
-local search = new("TextBox", {
-    Position = UDim2.fromOffset(10, 8),
-    Size = UDim2.new(1, -20, 0, 28),
-    BackgroundColor3 = theme.card,
-    TextColor3 = theme.text,
-    PlaceholderColor3 = theme.muted,
-    PlaceholderText = "Buscar scripts...",
-    Text = "",
-    TextSize = 12,
-    Font = Enum.Font.Gotham,
-    ClearTextOnFocus = false,
-}, controls)
-rounded(search, 8)
-new("UIPadding", {PaddingLeft = UDim.new(0, 9), PaddingRight = UDim.new(0, 9)}, search)
-local category = "Todos"
-local renderModules
-local filterButton = button(controls, "TODOS  ▾", UDim2.fromOffset(10, 44), UDim2.new(0.5, -14, 0, 28))
-local updateButton = button(controls, "ATUALIZAR", UDim2.new(0.5, 4, 0, 44), UDim2.new(0.5, -14, 0, 28), nil, true)
-local dropdown = card(scriptsPage, 103)
-dropdown.Visible = false
-for index, name in ipairs({"Todos", "Visual", "Utilidades"}) do
-    button(dropdown, name, UDim2.new(0, 8, 0, 6 + (index - 1) * 31), UDim2.new(1, -16, 0, 27), function()
-        category = name
-        filterButton.Text = string.upper(name) .. "  ▾"
-        dropdown.Visible = false
-        if renderModules then renderModules() end
-    end)
-end
-filterButton.Activated:Connect(function()
-    dropdown.Visible = not dropdown.Visible
-end)
+
+local visualPage = pages.Visual
+title(visualPage, "Visual", "Ajustes visuais locais e reversíveis.")
+
+-- Minimal toolbar, with no large script cards or search controls.
+local visualToolbar = ordered(visualPage, new("Frame", {
+    Size = UDim2.new(1, -2, 0, 36),
+    BackgroundTransparency = 1,
+}, visualPage))
+local updateButton = button(visualToolbar, "ATUALIZAR",
+    UDim2.new(0, 0, 0, 3), UDim2.new(0.5, -5, 0, 30), nil, true)
+local resetVisualButton = button(visualToolbar, "RESTAURAR",
+    UDim2.new(0.5, 5, 0, 3), UDim2.new(0.5, -5, 0, 30))
+
 local moduleArea = new("Frame", {
     Name = "ModuleArea",
     LayoutOrder = 1000,
     Size = UDim2.new(1, -2, 0, 0),
     AutomaticSize = Enum.AutomaticSize.Y,
     BackgroundTransparency = 1,
-}, scriptsPage)
-new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 7)}, moduleArea)
+}, visualPage)
+new("UIListLayout", {
+    SortOrder = Enum.SortOrder.LayoutOrder,
+    Padding = UDim.new(0, 4),
+}, moduleArea)
+local visualGroups = {"Personagens", "Iluminação", "Interface", "Desempenho"}
+local timeMode = "Padrão"
+local renderModules
 
 local function fetch(path)
     local url = repository .. path .. "?t=" .. tostring(os.time())
@@ -814,6 +800,7 @@ local function disableModule(id)
 end
 local function disableAll()
     for id in pairs(activeModules) do disableModule(id) end
+    timeMode = "Padrão"
 end
 local function enableModule(id)
     local mod = loadedModules[id]
@@ -827,52 +814,191 @@ local function enableModule(id)
     mod:enable()
     activeModules[id] = true
 end
+
+local function headingFor(group)
+    local h = ordered(moduleArea, new("TextLabel", {
+        Name = "Section" .. group,
+        Size = UDim2.new(1, 0, 0, 27),
+        BackgroundTransparency = 1,
+        Text = string.upper(group),
+        Font = Enum.Font.GothamBold,
+        TextSize = 12,
+        TextColor3 = theme.accent,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Bottom,
+    }, moduleArea))
+    return h
+end
+
+local function separator(row)
+    new("Frame", {
+        Position = UDim2.new(0, 0, 1, -1),
+        Size = UDim2.new(1, 0, 0, 1),
+        BackgroundColor3 = theme.border,
+        BackgroundTransparency = 0.78,
+        BorderSizePixel = 0,
+    }, row)
+end
+
+local function optionRow(info)
+    local row = ordered(moduleArea, new("Frame", {
+        Size = UDim2.new(1, 0, 0, 64),
+        BackgroundTransparency = 1,
+    }, moduleArea))
+    new("TextLabel", {
+        Position = UDim2.fromOffset(1, 6),
+        Size = UDim2.new(1, -79, 0, 23),
+        BackgroundTransparency = 1,
+        Text = info.name,
+        TextSize = 15,
+        Font = Enum.Font.GothamBold,
+        TextColor3 = theme.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+    }, row)
+    new("TextLabel", {
+        Position = UDim2.fromOffset(1, 29),
+        Size = UDim2.new(1, -79, 0, 26),
+        BackgroundTransparency = 1,
+        Text = info.description,
+        TextSize = 11,
+        Font = Enum.Font.Gotham,
+        TextColor3 = theme.muted,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+    }, row)
+    local active = activeModules[info.id] == true
+    local toggleButton = button(row, "", UDim2.new(1, -61, 0, 17), UDim2.fromOffset(48, 27))
+    toggleButton.BackgroundColor3 = active and theme.accent or theme.border
+    local knob = new("Frame", {
+        Position = UDim2.fromOffset(active and 27 or 4, 4),
+        Size = UDim2.fromOffset(19, 19),
+        BackgroundColor3 = theme.text,
+        BorderSizePixel = 0,
+    }, toggleButton)
+    rounded(knob, 8)
+    toggleButton.Activated:Connect(function()
+        local ok, err = pcall(function()
+            if activeModules[info.id] then
+                disableModule(info.id)
+            else
+                enableModule(info.id)
+            end
+        end)
+        if ok then
+            status(info.name .. (activeModules[info.id] and " ativado" or " desativado"))
+        else
+            status("Falha em " .. info.name .. ": " .. tostring(err))
+        end
+        renderModules()
+    end)
+    separator(row)
+end
+
+local function timeRow(info)
+    local row = ordered(moduleArea, new("Frame", {
+        Size = UDim2.new(1, 0, 0, 96),
+        BackgroundTransparency = 1,
+    }, moduleArea))
+    new("TextLabel", {
+        Position = UDim2.fromOffset(1, 5),
+        Size = UDim2.new(1, -2, 0, 21),
+        BackgroundTransparency = 1,
+        Text = info.name,
+        TextSize = 15,
+        Font = Enum.Font.GothamBold,
+        TextColor3 = theme.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, row)
+    new("TextLabel", {
+        Position = UDim2.fromOffset(1, 27),
+        Size = UDim2.new(1, -2, 0, 19),
+        BackgroundTransparency = 1,
+        Text = info.description,
+        TextSize = 11,
+        Font = Enum.Font.Gotham,
+        TextColor3 = theme.muted,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+    }, row)
+    for i, mode in ipairs({"Padrão", "Dia", "Noite"}) do
+        local isSelected = timeMode == mode
+        local b = button(row, mode,
+            UDim2.new((i - 1) / 3, 4, 0, 52),
+            UDim2.new(1 / 3, -8, 0, 31), nil, isSelected)
+        b.TextSize = 12
+        b.BackgroundColor3 = isSelected and theme.accent or theme.card
+        b.TextColor3 = isSelected and theme.background or theme.text
+        b.Activated:Connect(function()
+            local ok, err = pcall(function()
+                if mode == "Padrão" then
+                    disableModule("timecycle")
+                else
+                    if not activeModules.timecycle then enableModule("timecycle") end
+                    assert(type(loadedModules.timecycle.setMode) == "function",
+                        "Módulo de horário incompatível")
+                    loadedModules.timecycle:setMode(mode)
+                end
+            end)
+            if ok then
+                timeMode = mode
+                status("Horário visual: " .. mode)
+            else
+                status("Falha no horário: " .. tostring(err))
+            end
+            renderModules()
+        end)
+    end
+    separator(row)
+end
+
 renderModules = function()
+    local scrollPosition = visualPage.CanvasPosition
     for _, child in ipairs(moduleArea:GetChildren()) do
         if child:IsA("GuiObject") then child:Destroy() end
     end
     local count = 0
-    for _, info in ipairs(catalog) do
-        local query = search.Text:lower()
-        local matching = query == "" or info.name:lower():find(query, 1, true)
-            or info.description:lower():find(query, 1, true)
-        if matching and (category == "Todos" or info.category == category) then
-            count = count + 1
-            local frame = card(moduleArea, 100)
-            cardText(frame, info.name, info.description)
-            local active = activeModules[info.id] == true
-            local action = button(frame, active and "DESATIVAR" or "ATIVAR",
-                UDim2.new(1, -100, 1, -34), UDim2.fromOffset(90, 26), function()
-                    local ok, err
-                    if activeModules[info.id] then
-                        ok, err = pcall(disableModule, info.id)
-                    else
-                        ok, err = pcall(enableModule, info.id)
-                    end
-                    if ok then
-                        status(info.name .. (activeModules[info.id] and " ativado" or " desativado"))
-                    else
-                        status("Falha em " .. info.name .. ": " .. tostring(err))
-                    end
-                    renderModules()
-                end, not active)
-            if active then action.TextColor3 = theme.muted end
-            local badge = label(frame, string.upper(info.category), 10, theme.accent, 18)
-            badge.Position = UDim2.fromOffset(12, 78)
-            badge.Size = UDim2.new(1, -110, 0, 18)
+    for _, group in ipairs(visualGroups) do
+        local hasItems = false
+        for _, info in ipairs(catalog) do
+            if info.group == group then
+                if not hasItems then
+                    headingFor(group)
+                    hasItems = true
+                end
+                if info.id == "timecycle" then
+                    timeRow(info)
+                else
+                    optionRow(info)
+                end
+                count = count + 1
+            end
         end
     end
     if count == 0 then
-        local noResults = card(moduleArea, 64)
-        cardText(noResults, "Nenhum script", "Atualize o catálogo ou altere seus filtros.")
+        ordered(moduleArea, new("TextLabel", {
+            Size = UDim2.new(1, 0, 0, 45),
+            BackgroundTransparency = 1,
+            Text = "Nenhuma opção disponível. Use ATUALIZAR.",
+            TextColor3 = theme.muted,
+            Font = Enum.Font.Gotham,
+            TextSize = 13,
+            TextWrapped = true,
+        }, moduleArea))
     end
+    task.defer(function()
+        if not destroyed and visualPage.Parent then visualPage.CanvasPosition = scrollPosition end
+    end)
 end
+
 local function refresh()
-    status("Buscando catálogo no GitHub...")
+    status("Buscando opções visuais no GitHub...")
     updateButton.Text = "CARREGANDO..."
     local ok, value = pcall(function()
-        local raw = fetch("manifest.lua")
-        local data = compile(raw, "Monarca/manifest")()
+        local source = fetch("manifest.lua")
+        local data = compile(source, "Monarca/manifest")()
         assert(type(data) == "table" and type(data.modules) == "table", "Manifesto inválido")
         local filtered, used = {}, {}
         for _, entry in ipairs(data.modules) do
@@ -884,6 +1010,11 @@ local function refresh()
                 and type(entry.name) == "string"
                 and type(entry.description) == "string"
                 and (entry.category == "Visual" or entry.category == "Utilidades") then
+                local allowedGroup = false
+                for _, group in ipairs(visualGroups) do
+                    if entry.group == group then allowedGroup = true end
+                end
+                entry.group = allowedGroup and entry.group or "Interface"
                 used[entry.id] = true
                 table.insert(filtered, entry)
             end
@@ -894,15 +1025,20 @@ local function refresh()
         disableAll()
         loadedModules, catalog = {}, value
         renderModules()
-        status("Catálogo atualizado: " .. #catalog .. " módulos")
+        status("Visual atualizado: " .. tostring(#catalog) .. " opções")
     else
         status("Falha na atualização: " .. tostring(value))
     end
     updateButton.Text = "ATUALIZAR"
 end
+
 updateButton.Activated:Connect(refresh)
-search:GetPropertyChangedSignal("Text"):Connect(renderModules)
- 
+resetVisualButton.Activated:Connect(function()
+    disableAll()
+    renderModules()
+    status("Visual restaurado para o padrão do mapa.")
+end)
+
 local dragging, dragInput, dragStart, offsetStart = false, nil, nil, nil
 header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
