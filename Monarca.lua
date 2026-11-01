@@ -1219,6 +1219,8 @@ local function resetModes()
     redrawModes()
 end
 
+-- Assigned below after the Player page is created. Avoid concurrent physics movers.
+local stopFlyForTarget = function() end
 local function setMode(name, enabled)
     if enabled and not selectedPlayer then
         status("Selecione um jogador primeiro.")
@@ -1231,6 +1233,7 @@ local function setMode(name, enabled)
         if hum and own then pcall(function() hum:MoveTo(own.Position) end) end
     end
     if name=="Headsit" or name=="Backpack" or name=="Follow" then
+        if enabled then stopFlyForTarget() end
         for _,other in ipairs({"Headsit","Backpack","Follow"}) do
             modes[other]=false
         end
@@ -1255,6 +1258,7 @@ local function setMode(name, enabled)
             modes.View=false
         end
     elseif name=="TP" then
+        stopFlyForTarget()
         for _,other in ipairs({"Headsit","Backpack","Follow"}) do
             modes[other]=false
         end
@@ -1598,6 +1602,14 @@ end)
 -- Fly can be activated without reopening the panel, using touch and keyboard
 -- controls created by ContextActionService.
 local flyActive = false
+stopFlyForTarget = function()
+    if flyActive and auxiliaryModules.player_fly then
+        pcall(auxiliaryModules.player_fly.disable, auxiliaryModules.player_fly)
+        flyActive = false
+        -- repaintFly is defined later; the button will be refreshed below.
+        status("Fly desativado para executar a ação do Alvo.")
+    end
+end
 local flyRow = card(playerPage, 54)
 local flyTitle = new("TextLabel", {
     Position = UDim2.fromOffset(10, 8), Size = UDim2.new(1, -113, 0, 21),
@@ -1618,6 +1630,11 @@ local function repaintFly()
     flyToggle.BackgroundColor3 = flyActive and theme.primary or theme.background
     flyToggle.TextColor3 = flyActive and theme.background or theme.text
 end
+local stopFlyOriginal = stopFlyForTarget
+stopFlyForTarget = function()
+    stopFlyOriginal()
+    repaintFly()
+end
 flyToggle.Activated:Connect(function()
     if flyActive then
         local mod = auxiliaryModules.player_fly
@@ -1625,6 +1642,10 @@ flyToggle.Activated:Connect(function()
         flyActive = false
         status("Fly desativado.")
     else
+        -- Avoid fighting the target's positioning constraints.
+        for _, targetMode in ipairs({"Headsit", "Backpack", "Follow"}) do
+            if modes[targetMode] then setMode(targetMode, false) end
+        end
         local ok, success, why = pcall(function()
             local mod = loadAuxiliary("player_fly")
             mod:setSpeed(settings.flySpeed)
