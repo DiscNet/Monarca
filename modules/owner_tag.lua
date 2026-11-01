@@ -1,6 +1,6 @@
--- Monarca Owner Tag v0.6.9
+-- Monarca Owner Tag v0.7.0
 -- Username-restricted LOCAL nameplate; not a trusted server permission system.
--- ScreenGui + WorldToViewportPoint keeps its on-screen size fixed while zooming.
+-- ScreenGui projects head location, while avatar-relative screen scaling prevents a giant tag on distant characters.
 -- RGB wave: a soft horizontal UIGradient, smoothly animated across the text.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -12,12 +12,15 @@ local active = false
 local text = "MONARCA"
 local red, green, blue = 180, 145, 255
 local rainbowFast = false  -- kept for compatibility with saved settings
-local screenGui, container, label, shadow, gradient
+local screenGui, container, label, shadow, gradient, labelScale
 local currentHead
 local respawnConnection, frameConnection
 local generation = 0
 local waveAccumulator = 0
-local MAX_DISTANCE = 225
+local MAX_DISTANCE = 110
+local REFERENCE_AVATAR_PX = 160
+local MIN_AVATAR_PX = 22
+local MIN_LABEL_SCALE = 0.12
 local WAVE_SPEED = 0.18          -- ~5.6 seconds per color cycle, not strobing
 local WAVE_WIDTH = 0.82          -- different colors at different text positions
 local WAVE_STOPS = 6             -- bounded to 6 stops for UIGradient performance
@@ -48,7 +51,7 @@ end
 
 local function destroyGui()
     if screenGui then pcall(function() screenGui:Destroy() end) end
-    screenGui, container, label, shadow, gradient = nil, nil, nil, nil, nil
+    screenGui, container, label, shadow, gradient, labelScale = nil, nil, nil, nil, nil, nil
 end
 
 local function makeLabel(parent, name, position, color, zIndex)
@@ -94,6 +97,10 @@ local function createGui()
     frame.Active = false
     frame.Visible = false
     frame.Parent = gui
+    local scale = Instance.new("UIScale")
+    scale.Name = "AvatarRelativeScale"
+    scale.Scale = 1
+    scale.Parent = frame
 
     -- Flat shadow instead of TextStroke, which can conflict with UIGradient.
     local dark = makeLabel(frame, "TextShadow",
@@ -109,7 +116,7 @@ local function createGui()
     wave.Enabled = rainbowFast
     wave.Parent = main
 
-    screenGui, container, label, shadow, gradient = gui, frame, main, dark, wave
+    screenGui, container, label, shadow, gradient, labelScale = gui, frame, main, dark, wave, scale
     return true
 end
 
@@ -142,14 +149,25 @@ local function updatePosition()
         container.Visible = false
         return
     end
-    -- Project a world position just above the head, while the label's actual
-    -- width, height and TextSize always remain unchanged in SCREEN pixels.
-    local above = head.Position + Vector3.new(0, head.Size.Y * 0.5 + 0.9, 0)
+    -- A fully fixed-pixel ScreenGui appeared to GROW as the avatar shrank
+    -- during zoom-out. Derive the label's scale from a projected 3D body
+    -- reference, so both avatar and tag shrink together in screen space.
+    local above = head.Position + Vector3.new(0, head.Size.Y * 0.5 + 0.85, 0)
     local pos, onScreen = camera:WorldToViewportPoint(above)
     local distance = (camera.CFrame.Position - above).Magnitude
+    local lower = head.Position - Vector3.new(0, 3.4, 0)
+    local bottom = camera:WorldToViewportPoint(lower)
+    local avatarHeightPx = math.abs(bottom.Y - pos.Y)
     local visible = onScreen and pos.Z > 0 and distance <= MAX_DISTANCE
+        and avatarHeightPx >= MIN_AVATAR_PX
     container.Visible = visible
     if visible then
+        -- Cap close-up growth, but shrink proportional to the avatar at
+        -- distance; no zoom-out enlargement relative to the character.
+        local desired = math.clamp(
+            avatarHeightPx / REFERENCE_AVATAR_PX, MIN_LABEL_SCALE, 1
+        )
+        if labelScale then labelScale.Scale = desired end
         container.Position = UDim2.fromOffset(
             math.floor(pos.X + 0.5), math.floor(pos.Y + 0.5)
         )
