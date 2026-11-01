@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.5.1 — corrected Zombie R6 gait, FE animation and rig diagnostics
+-- Monarca Script Hub v0.6.0 — mysterious R6 emote and scrollable navigation
 -- Interface local. Os modulos sao carregados exclusivamente deste repositorio.
 local Services = {
     Players = game:GetService("Players"),
@@ -437,7 +437,7 @@ new("TextLabel", {
     Position = UDim2.fromOffset(26, 26),
     Size = UDim2.new(1, -110, 0, 12),
     BackgroundTransparency = 1,
-    Text = "VISUAL HUB  /  V0.5.1",
+    Text = "VISUAL HUB  /  V0.6",
     Font = Enum.Font.Gotham,
     TextColor3 = theme.muted,
     TextSize = 9,
@@ -538,26 +538,37 @@ floating.Activated:Connect(function(inputObject)
 end)
 
 -- Horizontal navigation leaves the full panel width available on mobile.
--- Underline tabs preserve horizontal space on mobile.
-local sidebar = new("Frame", {
+-- Seven tabs use an independently scrolling navigation strip on small screens.
+-- A fixed readable tab width avoids squeezing labels into 40 px.
+local sidebar = new("ScrollingFrame", {
     Name = "TabBar",
     Position = UDim2.fromOffset(0, HEADER_HEIGHT),
     Size = UDim2.new(1, 0, 0, NAV_HEIGHT),
     BackgroundColor3 = theme.surface,
     BackgroundTransparency = 0.06,
     BorderSizePixel = 0,
+    CanvasSize = UDim2.fromOffset(0, 0),
+    ScrollBarThickness = 0,
+    ScrollingDirection = Enum.ScrollingDirection.X,
+    ScrollingEnabled = true,
+    ClipsDescendants = true,
 }, main)
-new("UIListLayout", {
+local tabLayout = new("UIListLayout", {
     FillDirection = Enum.FillDirection.Horizontal,
-    HorizontalAlignment = Enum.HorizontalAlignment.Center,
+    HorizontalAlignment = Enum.HorizontalAlignment.Left,
     VerticalAlignment = Enum.VerticalAlignment.Center,
-    Padding = UDim.new(0, 0),
+    Padding = UDim.new(0, 1),
     SortOrder = Enum.SortOrder.LayoutOrder,
 }, sidebar)
 new("UIPadding", {
     PaddingLeft = UDim.new(0, 7),
     PaddingRight = UDim.new(0, 7),
 }, sidebar)
+connect(tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+    sidebar.CanvasSize = UDim2.fromOffset(
+        tabLayout.AbsoluteContentSize.X + 14, 0
+    )
+end)
 -- Divider is parented outside the UIListLayout, so it never consumes a tab slot.
 new("Frame", {
     Name = "TabsDivider",
@@ -593,7 +604,7 @@ local currentTab = "Home"
 local function page(name)
     -- Home retains its compact profile layout, while Player/Emote use tighter lists.
     local isHome = name == "Home"
-    local compactList = name == "Player" or name == "Emote"
+    local compactList = name == "Player" or name == "Emote" or name == "666"
     local scroller = new("ScrollingFrame", {
         Name = name,
         BackgroundTransparency = 1,
@@ -630,12 +641,24 @@ local function switch(name)
             tween(navUnderlines[key], {BackgroundTransparency = selected and 0 or 1}, 0.16)
         end
     end
+    -- Bring the active tab into view when it lives off-screen.
+    local activeButton = navButtons[name]
+    if activeButton and sidebar.AbsoluteSize.X > 0 then
+        local left = sidebar.CanvasPosition.X +
+            activeButton.AbsolutePosition.X - sidebar.AbsolutePosition.X
+        local desired = left - (sidebar.AbsoluteSize.X - activeButton.AbsoluteSize.X) / 2
+        local endOfScroll = math.max(0,
+            sidebar.CanvasSize.X.Offset - sidebar.AbsoluteSize.X)
+        tween(sidebar, {
+            CanvasPosition = Vector2.new(math.clamp(desired, 0, endOfScroll), 0)
+        }, 0.22)
+    end
 end
-for index, name in ipairs({"Home", "Alvo", "Visual", "Player", "Emote", "Settings"}) do
+for index, name in ipairs({"Home", "Alvo", "Visual", "Player", "Emote", "666", "Settings"}) do
     page(name)
     local b = new("TextButton", {
         Name = "Tab" .. name,
-        Size = UDim2.new(1 / 6, -1, 0, NAV_HEIGHT),
+        Size = UDim2.fromOffset(67, NAV_HEIGHT),
         LayoutOrder = index,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -1788,6 +1811,8 @@ local function repaintZombie()
     zombieButton.BackgroundColor3 = zombieActive and theme.primary or theme.background
     zombieButton.TextColor3 = zombieActive and theme.background or theme.text
 end
+-- Assigned by the 666 page after the Zombie controls are constructed.
+local stop666ForZombie = function() end
 zombieButton.Activated:Connect(function()
     if zombieActive then
         if auxiliaryModules.zombie_r6 then
@@ -1796,6 +1821,7 @@ zombieButton.Activated:Connect(function()
         zombieActive = false
         status("Emote encerrado.")
     else
+        stop666ForZombie()
         local ok, enabled, err = pcall(function()
             local module = loadAuxiliary("zombie_r6")
             module:setAnimationId(settings.zombieAnimationId)
@@ -1873,6 +1899,100 @@ connect(player.CharacterAdded, function()
     end
     zombieActive = false
     repaintZombie()
+end)
+
+-- 666: one deliberately minimal R6-only toggle named "?".
+-- The pose is procedural and local unless a separately published animation
+-- is played through an authorized server-created Animator.
+local mysteryPage = pages["666"]
+title(mysteryPage, "666", "Postura R6")
+local mysteryRow = card(mysteryPage, 59)
+local mysteryName = new("TextLabel", {
+    Name = "MysteryLabel",
+    Position = UDim2.fromOffset(11, 8),
+    Size = UDim2.new(1, -112, 0, 24),
+    BackgroundTransparency = 1,
+    Text = "?",
+    Font = Enum.Font.GothamBold,
+    TextSize = 17,
+    TextColor3 = theme.text,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, mysteryRow)
+local mysterySubtitle = new("TextLabel", {
+    Position = UDim2.fromOffset(11, 34),
+    Size = UDim2.new(1, -113, 0, 17),
+    BackgroundTransparency = 1,
+    Text = "R6  •  Animação local",
+    TextSize = 10,
+    Font = Enum.Font.GothamMedium,
+    TextColor3 = theme.muted,
+    TextXAlignment = Enum.TextXAlignment.Left,
+}, mysteryRow)
+local mysteryToggle = new("TextButton", {
+    Name = "MysteryToggle",
+    Position = UDim2.new(1, -98, 0, 13),
+    Size = UDim2.fromOffset(86, 31),
+    BackgroundColor3 = theme.background,
+    TextColor3 = theme.text,
+    Text = "OFF",
+    Font = Enum.Font.GothamBold,
+    TextSize = 12,
+    AutoButtonColor = false,
+    BorderSizePixel = 0,
+}, mysteryRow)
+rounded(mysteryToggle, 2)
+local mysteryStroke = new("UIStroke", {
+    Color = theme.whiteLine, Thickness = 1,
+    Transparency = 0.22, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+}, mysteryToggle)
+local mysteryGlow = new("UIStroke", {
+    Color = theme.whiteLine, Thickness = 3,
+    Transparency = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+}, mysteryToggle)
+local mysteryActive = false
+local function refreshMystery()
+    mysteryToggle.Text = mysteryActive and "ON" or "OFF"
+    mysteryToggle.BackgroundColor3 = mysteryActive and theme.primary or theme.background
+    mysteryToggle.TextColor3 = mysteryActive and theme.background or theme.text
+    mysteryStroke.Transparency = mysteryActive and 0 or 0.22
+    mysteryGlow.Transparency = mysteryActive and 0.82 or 1
+end
+local function stopMystery()
+    if auxiliaryModules.pose_666 then
+        pcall(auxiliaryModules.pose_666.disable, auxiliaryModules.pose_666)
+    end
+    mysteryActive = false
+    refreshMystery()
+end
+stop666ForZombie = stopMystery
+mysteryToggle.Activated:Connect(function()
+    if mysteryActive then
+        stopMystery()
+        status("? desativado.")
+        return
+    end
+    -- The two R6 animation modules must never fight over Motor6D.Transform.
+    if zombieActive then
+        if auxiliaryModules.zombie_r6 then
+            pcall(auxiliaryModules.zombie_r6.disable, auxiliaryModules.zombie_r6)
+        end
+        zombieActive = false
+        repaintZombie()
+    end
+    local ok, success, why = pcall(function()
+        return loadAuxiliary("pose_666"):enable()
+    end)
+    mysteryActive = ok and success == true
+    refreshMystery()
+    if mysteryActive then
+        status("? ativado: postura e idle R6.")
+    else
+        status("Não foi possível ativar ?: " .. tostring(ok and why or success))
+    end
+end)
+refreshMystery()
+connect(player.CharacterAdded, function()
+    stopMystery()
 end)
 
 local settingsPage = pages.Settings
@@ -2217,7 +2337,7 @@ local function destroy()
     if destroyed then return end
     stopAlvo()
     cleanupTargetTool()
-    for _, name in ipairs({"player_fly", "zombie_r6"}) do
+    for _, name in ipairs({"player_fly", "zombie_r6", "pose_666"}) do
         if auxiliaryModules[name] then
             pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
         end
