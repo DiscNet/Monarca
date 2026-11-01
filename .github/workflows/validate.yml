@@ -62,7 +62,7 @@ jobs:
           assert main.index('gui.Parent = parent') < main.index('game:HttpGet(repository')
           assert 'local ok, failure = xpcall(bootMonarca' in core
           assert core.strip().endswith('return ok, failure')
-          assert 'hub_core.lua?v=0.8.1-' in main, 'Old core can be cached'
+          assert 'hub_core.lua?v=0.8.2-' in main, 'Old core can be cached'
           for marker in (
               'end -- Player/Emote/666 block: release its many UI locals.',
               'end -- Settings + Visual block: release temporary UI registers.',
