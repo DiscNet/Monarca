@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.8.2 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.8.3 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -3178,6 +3178,93 @@ local function bootMonarca()
         end)
         paintRadioactive()
 
+        -- 666: independent anti-fling control. Does not touch the local rig,
+        -- anchored ground, walls or existing visual/pose toggles.
+        do
+            local antiflingRow = card(mysteryPage, 60)
+            new("TextLabel", {
+                Name = "AntiflingLabel",
+                Position = UDim2.fromOffset(11, 8),
+                Size = UDim2.new(1, -113, 0, 23),
+                BackgroundTransparency = 1,
+                Text = "Antifling",
+                Font = Enum.Font.GothamBold,
+                TextSize = 13,
+                TextColor3 = theme.text,
+                TextXAlignment = Enum.TextXAlignment.Left,
+            }, antiflingRow)
+            new("TextLabel", {
+                Position = UDim2.fromOffset(11, 33),
+                Size = UDim2.new(1, -113, 0, 19),
+                BackgroundTransparency = 1,
+                Text = "Sem colisão: jogadores e peças soltas",
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Font = Enum.Font.GothamMedium,
+                TextSize = 10,
+                TextColor3 = theme.muted,
+                TextXAlignment = Enum.TextXAlignment.Left,
+            }, antiflingRow)
+            local antiflingToggle = button(antiflingRow, "OFF",
+                UDim2.new(1, -98, 0, 14), UDim2.fromOffset(86, 31))
+            antiflingToggle.Name = "AntiflingToggle"
+            rounded(antiflingToggle, 2)
+            local outline = new("UIStroke", {
+                Color = theme.whiteLine, Thickness = 1,
+                Transparency = 0.22, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            }, antiflingToggle)
+            local activeAntifling, busyAntifling = false, false
+            local function paintAntifling()
+                antiflingToggle.Text = busyAntifling and "..." or
+                    (activeAntifling and "ON" or "OFF")
+                antiflingToggle.BackgroundColor3 =
+                    activeAntifling and theme.primary or theme.background
+                antiflingToggle.TextColor3 =
+                    activeAntifling and theme.background or theme.text
+                outline.Transparency = activeAntifling and 0 or 0.22
+            end
+            antiflingToggle.Activated:Connect(function()
+                if busyAntifling then return end
+                if activeAntifling then
+                    local module = auxiliaryModules.antifling
+                    local ok, worked, reason = pcall(function()
+                        if module then return module:disable() end
+                        return true
+                    end)
+                    if ok and worked then
+                        activeAntifling = false
+                        status("Antifling OFF: colisões locais restauradas.")
+                    else
+                        status("Falha ao desligar Antifling: " ..
+                            tostring(ok and reason or worked))
+                    end
+                    paintAntifling()
+                    return
+                end
+                busyAntifling = true
+                paintAntifling()
+                task.spawn(function()
+                    local ok, applied, reason = pcall(function()
+                        return loadAuxiliary("antifling"):enable()
+                    end)
+                    if destroyed then
+                        local module = auxiliaryModules.antifling
+                        if module then pcall(module.disable, module) end
+                        return
+                    end
+                    activeAntifling = ok and applied == true
+                    busyAntifling = false
+                    paintAntifling()
+                    if activeAntifling then
+                        status("Antifling ON: proteção contra colisões locais ativada.")
+                    else
+                        status("Antifling indisponível: " ..
+                            tostring(ok and reason or applied))
+                    end
+                end)
+            end)
+            paintAntifling()
+        end
+
     end
     bootStage = "Construindo Emote e 666"
     initializeEmoteTabs()
@@ -3942,7 +4029,7 @@ local function bootMonarca()
         if destroyed then return end
         stopAlvo()
         cleanupTargetTool()
-        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "server_invisibility", "clone_invisibility", "anim_packs", "player_reverse"}) do
+        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "antifling", "server_invisibility", "clone_invisibility", "anim_packs", "player_reverse"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
             end
