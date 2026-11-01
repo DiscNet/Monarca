@@ -1,4 +1,4 @@
--- Monarca / Emote catalog v0.8.6
+-- Monarca / Emote catalog v0.8.7
 -- Curated R15 emote animations. Catalog IDs are references, NOT ownership bypass.
 -- Sources: Roblox /e defaults and curated avatar marketplace asset IDs.
 -- Playback uses the player's pre-existing server-created Animator.
@@ -152,6 +152,16 @@ function Catalog:disable()
     end
 end
 
+-- Hub's loadAuxiliary validates both enable() and disable().
+-- This explicit lifecycle was missing in 0.8.6 and prevented the entire
+-- emote module from loading even when its static catalog was valid.
+function Catalog:enable()
+    if not characterConnection then
+        characterConnection = player.CharacterAdded:Connect(releaseTrack)
+    end
+    return true
+end
+
 function Catalog:play(item)
     if type(item) ~= "table" then return false, "Escolha um emote da lista." end
     local id = tostring(item.id or "")
@@ -160,6 +170,7 @@ function Catalog:play(item)
     end
     local humanoid, animator, issue = usableRig()
     if not humanoid then return false, issue end
+    self:enable()
     releaseTrack()
 
     if type(item.nativeName) == "string" then
@@ -214,9 +225,5 @@ end
 function Catalog:isPlaying()
     return currentTrack ~= nil and currentTrack.IsPlaying
 end
-
-characterConnection = player.CharacterAdded:Connect(function()
-    releaseTrack()
-end)
 
 return Catalog
