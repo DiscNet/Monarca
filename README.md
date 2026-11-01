@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.0**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/Player/Emote/666/Settings** e layout adaptável ao Android. Versão atual: **0.6.1**.
 
 ## Executar
 
@@ -110,6 +110,10 @@ return M
 ```
 
 Módulos atualizados entram em vigor depois de desligar/ligar o módulo ou atualizar o catálogo. O botão de atualização desliga os módulos antes de carregar suas novas versões.
+
+## Correção de inicialização v0.6.1
+
+O script principal ultrapassou o limite de 200 variáveis locais por função do compilador Luau quando a aba 666 foi adicionada. As inicializações de Home e de Emote/666 passaram a ficar em funções isoladas, reduzindo o número de variáveis locais simultâneas na inicialização sem remover recursos. O workflow agora compila todos os arquivos `.lua` com o compilador oficial do Luau (além da análise de sintaxe), para detectar limites de registradores nas próximas atualizações. A compilação não substitui um teste interativo no Roblox.
 
 ## Limites e testes
 
