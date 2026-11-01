@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.1.0
+-- Monarca Script Hub v0.3.0 — SkyNetApi visual system
 -- Interface local. Os modulos sao carregados exclusivamente deste repositorio.
 local Services = {
     Players = game:GetService("Players"),
@@ -11,15 +11,16 @@ if not player then return end
 
 local repository = "https://raw.githubusercontent.com/DiscNet/Monarca/main/"
 local settingsPath = "Monarca/settings.json"
+-- SkyNetApi v15: near-black surfaces and restrained violet accents.
 local theme = {
-    background = Color3.fromRGB(10, 9, 17),
-    surface = Color3.fromRGB(17, 16, 29),
-    card = Color3.fromRGB(27, 24, 42),
-    border = Color3.fromRGB(80, 68, 107),
-    accent = Color3.fromRGB(183, 140, 248),
-    text = Color3.fromRGB(244, 244, 248),
-    muted = Color3.fromRGB(153, 157, 173),
-    danger = Color3.fromRGB(214, 106, 106),
+    background = Color3.fromRGB(5, 5, 6),
+    surface = Color3.fromRGB(11, 11, 13),
+    card = Color3.fromRGB(21, 21, 24),
+    border = Color3.fromRGB(37, 37, 41),
+    accent = Color3.fromRGB(142, 130, 232),
+    text = Color3.fromRGB(244, 244, 240),
+    muted = Color3.fromRGB(151, 151, 157),
+    danger = Color3.fromRGB(235, 127, 136),
 }
 local defaults = {
     animations = true,
@@ -87,7 +88,7 @@ local function rounded(object, radius)
     new("UICorner", {CornerRadius = UDim.new(0, radius or 8)}, object)
 end
 local function outlined(object)
-    new("UIStroke", {Color = theme.border, Thickness = 1, Transparency = 0.45, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, object)
+    new("UIStroke", {Color = theme.border, Thickness = 1, Transparency = 0.14, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, object)
 end
 local layoutCounters = setmetatable({}, {__mode = "k"})
 local function ordered(parent, object)
@@ -117,8 +118,8 @@ local function button(parent, value, position, size, action, accent)
         BackgroundColor3 = accent and theme.accent or theme.card,
         TextColor3 = accent and theme.background or theme.text,
         Text = value,
-        TextSize = 12,
-        Font = Enum.Font.GothamBold,
+        TextSize = 13,
+        Font = Enum.Font.GothamMedium,
         AutoButtonColor = false,
     }, parent)
     rounded(b, 8)
@@ -264,7 +265,7 @@ end
 local introBackdrop = new("Frame", {
     Name = "MonarcaStartup",
     Size = UDim2.fromScale(1, 1),
-    BackgroundColor3 = Color3.fromRGB(9, 7, 18),
+    BackgroundColor3 = theme.background,
     BackgroundTransparency = 0.25,
     BorderSizePixel = 0,
     ZIndex = 100,
@@ -274,7 +275,7 @@ local introPanel = new("Frame", {
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5),
     Size = UDim2.fromOffset(308, 166),
-    BackgroundColor3 = Color3.fromRGB(18, 14, 31),
+    BackgroundColor3 = theme.surface,
     BorderSizePixel = 0,
     ZIndex = 101,
 }, introBackdrop)
@@ -327,7 +328,7 @@ local introPercent = new("TextLabel", {
 local introTrack = new("Frame", {
     Position = UDim2.fromOffset(19, 114),
     Size = UDim2.new(1, -38, 0, 6),
-    BackgroundColor3 = Color3.fromRGB(45, 37, 62),
+    BackgroundColor3 = theme.border,
     BorderSizePixel = 0,
     ClipsDescendants = true,
     ZIndex = 103,
@@ -335,7 +336,7 @@ local introTrack = new("Frame", {
 rounded(introTrack, 3)
 local introFill = new("Frame", {
     Size = UDim2.fromScale(0, 1),
-    BackgroundColor3 = Color3.fromRGB(190, 98, 255),
+    BackgroundColor3 = theme.accent,
     BorderSizePixel = 0,
     ZIndex = 104,
 }, introTrack)
@@ -366,23 +367,13 @@ local main = new("Frame", {
     Visible = false,
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5),
-    -- White base lets UIGradient retain the intended dark violet colors.
-    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-    BackgroundTransparency = 0.16,
+    BackgroundColor3 = theme.background,
+    BackgroundTransparency = 0.03,
+    BorderSizePixel = 0,
     ClipsDescendants = true,
 }, gui)
 rounded(main, 8)
 outlined(main)
--- A UIGradient paints only the panel surface, unlike BlurEffect (global 3D blur).
--- Roblox Frame does not natively blur live content behind it.
-new("UIGradient", {
-    Rotation = 105,
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(31, 25, 47)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(18, 15, 32)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 9, 19)),
-    }),
-}, main)
 
 local camera = workspace.CurrentCamera
 local originalFov = camera and camera.FieldOfView or 70
@@ -415,14 +406,14 @@ end
 local header = new("Frame", {
     Size = UDim2.new(1, 0, 0, HEADER_HEIGHT),
     BackgroundColor3 = theme.surface,
-    BackgroundTransparency = 0.16,
+    BackgroundTransparency = 0.06,
     BorderSizePixel = 0,
     Active = true,
 }, main)
 -- Keep the branding image exclusive to the floating launcher.
 new("Frame", {
-    Position = UDim2.fromOffset(12, 12),
-    Size = UDim2.fromOffset(3, 22),
+    Position = UDim2.fromOffset(12, 13),
+    Size = UDim2.fromOffset(2, 19),
     BackgroundColor3 = theme.accent,
     BorderSizePixel = 0,
 }, header)
@@ -440,7 +431,7 @@ new("TextLabel", {
     Position = UDim2.fromOffset(26, 26),
     Size = UDim2.new(1, -110, 0, 12),
     BackgroundTransparency = 1,
-    Text = "SCRIPT HUB  /  V0.2",
+    Text = "VISUAL HUB  /  V0.3",
     Font = Enum.Font.Gotham,
     TextColor3 = theme.muted,
     TextSize = 9,
@@ -541,25 +532,37 @@ floating.Activated:Connect(function(inputObject)
 end)
 
 -- Horizontal navigation leaves the full panel width available on mobile.
+-- Underline tabs preserve horizontal space on mobile.
 local sidebar = new("Frame", {
     Name = "TabBar",
     Position = UDim2.fromOffset(0, HEADER_HEIGHT),
     Size = UDim2.new(1, 0, 0, NAV_HEIGHT),
     BackgroundColor3 = theme.surface,
-    BackgroundTransparency = 0.18,
+    BackgroundTransparency = 0.06,
     BorderSizePixel = 0,
 }, main)
 new("UIListLayout", {
     FillDirection = Enum.FillDirection.Horizontal,
     HorizontalAlignment = Enum.HorizontalAlignment.Center,
     VerticalAlignment = Enum.VerticalAlignment.Center,
-    Padding = UDim.new(0, 4),
+    Padding = UDim.new(0, 0),
     SortOrder = Enum.SortOrder.LayoutOrder,
 }, sidebar)
 new("UIPadding", {
-    PaddingLeft = UDim.new(0, 8),
-    PaddingRight = UDim.new(0, 8),
+    PaddingLeft = UDim.new(0, 7),
+    PaddingRight = UDim.new(0, 7),
 }, sidebar)
+new("Frame", {
+    Name = "TabsDivider",
+    AnchorPoint = Vector2.new(0, 1),
+    Position = UDim2.new(0, 0, 1, 0),
+    Size = UDim2.new(1, 0, 0, 1),
+    BackgroundColor3 = theme.border,
+    BackgroundTransparency = 0.2,
+    BorderSizePixel = 0,
+    ZIndex = 2,
+}, sidebar)
+
 local area = new("Frame", {
     BackgroundTransparency = 1,
     Position = UDim2.fromOffset(0, HEADER_HEIGHT + NAV_HEIGHT),
@@ -579,7 +582,7 @@ local footer = new("TextLabel", {
 local function status(message)
     if not destroyed and settings.notifications then footer.Text = message end
 end
-local pages, navButtons = {}, {}
+local pages, navButtons, navUnderlines = {}, {}, {}
 local currentTab = "Home"
 local function page(name)
     local scroller = new("ScrollingFrame", {
@@ -587,23 +590,23 @@ local function page(name)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Size = UDim2.fromScale(1, 1),
-        ScrollBarThickness = 3,
+        ScrollBarThickness = 2,
         ScrollBarImageColor3 = theme.accent,
         Visible = false,
         CanvasSize = UDim2.new(),
     }, area)
     local stack = new("UIListLayout", {
         SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 7),
+        Padding = UDim.new(0, 8),
     }, scroller)
     new("UIPadding", {
-        PaddingTop = UDim.new(0, 9),
-        PaddingLeft = UDim.new(0, 13),
-        PaddingRight = UDim.new(0, 13),
-        PaddingBottom = UDim.new(0, 9),
+        PaddingTop = UDim.new(0, 12),
+        PaddingLeft = UDim.new(0, 15),
+        PaddingRight = UDim.new(0, 15),
+        PaddingBottom = UDim.new(0, 14),
     }, scroller)
     connect(stack:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-        scroller.CanvasSize = UDim2.fromOffset(0, stack.AbsoluteContentSize.Y + 18)
+        scroller.CanvasSize = UDim2.fromOffset(0, stack.AbsoluteContentSize.Y + 28)
     end)
     pages[name] = scroller
     return scroller
@@ -612,48 +615,79 @@ local function switch(name)
     currentTab = name
     for key, scroller in pairs(pages) do scroller.Visible = key == name end
     for key, b in pairs(navButtons) do
-        tween(b, {BackgroundColor3 = key == name and theme.card or theme.surface}, 0.12)
-        b.TextColor3 = key == name and theme.accent or theme.muted
+        local selected = key == name
+        tween(b, {TextColor3 = selected and theme.text or theme.muted}, 0.16)
+        if navUnderlines[key] then
+            tween(navUnderlines[key], {BackgroundTransparency = selected and 0 or 1}, 0.16)
+        end
     end
 end
 for index, name in ipairs({"Home", "Visual", "Player", "Settings"}) do
     page(name)
-    local b = button(sidebar, name, nil, UDim2.new(0.25, -7, 0, 29), function() switch(name) end)
-    b.Font = Enum.Font.Gotham
-    b.LayoutOrder = index
-    b.TextXAlignment = Enum.TextXAlignment.Center
+    local b = new("TextButton", {
+        Name = "Tab" .. name,
+        Size = UDim2.new(0.25, -1, 0, NAV_HEIGHT),
+        LayoutOrder = index,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Text = name,
+        Font = Enum.Font.GothamMedium,
+        TextSize = 13,
+        TextColor3 = theme.muted,
+        TextXAlignment = Enum.TextXAlignment.Center,
+    }, sidebar)
+    navUnderlines[name] = new("Frame", {
+        Name = "SelectedUnderline",
+        Position = UDim2.new(0.17, 0, 1, -3),
+        Size = UDim2.new(0.66, 0, 0, 2),
+        BackgroundColor3 = theme.accent,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 3,
+    }, b)
+    b.Activated:Connect(function() switch(name) end)
     navButtons[name] = b
 end
+
 local function title(section, heading, detail)
-    label(section, heading, 17, theme.text, 24).Font = Enum.Font.GothamBold
-    label(section, detail, 11, theme.muted, 26)
+    label(section, heading, 18, theme.text, 25).Font = Enum.Font.GothamBold
+    label(section, detail, 12, theme.muted, 27)
 end
+-- Borderless controls; muted divider lines replace stacked boxed cards.
 local function card(section, height)
     local frame = new("Frame", {
         Size = UDim2.new(1, -2, 0, height or 70),
-        BackgroundColor3 = theme.surface,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
     }, section)
     ordered(section, frame)
-    frame.BackgroundTransparency = 0.16
-    rounded(frame, 8)
-    outlined(frame)
+    new("Frame", {
+        Name = "RowDivider",
+        Position = UDim2.new(0, 0, 1, -1),
+        Size = UDim2.new(1, 0, 0, 1),
+        BackgroundColor3 = theme.border,
+        BackgroundTransparency = 0.25,
+        BorderSizePixel = 0,
+    }, frame)
     return frame
 end
+
 local function cardText(frame, heading, detail, extraRight)
-    local t = label(frame, heading, 13, theme.text, 21)
+    local t = label(frame, heading, 14, theme.text, 21)
     t.Position = UDim2.fromOffset(12, 7)
     t.Size = UDim2.new(1, -(extraRight or 24), 0, 21)
     t.Font = Enum.Font.GothamBold
-    local d = label(frame, detail, 11, theme.muted, 30)
+    local d = label(frame, detail, 12, theme.muted, 30)
     d.Position = UDim2.fromOffset(12, 29)
     d.Size = UDim2.new(1, -24, 0, 30)
 end
 local function toggle(section, heading, detail, value, changed)
     local row = card(section, 60)
-    local t = label(row, heading, 13, theme.text, 21)
+    local t = label(row, heading, 14, theme.text, 21)
     t.Position = UDim2.fromOffset(12, 8)
     t.Size = UDim2.new(1, -82, 0, 21)
-    local d = label(row, detail, 10, theme.muted, 23)
+    local d = label(row, detail, 12, theme.muted, 23)
     d.Position = UDim2.fromOffset(12, 30)
     d.Size = UDim2.new(1, -82, 0, 23)
     local b = button(row, "", UDim2.new(1, -61, 0, 18), UDim2.fromOffset(47, 25))
@@ -677,10 +711,10 @@ local function toggle(section, heading, detail, value, changed)
 end
 local function slider(section, heading, minimum, maximum, initial, changed)
     local row = card(section, 66)
-    local t = label(row, heading, 13, theme.text, 20)
+    local t = label(row, heading, 14, theme.text, 20)
     t.Position = UDim2.fromOffset(12, 6)
     t.Size = UDim2.new(1, -90, 0, 20)
-    local number = label(row, tostring(initial), 12, theme.accent, 20)
+    local number = label(row, tostring(initial), 13, theme.accent, 20)
     number.Position = UDim2.new(1, -69, 0, 6)
     number.Size = UDim2.fromOffset(55, 20)
     number.TextXAlignment = Enum.TextXAlignment.Right
@@ -1047,7 +1081,7 @@ local function headingFor(group)
         Text = string.upper(group),
         Font = Enum.Font.GothamBold,
         TextSize = 12,
-        TextColor3 = theme.accent,
+        TextColor3 = theme.muted,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Bottom,
     }, moduleArea))
@@ -1085,7 +1119,7 @@ local function optionRow(info)
         Size = UDim2.new(1, -79, 0, 26),
         BackgroundTransparency = 1,
         Text = info.description,
-        TextSize = 11,
+        TextSize = 12,
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -1141,7 +1175,7 @@ local function timeRow(info)
         Size = UDim2.new(1, -2, 0, 19),
         BackgroundTransparency = 1,
         Text = info.description,
-        TextSize = 11,
+        TextSize = 12,
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextXAlignment = Enum.TextXAlignment.Left,
