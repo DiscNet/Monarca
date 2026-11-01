@@ -1,6 +1,6 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas Home/Scripts/Player/Settings e layout adaptável a telas pequenas. Primeira versão: **0.1.0**.
+Script Hub em **Luau**, com interface escura, abas Home/Visual/Player/Settings e layout adaptável a telas pequenas. Primeira versão: **0.1.0**.
 
 ## Executar
 
@@ -18,22 +18,29 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/DiscNet/Monarca/main/
 - `manifest.lua` — catálogo de módulos remotos aprovados.
 - `modules/fullbright.lua` — iluminação ajustada apenas neste cliente.
 - `modules/lowgraphics.lua` — redução local de efeitos visuais pesados.
-- `modules/crosshair.lua` — mira visual, apenas na tela local.
+- `modules/crosshair.lua` — mira roxa visual, apenas na tela local.
+- `modules/xray.lua` — contorno roxo dos outros personagens através de paredes.
+- `modules/esp.lua` — etiquetas com apelido e distância até outros personagens.
+- `modules/timecycle.lua` — ajuste local de horário (Dia/Noite/Padrão).
+- `modules/nofog.lua` — remoção local de neblina e névoa atmosférica.
 
 ## Funcionalidades
 
 - Janela arrastável (mouse/toque), minimizável e que se ajusta à resolução.
-- Busca e filtro de scripts, com ativação e desativação dos módulos.
+- Aba **Visual** com controles organizados por Personagens, Iluminação, Interface e Desempenho.
+- **X-Ray**: destaca personagens de outros jogadores através de obstáculos; **ESP**: exibe apelido e distância.
+- **Horário**: opções Padrão/Dia/Noite, com restauração ao desligar; Fullbright e Sem neblina são independentes.
+- **Mira roxa** e **Gráficos leves**, com ativação local e reversível.
 - Controles locais de FOV, velocidade e salto; mudanças podem ser revertidas pelo jogo/servidor.
 - Botões, sliders, toggles, menus e notificações de status.
 - Preferências salvas em `Monarca/settings.json` apenas se o ambiente possuir `writefile`/`readfile`; caso contrário, valem na sessão.
-- Botão **Atualizar catálogo** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
+- Botão **Atualizar** baixa novamente `manifest.lua` e recarrega o catálogo; os módulos são baixados do GitHub sob demanda.
 
 ## Adicionar um módulo
 
 1. Crie `modules/meu_modulo.lua`. Ele deve retornar uma tabela com os métodos `enable(self)` e `disable(self)`.
-2. Insira no `manifest.lua`: `{ id = "meu_modulo", name = "Nome", description = "Descrição", category = "Utilidades" }`.
-3. No Hub, abra **Scripts → Atualizar**.
+2. Insira no `manifest.lua`: `{ id = "meu_modulo", name = "Nome", description = "Descrição", category = "Visual", group = "Interface" }`.
+3. No Hub, abra **Visual → Atualizar**.
 
 Os IDs de módulos são limitados a letras minúsculas, números, `_` e `-`; nenhum endereço externo é aceito pelo manifesto. O Hub só carrega `modules/<id>.lua` deste repositório.
 
@@ -55,3 +62,7 @@ Módulos atualizados entram em vigor depois de desligar/ligar o módulo ou atual
 ## Limites e testes
 
 Código-fonte não equivale a teste em Roblox em execução. Verifique em um ambiente de teste antes do uso. A execução de código remoto exige `loadstring` e `game:HttpGet`; o arquivo de configuração exige APIs de arquivos não padronizadas. O projeto não contém recursos para perturbar outros jogadores, contornar anticheat ou acessar dados de terceiros.
+
+## Observações visuais
+
+X-Ray e ESP não alteram personagens no servidor. O ESP atualiza distâncias a cada 0,2 s e limita etiquetas a 500 studs. A renderização de Highlight pode ter limites do próprio Roblox. Mapas que sobrescrevem a iluminação ou bloqueiam efeitos podem reduzir a eficácia dos controles. As opções podem ser incompatíveis com as regras de algumas experiências.
