@@ -1,5 +1,5 @@
 -- Monarca / 666 / ?
--- Distinct R6-only procedural pose. Local Motor6D.Transform animation.
+-- Distinct R6-only procedural idle/walk with damped crossfades and secondary motion.
 -- No claims of FE: transforms written locally are not replicated to others.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -146,18 +146,20 @@ function Mystery:enable()
     local rightLeg = frontSign(joints.rightLeg, torso)
     local leftLeg = frontSign(joints.leftLeg, torso)
 
-    -- Sample the target transformations only once, not in every frame.
+    -- Neutral relaxed silhouettes with natural head/chest alignment.
+    -- R6 arms have no elbows, so their secondary sway is shoulder-driven.
     local rightWalk = armInward(joints.rightArm, torso, rightFront,
-        math.rad(103), math.rad(27), true)
+        math.rad(87), math.rad(25), true)
     local leftWalk = armInward(joints.leftArm, torso, leftFront,
-        math.rad(103), math.rad(27), false)
+        math.rad(87), math.rad(25), false)
     local rightIdle = armInward(joints.rightArm, torso, rightFront,
-        math.rad(78), math.rad(31), true)
+        math.rad(70), math.rad(29), true)
     local leftIdle = armInward(joints.leftArm, torso, leftFront,
-        math.rad(78), math.rad(31), false)
-    local leanWalk = forwardLean(joints.root, rootPart, math.rad(14))
-    local leanIdle = forwardLean(joints.root, rootPart, math.rad(19))
-    local headUp = liftedHead(joints.neck, torso, math.rad(19))
+        math.rad(70), math.rad(29), false)
+    -- Reduce the previous 19-degree idle lean (which looked like falling).
+    local leanWalk = forwardLean(joints.root, rootPart, math.rad(7))
+    local leanIdle = forwardLean(joints.root, rootPart, math.rad(8.5))
+    local headUp = liftedHead(joints.neck, torso, math.rad(10))
 
     animateScript = character:FindFirstChild("Animate")
     if animateScript and animateScript:IsA("LocalScript") then
@@ -174,55 +176,122 @@ function Mystery:enable()
     end
 
     motors, active, elapsed = joints, true, 0
+    local movementBlend = 0
+    local gaitPhase = 0
+    local idleClock = 0
+    local currentTransforms = {}
+    for name in pairs(joints) do currentTransforms[name] = CFrame.identity end
+
     local ok, err = pcall(function()
-        renderConnection = RunService.PreSimulation:Connect(function(dt)
+        renderConnection = RunService.PreSimulation:Connect(function(deltaTime)
             if not active then return end
             if localPlayer.Character ~= character or human.Health <= 0 then
                 release()
                 return
             end
+            local dt = math.clamp(deltaTime, 0, 0.055)
+            idleClock = idleClock + dt
+            local v = rootPart.AssemblyLinearVelocity
+            local horizontalSpeed = Vector3.new(v.X, 0, v.Z).Magnitude
+            local moving = human.MoveDirection.Magnitude > 0.06
+                and horizontalSpeed > 0.4
 
-            local velocity = rootPart.AssemblyLinearVelocity
-            local horizontalSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
-            local walking = human.MoveDirection.Magnitude > 0.09
-                and horizontalSpeed > 0.55
-            elapsed = elapsed + math.clamp(dt, 0, 0.06)
-                * (walking and math.clamp(horizontalSpeed / 6, 1.3, 3.7) or 0.45)
+            -- Ease idle -> walk and walk -> idle instead of hard pose swaps.
+            -- A mild dead zone avoids flicker from physics velocity noise.
+            local targetBlend = moving
+                and math.clamp((horizontalSpeed - 0.4) / 3.5, 0, 1) or 0
+            local blendTime = targetBlend > movementBlend and 0.24 or 0.34
+            movementBlend = movementBlend
+                + (targetBlend - movementBlend) * (1 - math.exp(-dt / blendTime))
+            if movementBlend < 0.002 and targetBlend == 0 then
+                movementBlend = 0
+            end
+            if movementBlend > 0.002 then
+                gaitPhase = gaitPhase + dt * (5.9 + math.min(horizontalSpeed, 20) * 0.11)
+            end
 
-            local phase = elapsed * 2.55
-            local step = math.sin(phase)
-            local breathing = math.sin(elapsed * 2.15)
-            local stride = walking and 0.58 or 0.04
-            local rightStep, leftStep = step, -step
-            local liftRight = walking and math.max(0, rightStep) * 0.12 or 0
-            local liftLeft = walking and math.max(0, leftStep) * 0.12 or 0
+            -- Independent rhythms prevent an idle that looks like a frozen pose.
+            local breath = math.sin(idleClock * 2.45)
+            local breathSlow = math.sin(idleClock * 1.22 + 0.7)
+            local weightShift = math.sin(idleClock * 0.8)
+            local step = math.sin(gaitPhase)
+            local opposite = -step
+            local doubleStep = math.sin(2 * gaitPhase)
+            local idleWeight = 1 - movementBlend
 
-            -- Walking: both arms project ahead and inward with a restrained sway.
-            -- Idle: arms sag slightly, chest heaves, weight shifts as if exhausted.
-            joints.rightArm.Transform =
-                (walking and rightWalk or rightIdle)
-                * CFrame.Angles(0, 0, rightFront *
-                    (walking and 0.055 * step or 0.022 * breathing))
-            joints.leftArm.Transform =
-                (walking and leftWalk or leftIdle)
-                * CFrame.Angles(0, 0, leftFront *
-                    (walking and -0.055 * step or -0.022 * breathing))
+            -- Head rises slightly during the inhale and follows the chest
+            -- without over-correcting into a backward lean.
+            local idleNeck = headUp
+                * CFrame.Angles(0.018 * breath, 0.025 * weightShift,
+                    0.018 * breathSlow)
+            local walkNeck = headUp
+                * CFrame.Angles(-0.045 * step, 0.035 * doubleStep,
+                    -0.036 * step)
+            local neck = idleNeck:Lerp(walkNeck, movementBlend)
 
-            joints.rightLeg.Transform = CFrame.new(0, liftRight, 0)
-                * CFrame.Angles(0, 0, rightLeg * stride * rightStep)
-            joints.leftLeg.Transform = CFrame.new(0, liftLeft, 0)
-                * CFrame.Angles(0, 0, leftLeg * stride * leftStep)
+            -- Elastic shoulders, tiny lag and gentle variation on each side.
+            local idleRightArm = rightIdle
+                * CFrame.Angles(0.05 * breathSlow, 0.035 * breath,
+                    rightFront * (0.075 * breath + 0.045 * weightShift))
+            local idleLeftArm = leftIdle
+                * CFrame.Angles(-0.05 * breathSlow, -0.035 * breath,
+                    leftFront * (0.07 * breath - 0.040 * weightShift))
+            local walkRightArm = rightWalk
+                * CFrame.Angles(0.065 * doubleStep, 0.05 * step,
+                    rightFront * (0.16 * opposite + 0.045 * doubleStep))
+            local walkLeftArm = leftWalk
+                * CFrame.Angles(-0.065 * doubleStep, -0.05 * step,
+                    leftFront * (0.16 * step - 0.045 * doubleStep))
+            local rightArm = idleRightArm:Lerp(walkRightArm, movementBlend)
+            local leftArm = idleLeftArm:Lerp(walkLeftArm, movementBlend)
 
-            local bob = walking and math.abs(step) * 0.065
-                or 0.017 * breathing
-            joints.root.Transform = (walking and leanWalk or leanIdle)
-                * CFrame.new(0, -bob, 0)
-                * CFrame.Angles(0, 0, walking and step * 0.022
-                    or 0.018 * math.sin(elapsed * 0.7))
-            joints.neck.Transform = headUp * CFrame.Angles(0, 0,
-                walking and -step * 0.018 or 0.012 * breathing)
+            -- Each leg swings in the sagittal plane; opposing steps get a
+            -- foot lift while airborne. Small pelvis sway adds weight.
+            local stepAmount = 0.72
+            local idleRightLeg = CFrame.Angles(0, 0, rightLeg * 0.028 * weightShift)
+            local idleLeftLeg = CFrame.Angles(0, 0, -leftLeg * 0.028 * weightShift)
+            local walkRightLeg =
+                CFrame.new(0, math.max(0, step) * 0.17, 0)
+                * CFrame.Angles(0.02 * doubleStep, 0,
+                    rightLeg * step * stepAmount)
+            local walkLeftLeg =
+                CFrame.new(0, math.max(0, opposite) * 0.17, 0)
+                * CFrame.Angles(-0.02 * doubleStep, 0,
+                    leftLeg * opposite * stepAmount)
+            local rightHip = idleRightLeg:Lerp(walkRightLeg, movementBlend)
+            local leftHip = idleLeftLeg:Lerp(walkLeftLeg, movementBlend)
+
+            -- Gentle chest expansion and weighted footsteps. Keep lean
+            -- within 7-9 degrees to avoid the "toppling" posture.
+            local idleChest = leanIdle
+                * CFrame.new(0.012 * weightShift, 0.038 * breath, 0)
+                * CFrame.Angles(0.023 * breathSlow, 0.018 * weightShift,
+                    0.018 * breath)
+            local walkChest = leanWalk
+                * CFrame.new(0.055 * step, -0.09 * math.abs(step), 0)
+                * CFrame.Angles(0.055 * doubleStep, 0.045 * step,
+                    0.035 * doubleStep)
+            local rootPose = idleChest:Lerp(walkChest, movementBlend)
+
+            -- A short per-joint interpolation also smooths abrupt frame-time
+            -- changes without introducing a second state machine.
+            local frameAlpha = 1 - math.exp(-dt / 0.095)
+            local function animateJoint(name, target)
+                local motor = joints[name]
+                local previous = currentTransforms[name]
+                local nextPose = previous:Lerp(target, frameAlpha)
+                currentTransforms[name] = nextPose
+                motor.Transform = nextPose
+            end
+            animateJoint("rightArm", rightArm)
+            animateJoint("leftArm", leftArm)
+            animateJoint("rightLeg", rightHip)
+            animateJoint("leftLeg", leftHip)
+            animateJoint("root", rootPose)
+            animateJoint("neck", neck)
         end)
     end)
+
     if not ok then
         release()
         return false, tostring(err)
