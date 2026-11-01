@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.7.2 — experimental reversible clone invisibility in X?
+-- Monarca Script Hub v0.7.3 — fixed HUD invisibility toggle, synced with X?
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -50,6 +50,7 @@ local function bootMonarca()
         ownerTagG = 145,
         ownerTagB = 255,
         ownerTagRainbowFast = false,
+        invisibilityHudEnabled = false,
     }
     local settings = {}
     for k, v in pairs(defaults) do settings[k] = v end
@@ -475,7 +476,7 @@ local function bootMonarca()
         Position = UDim2.fromOffset(26, 26),
         Size = UDim2.new(1, -110, 0, 12),
         BackgroundTransparency = 1,
-        Text = "VISUAL HUB  /  V0.7.2",
+        Text = "VISUAL HUB  /  V0.7.3",
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextSize = 9,
@@ -1684,7 +1685,7 @@ local function bootMonarca()
     local auxiliaryModules = {}
     local function loadAuxiliary(name)
         if auxiliaryModules[name] then return auxiliaryModules[name] end
-        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.7.2-" .. tostring(os.time()))
+        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.7.3-" .. tostring(os.time()))
         if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
         local compiled, err = loadstring(source, "Monarca/" .. name)
         if not compiled then error(err or "Módulo inválido.") end
@@ -1842,6 +1843,42 @@ local function bootMonarca()
             Color = theme.whiteLine, Thickness = 3, Transparency = 1,
             ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
         }, experimentButton)
+
+        -- Separate, fixed-position HUD button, independent of the main panel.
+        -- Never use the draggable floating launcher for this control.
+        local hudButton = nil
+        local hudStroke = nil
+        local hudGlow = nil
+        if player.Name:lower() == "samulucas7419" then
+            hudButton = new("TextButton", {
+                Name = "MonarcaInvisibleHUD",
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -14, 0.38, 0),
+                Size = UDim2.fromOffset(94, 38),
+                BackgroundColor3 = theme.surface,
+                BackgroundTransparency = 0.08,
+                Text = "INVIS  OFF",
+                TextColor3 = theme.text,
+                Font = Enum.Font.GothamBold,
+                TextSize = 11,
+                BorderSizePixel = 0,
+                AutoButtonColor = false,
+                Active = true,
+                Visible = settings.invisibilityHudEnabled,
+                ZIndex = 40,
+            }, gui)
+            rounded(hudButton, 8)
+            hudStroke = new("UIStroke", {
+                Color = theme.whiteLine, Thickness = 1,
+                Transparency = 0.36,
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            }, hudButton)
+            hudGlow = new("UIStroke", {
+                Color = theme.accent, Thickness = 3,
+                Transparency = 1,
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            }, hudButton)
+        end
         local function repaintExperimental()
             experimentButton.Text = experimentBusy and "..." or
                 (experimentEnabled and "ON" or "OFF")
@@ -1851,8 +1888,19 @@ local function bootMonarca()
                 and theme.background or theme.text
             experimentStroke.Transparency = experimentEnabled and 0 or 0.22
             experimentGlow.Transparency = experimentEnabled and 0.82 or 1
+            if hudButton then
+                hudButton.Visible = settings.invisibilityHudEnabled and not destroyed
+                hudButton.Text = experimentBusy and "INVIS  ..." or
+                    (experimentEnabled and "INVIS  ON" or "INVIS  OFF")
+                hudButton.BackgroundColor3 = experimentEnabled
+                    and theme.primary or theme.surface
+                hudButton.TextColor3 = experimentEnabled
+                    and theme.background or theme.text
+                hudStroke.Transparency = experimentEnabled and 0 or 0.36
+                hudGlow.Transparency = experimentEnabled and 0.78 or 1
+            end
         end
-        experimentButton.Activated:Connect(function()
+        local function toggleExperimentalMode()
             if experimentBusy or busy then return end
             if not experimentEnabled and enabled then
                 status("Desative a invisibilidade do servidor antes de testar o clone.")
@@ -1888,13 +1936,41 @@ local function bootMonarca()
                     status("Clone indisponível: " .. tostring(ok and message or result))
                 end
             end)
-        end)
+        end
+        experimentButton.Activated:Connect(toggleExperimentalMode)
+        if hudButton then hudButton.Activated:Connect(toggleExperimentalMode) end
         repaintExperimental()
+        -- Clone mode may turn itself off on respawn/death. Update both UI
+        -- buttons even if the user leaves X? or minimizes the hub.
+        local refreshAccumulator = 0
+        connect(game:GetService("RunService").Heartbeat, function(dt)
+            if destroyed then return end
+            refreshAccumulator = refreshAccumulator + math.min(dt, 0.1)
+            if refreshAccumulator < 0.25 then return end
+            refreshAccumulator = 0
+            if experimentBusy then return end
+            local module = auxiliaryModules.clone_invisibility
+            local actual = module and module.isActive and module:isActive() or false
+            if experimentEnabled ~= actual then
+                experimentEnabled = actual
+                repaintExperimental()
+            end
+        end)
         local prototypeInfo = label(section,
             "Teste arriscado: corpo real fica longe; clone visível só para você. Pode falhar, sofrer anticheat ou causar respawn. Não é FE garantido.",
             10, theme.muted, 69)
         prototypeInfo.TextWrapped = true
         prototypeInfo.TextYAlignment = Enum.TextYAlignment.Top
+
+        if hudButton then
+            toggle(section, "Botão fixo no HUD",
+                "Ligar/desligar invisibilidade sem abrir o painel",
+                settings.invisibilityHudEnabled, function(show)
+                    settings.invisibilityHudEnabled = show
+                    repaintExperimental()
+                    save()
+                end)
+        end
     end
     initializeXPage()
 
