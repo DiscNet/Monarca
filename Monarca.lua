@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.6.0 — mysterious R6 emote and scrollable navigation
+-- Monarca Script Hub v0.6.1 — fix Luau local register limit
 -- Interface local. Os modulos sao carregados exclusivamente deste repositorio.
 local Services = {
     Players = game:GetService("Players"),
@@ -814,155 +814,161 @@ local function slider(section, heading, minimum, maximum, initial, changed)
     return row, paint
 end
 
-local home = pages.Home
+-- Isolated initialization: stays below Luau's 200-local limit.
+local function initializeHome()
+    local home = pages.Home
 
--- Borderless profile hero inspired by information-first mobile profile layouts.
--- No profile card, backing rectangles, frames, badges or avatar borders.
-local profile = ordered(home, new("Frame", {
-    Name = "PlayerProfile",
-    Size = UDim2.new(1, -2, 0, 212),
-    BackgroundTransparency = 1,
-    BorderSizePixel = 0,
-}, home))
-
-local avatar = new("ImageLabel", {
-    Name = "PlayerAvatar",
-    BackgroundTransparency = 1,
-    BorderSizePixel = 0,
-    Position = UDim2.fromOffset(4, 8),
-    Size = UDim2.fromOffset(180, 196),
-    ScaleType = Enum.ScaleType.Fit,
-    Image = "",
-}, profile)
-
-local details = new("Frame", {
-    Name = "ProfileInformation",
-    Position = UDim2.fromOffset(194, 10),
-    Size = UDim2.new(1, -200, 0, 194),
-    BackgroundTransparency = 1,
-    BorderSizePixel = 0,
-}, profile)
-
-local infoLayout = new("UIListLayout", {
-    SortOrder = Enum.SortOrder.LayoutOrder,
-    Padding = UDim.new(0, 2),
-}, details)
-
-local function profileLabel(order, value, font, color, height, fontSize)
-    return new("TextLabel", {
-        Name = "ProfileLine" .. tostring(order),
-        LayoutOrder = order,
-        Size = UDim2.new(1, 0, 0, height),
+    -- Borderless profile hero inspired by information-first mobile profile layouts.
+    -- No profile card, backing rectangles, frames, badges or avatar borders.
+    local profile = ordered(home, new("Frame", {
+        Name = "PlayerProfile",
+        Size = UDim2.new(1, -2, 0, 212),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Text = tostring(value),
-        TextSize = fontSize,
-        Font = font,
-        TextColor3 = color,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Center,
-        TextWrapped = false,
-        TextTruncate = Enum.TextTruncate.AtEnd,
+    }, home))
+
+    local avatar = new("ImageLabel", {
+        Name = "PlayerAvatar",
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(4, 8),
+        Size = UDim2.fromOffset(180, 196),
+        ScaleType = Enum.ScaleType.Fit,
+        Image = "",
+    }, profile)
+
+    local details = new("Frame", {
+        Name = "ProfileInformation",
+        Position = UDim2.fromOffset(194, 10),
+        Size = UDim2.new(1, -200, 0, 194),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+    }, profile)
+
+    local infoLayout = new("UIListLayout", {
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 2),
     }, details)
-end
 
-local eyebrow = profileLabel(1, "PERFIL DO JOGADOR", Enum.Font.GothamBold, theme.muted, 16, 11)
-local displayNameLabel = profileLabel(2, player.DisplayName, Enum.Font.GothamBold, theme.text, 28, 22)
-local nickLabel = profileLabel(3, "@" .. player.Name, Enum.Font.GothamMedium, theme.accent, 24, 18)
-local idLabel = profileLabel(4, "ID  " .. tostring(player.UserId), Enum.Font.GothamMedium, theme.text, 26, 17)
-local createdLabel = profileLabel(5, "Criação: carregando...", Enum.Font.GothamMedium, theme.text, 26, 17)
-local dateLabel = profileLabel(6, "Hoje: --/--/----", Enum.Font.GothamMedium, theme.text, 26, 17)
-local timeLabel = profileLabel(7, "Hora: --:--:--", Enum.Font.GothamMedium, theme.text, 26, 17)
+    local function profileLabel(order, value, font, color, height, fontSize)
+        return new("TextLabel", {
+            Name = "ProfileLine" .. tostring(order),
+            LayoutOrder = order,
+            Size = UDim2.new(1, 0, 0, height),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Text = tostring(value),
+            TextSize = fontSize,
+            Font = font,
+            TextColor3 = color,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Center,
+            TextWrapped = false,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+        }, details)
+    end
 
-local function updateProfileLayout()
-    -- Expand the player photo wherever possible, without squeezing the metadata.
-    -- On exceptionally narrow windows, stack content rather than truncate everything.
-    local width = profile.AbsoluteSize.X
-    if width <= 0 then return end
-    if width < 285 then
-        profile.Size = UDim2.new(1, -2, 0, 375)
-        avatar.Size = UDim2.fromOffset(154, 166)
-        avatar.Position = UDim2.new(0.5, -77, 0, 2)
-        details.Position = UDim2.fromOffset(10, 177)
-        details.Size = UDim2.new(1, -20, 0, 195)
-    else
-        profile.Size = UDim2.new(1, -2, 0, 212)
-        local imageWidth
-        if width < 350 then
-            imageWidth = 126
-        elseif width < 455 then
-            imageWidth = 158
+    local eyebrow = profileLabel(1, "PERFIL DO JOGADOR", Enum.Font.GothamBold, theme.muted, 16, 11)
+    local displayNameLabel = profileLabel(2, player.DisplayName, Enum.Font.GothamBold, theme.text, 28, 22)
+    local nickLabel = profileLabel(3, "@" .. player.Name, Enum.Font.GothamMedium, theme.accent, 24, 18)
+    local idLabel = profileLabel(4, "ID  " .. tostring(player.UserId), Enum.Font.GothamMedium, theme.text, 26, 17)
+    local createdLabel = profileLabel(5, "Criação: carregando...", Enum.Font.GothamMedium, theme.text, 26, 17)
+    local dateLabel = profileLabel(6, "Hoje: --/--/----", Enum.Font.GothamMedium, theme.text, 26, 17)
+    local timeLabel = profileLabel(7, "Hora: --:--:--", Enum.Font.GothamMedium, theme.text, 26, 17)
+
+    local function updateProfileLayout()
+        -- Expand the player photo wherever possible, without squeezing the metadata.
+        -- On exceptionally narrow windows, stack content rather than truncate everything.
+        local width = profile.AbsoluteSize.X
+        if width <= 0 then return end
+        if width < 285 then
+            profile.Size = UDim2.new(1, -2, 0, 375)
+            avatar.Size = UDim2.fromOffset(154, 166)
+            avatar.Position = UDim2.new(0.5, -77, 0, 2)
+            details.Position = UDim2.fromOffset(10, 177)
+            details.Size = UDim2.new(1, -20, 0, 195)
         else
-            imageWidth = 192
+            profile.Size = UDim2.new(1, -2, 0, 212)
+            local imageWidth
+            if width < 350 then
+                imageWidth = 126
+            elseif width < 455 then
+                imageWidth = 158
+            else
+                imageWidth = 192
+            end
+            avatar.Size = UDim2.fromOffset(imageWidth, 200)
+            avatar.Position = UDim2.fromOffset(0, 5)
+            local left = imageWidth + 10
+            details.Position = UDim2.fromOffset(left, 10)
+            details.Size = UDim2.new(1, -left - 5, 0, 194)
         end
-        avatar.Size = UDim2.fromOffset(imageWidth, 200)
-        avatar.Position = UDim2.fromOffset(0, 5)
-        local left = imageWidth + 10
-        details.Position = UDim2.fromOffset(left, 10)
-        details.Size = UDim2.new(1, -left - 5, 0, 194)
+        -- Main values stay readable on small phones; larger widths get stronger type.
+        local compact = width < 350
+        eyebrow.TextSize = compact and 10 or 11
+        displayNameLabel.TextSize = compact and 19 or 23
+        nickLabel.TextSize = compact and 16 or 19
+        for _, info in ipairs({idLabel, createdLabel, dateLabel, timeLabel}) do
+            info.TextSize = compact and 15 or 17
+        end
     end
-    -- Main values stay readable on small phones; larger widths get stronger type.
-    local compact = width < 350
-    eyebrow.TextSize = compact and 10 or 11
-    displayNameLabel.TextSize = compact and 19 or 23
-    nickLabel.TextSize = compact and 16 or 19
-    for _, info in ipairs({idLabel, createdLabel, dateLabel, timeLabel}) do
-        info.TextSize = compact and 15 or 17
-    end
+    connect(profile:GetPropertyChangedSignal("AbsoluteSize"), updateProfileLayout)
+    updateProfileLayout()
+
+    -- Bust thumbnail shows the character more prominently than a tiny headshot.
+    task.spawn(function()
+        local ok, image = pcall(function()
+            return Services.Players:GetUserThumbnailAsync(
+                player.UserId, Enum.ThumbnailType.AvatarBust, Enum.ThumbnailSize.Size420x420
+            )
+        end)
+        if destroyed then return end
+        if ok and type(image) == "string" and image ~= "" then
+            avatar.Image = image
+        else
+            avatar.Image = "rbxthumb://type=AvatarBust&id=" ..
+                tostring(player.UserId) .. "&w=420&h=420"
+        end
+    end)
+
+    -- Get exact profile creation date where possible; label fallback as approximate.
+    task.spawn(function()
+        local estimated = DateTime.fromUnixTimestamp(os.time() - math.max(0, player.AccountAge) * 86400)
+        local date = "~" .. estimated:FormatLocalTime("DD/MM/YYYY", "pt-br")
+        local ok, value = pcall(function()
+            local raw = game:HttpGet("https://users.roblox.com/v1/users/" .. tostring(player.UserId))
+            local parsed = Services.HttpService:JSONDecode(raw)
+            if type(parsed) ~= "table" or type(parsed.created) ~= "string" then return nil end
+            local y, m, d = parsed.created:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)")
+            if y then return d .. "/" .. m .. "/" .. y end
+            return nil
+        end)
+        if ok and type(value) == "string" then date = value end
+        if not destroyed then createdLabel.Text = "Criação: " .. date end
+    end)
+
+    -- Day and local time refresh without rebuilding or shifting the profile layout.
+    task.spawn(function()
+        while not destroyed do
+            if home.Visible and main.Visible then
+                local now = DateTime.now()
+                local okDate, d = pcall(function()
+                    return now:FormatLocalTime("DD/MM/YYYY", "pt-br")
+                end)
+                local okTime, t = pcall(function()
+                    return now:FormatLocalTime("HH:mm:ss", "pt-br")
+                end)
+                if okDate then dateLabel.Text = "Hoje: " .. d end
+                if okTime then timeLabel.Text = "Hora: " .. t end
+            end
+            task.wait(1)
+        end
+    end)
+
+
+
 end
-connect(profile:GetPropertyChangedSignal("AbsoluteSize"), updateProfileLayout)
-updateProfileLayout()
-
--- Bust thumbnail shows the character more prominently than a tiny headshot.
-task.spawn(function()
-    local ok, image = pcall(function()
-        return Services.Players:GetUserThumbnailAsync(
-            player.UserId, Enum.ThumbnailType.AvatarBust, Enum.ThumbnailSize.Size420x420
-        )
-    end)
-    if destroyed then return end
-    if ok and type(image) == "string" and image ~= "" then
-        avatar.Image = image
-    else
-        avatar.Image = "rbxthumb://type=AvatarBust&id=" ..
-            tostring(player.UserId) .. "&w=420&h=420"
-    end
-end)
-
--- Get exact profile creation date where possible; label fallback as approximate.
-task.spawn(function()
-    local estimated = DateTime.fromUnixTimestamp(os.time() - math.max(0, player.AccountAge) * 86400)
-    local date = "~" .. estimated:FormatLocalTime("DD/MM/YYYY", "pt-br")
-    local ok, value = pcall(function()
-        local raw = game:HttpGet("https://users.roblox.com/v1/users/" .. tostring(player.UserId))
-        local parsed = Services.HttpService:JSONDecode(raw)
-        if type(parsed) ~= "table" or type(parsed.created) ~= "string" then return nil end
-        local y, m, d = parsed.created:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)")
-        if y then return d .. "/" .. m .. "/" .. y end
-        return nil
-    end)
-    if ok and type(value) == "string" then date = value end
-    if not destroyed then createdLabel.Text = "Criação: " .. date end
-end)
-
--- Day and local time refresh without rebuilding or shifting the profile layout.
-task.spawn(function()
-    while not destroyed do
-        if home.Visible and main.Visible then
-            local now = DateTime.now()
-            local okDate, d = pcall(function()
-                return now:FormatLocalTime("DD/MM/YYYY", "pt-br")
-            end)
-            local okTime, t = pcall(function()
-                return now:FormatLocalTime("HH:mm:ss", "pt-br")
-            end)
-            if okDate then dateLabel.Text = "Hoje: " .. d end
-            if okTime then timeLabel.Text = "Hora: " .. t end
-        end
-        task.wait(1)
-    end
-end)
-
+initializeHome()
 
 -- ALVO. All actions run on the local player's character/camera only.
 local alvo = pages.Alvo
@@ -1787,213 +1793,219 @@ connect(player.CharacterAdded, function()
         if playerAdjusted then applyPlayer() end
     end)
 end)
--- Emote: original procedural R6 zombie walk, no external animation asset.
-local emotePage = pages.Emote
-title(emotePage, "Emote", "Animações locais para seu personagem.")
-local zombieRow = card(emotePage, 63)
-local zombieTitle = new("TextLabel", {
-    Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -94, 0, 22),
-    BackgroundTransparency = 1, Text = "Zumbi andando",
-    TextSize = 13, Font = Enum.Font.GothamBold,
-    TextColor3 = theme.text, TextXAlignment = Enum.TextXAlignment.Left,
-}, zombieRow)
-new("TextLabel", {
-    Position = UDim2.fromOffset(10, 31), Size = UDim2.new(1, -94, 0, 20),
-    BackgroundTransparency = 1, Text = "R6 • FE se publicado / local",
-    TextSize = 11, Font = Enum.Font.Gotham,
-    TextColor3 = theme.muted, TextXAlignment = Enum.TextXAlignment.Left,
-}, zombieRow)
-local zombieButton = button(zombieRow, "ATIVAR",
-    UDim2.new(1, -85, 0, 17), UDim2.fromOffset(76, 29))
-local zombieActive = false
-local function repaintZombie()
-    zombieButton.Text = zombieActive and "PARAR" or "ATIVAR"
-    zombieButton.BackgroundColor3 = zombieActive and theme.primary or theme.background
-    zombieButton.TextColor3 = zombieActive and theme.background or theme.text
-end
--- Assigned by the 666 page after the Zombie controls are constructed.
-local stop666ForZombie = function() end
-zombieButton.Activated:Connect(function()
-    if zombieActive then
-        if auxiliaryModules.zombie_r6 then
-            pcall(auxiliaryModules.zombie_r6.disable, auxiliaryModules.zombie_r6)
-        end
-        zombieActive = false
-        status("Emote encerrado.")
-    else
-        stop666ForZombie()
-        local ok, enabled, err = pcall(function()
-            local module = loadAuxiliary("zombie_r6")
-            module:setAnimationId(settings.zombieAnimationId)
-            return module:enable()
-        end)
-        zombieActive = ok and enabled == true
+-- Isolated initialization: stays below Luau's 200-local limit.
+local function initializeEmoteTabs()
+    -- Emote: original procedural R6 zombie walk, no external animation asset.
+    local emotePage = pages.Emote
+    title(emotePage, "Emote", "Animações locais para seu personagem.")
+    local zombieRow = card(emotePage, 63)
+    local zombieTitle = new("TextLabel", {
+        Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -94, 0, 22),
+        BackgroundTransparency = 1, Text = "Zumbi andando",
+        TextSize = 13, Font = Enum.Font.GothamBold,
+        TextColor3 = theme.text, TextXAlignment = Enum.TextXAlignment.Left,
+    }, zombieRow)
+    new("TextLabel", {
+        Position = UDim2.fromOffset(10, 31), Size = UDim2.new(1, -94, 0, 20),
+        BackgroundTransparency = 1, Text = "R6 • FE se publicado / local",
+        TextSize = 11, Font = Enum.Font.Gotham,
+        TextColor3 = theme.muted, TextXAlignment = Enum.TextXAlignment.Left,
+    }, zombieRow)
+    local zombieButton = button(zombieRow, "ATIVAR",
+        UDim2.new(1, -85, 0, 17), UDim2.fromOffset(76, 29))
+    local zombieActive = false
+    local function repaintZombie()
+        zombieButton.Text = zombieActive and "PARAR" or "ATIVAR"
+        zombieButton.BackgroundColor3 = zombieActive and theme.primary or theme.background
+        zombieButton.TextColor3 = zombieActive and theme.background or theme.text
+    end
+    -- Assigned by the 666 page after the Zombie controls are constructed.
+    local stop666ForZombie = function() end
+    zombieButton.Activated:Connect(function()
         if zombieActive then
-            local mode = auxiliaryModules.zombie_r6:getMode()
-            if mode == "FE" then
-                status("Zumbi R6 FE: animação via Animator.")
-            else
-                status("Zumbi R6 local: FE precisa de animação publicada e autorizada.")
+            if auxiliaryModules.zombie_r6 then
+                pcall(auxiliaryModules.zombie_r6.disable, auxiliaryModules.zombie_r6)
             end
+            zombieActive = false
+            status("Emote encerrado.")
         else
-            status("Emote: " .. tostring(ok and err or enabled))
+            stop666ForZombie()
+            local ok, enabled, err = pcall(function()
+                local module = loadAuxiliary("zombie_r6")
+                module:setAnimationId(settings.zombieAnimationId)
+                return module:enable()
+            end)
+            zombieActive = ok and enabled == true
+            if zombieActive then
+                local mode = auxiliaryModules.zombie_r6:getMode()
+                if mode == "FE" then
+                    status("Zumbi R6 FE: animação via Animator.")
+                else
+                    status("Zumbi R6 local: FE precisa de animação publicada e autorizada.")
+                end
+            else
+                status("Emote: " .. tostring(ok and err or enabled))
+            end
         end
-    end
+        repaintZombie()
+    end)
     repaintZombie()
-end)
-repaintZombie()
 
-local animationIdFrame = ordered(emotePage, new("Frame", {
-    Size = UDim2.new(1, 0, 0, 35),
-    BackgroundColor3 = theme.surface,
-    BorderSizePixel = 0,
-}, emotePage))
-rounded(animationIdFrame, 3)
-new("UIStroke", {
-    Color = theme.whiteLine,
-    Thickness = 1,
-    Transparency = 0.76,
-    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-}, animationIdFrame)
-local zombieAssetInput = new("TextBox", {
-    Position = UDim2.fromOffset(10, 0),
-    Size = UDim2.new(1, -20, 1, 0),
-    BackgroundTransparency = 1,
-    Text = settings.zombieAnimationId,
-    PlaceholderText = "ID da animação R6 publicada para FE",
-    PlaceholderColor3 = theme.muted,
-    TextColor3 = theme.text,
-    Font = Enum.Font.Gotham,
-    TextSize = 11,
-    ClearTextOnFocus = false,
-    TextXAlignment = Enum.TextXAlignment.Left,
-}, animationIdFrame)
-local emoteInfo = ordered(emotePage, new("TextLabel", {
-    Size = UDim2.new(1, 0, 0, 44),
-    BackgroundTransparency = 1,
-    Text = "Sem ID: emote local corrigido. Para FE, publique a animação R6 em Studio e autorize a experiência.",
-    TextSize = 10,
-    TextWrapped = true,
-    TextColor3 = theme.muted,
-    Font = Enum.Font.Gotham,
-    TextXAlignment = Enum.TextXAlignment.Left,
-    TextYAlignment = Enum.TextYAlignment.Top,
-}, emotePage))
-connect(zombieAssetInput.FocusLost, function()
-    local id = zombieAssetInput.Text:match("^(%d+)$") or
-        zombieAssetInput.Text:match("^rbxassetid://(%d+)$") or ""
-    if #id > 20 then id = "" end
-    settings.zombieAnimationId = id
-    zombieAssetInput.Text = id
-    save()
-    if zombieActive then
-        status("ID salvo. Desative e reative o emote para aplicar.")
-    elseif id ~= "" then
-        status("ID configurado. FE depende da permissão da experiência.")
-    end
-end)
+    local animationIdFrame = ordered(emotePage, new("Frame", {
+        Size = UDim2.new(1, 0, 0, 35),
+        BackgroundColor3 = theme.surface,
+        BorderSizePixel = 0,
+    }, emotePage))
+    rounded(animationIdFrame, 3)
+    new("UIStroke", {
+        Color = theme.whiteLine,
+        Thickness = 1,
+        Transparency = 0.76,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, animationIdFrame)
+    local zombieAssetInput = new("TextBox", {
+        Position = UDim2.fromOffset(10, 0),
+        Size = UDim2.new(1, -20, 1, 0),
+        BackgroundTransparency = 1,
+        Text = settings.zombieAnimationId,
+        PlaceholderText = "ID da animação R6 publicada para FE",
+        PlaceholderColor3 = theme.muted,
+        TextColor3 = theme.text,
+        Font = Enum.Font.Gotham,
+        TextSize = 11,
+        ClearTextOnFocus = false,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, animationIdFrame)
+    local emoteInfo = ordered(emotePage, new("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 44),
+        BackgroundTransparency = 1,
+        Text = "Sem ID: emote local corrigido. Para FE, publique a animação R6 em Studio e autorize a experiência.",
+        TextSize = 10,
+        TextWrapped = true,
+        TextColor3 = theme.muted,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+    }, emotePage))
+    connect(zombieAssetInput.FocusLost, function()
+        local id = zombieAssetInput.Text:match("^(%d+)$") or
+            zombieAssetInput.Text:match("^rbxassetid://(%d+)$") or ""
+        if #id > 20 then id = "" end
+        settings.zombieAnimationId = id
+        zombieAssetInput.Text = id
+        save()
+        if zombieActive then
+            status("ID salvo. Desative e reative o emote para aplicar.")
+        elseif id ~= "" then
+            status("ID configurado. FE depende da permissão da experiência.")
+        end
+    end)
 
-connect(player.CharacterAdded, function()
-    if auxiliaryModules.zombie_r6 then
-        pcall(auxiliaryModules.zombie_r6.disable, auxiliaryModules.zombie_r6)
-    end
-    zombieActive = false
-    repaintZombie()
-end)
-
--- 666: one deliberately minimal R6-only toggle named "?".
--- The pose is procedural and local unless a separately published animation
--- is played through an authorized server-created Animator.
-local mysteryPage = pages["666"]
-title(mysteryPage, "666", "Postura R6")
-local mysteryRow = card(mysteryPage, 59)
-local mysteryName = new("TextLabel", {
-    Name = "MysteryLabel",
-    Position = UDim2.fromOffset(11, 8),
-    Size = UDim2.new(1, -112, 0, 24),
-    BackgroundTransparency = 1,
-    Text = "?",
-    Font = Enum.Font.GothamBold,
-    TextSize = 17,
-    TextColor3 = theme.text,
-    TextXAlignment = Enum.TextXAlignment.Left,
-}, mysteryRow)
-local mysterySubtitle = new("TextLabel", {
-    Position = UDim2.fromOffset(11, 34),
-    Size = UDim2.new(1, -113, 0, 17),
-    BackgroundTransparency = 1,
-    Text = "R6  •  Animação local",
-    TextSize = 10,
-    Font = Enum.Font.GothamMedium,
-    TextColor3 = theme.muted,
-    TextXAlignment = Enum.TextXAlignment.Left,
-}, mysteryRow)
-local mysteryToggle = new("TextButton", {
-    Name = "MysteryToggle",
-    Position = UDim2.new(1, -98, 0, 13),
-    Size = UDim2.fromOffset(86, 31),
-    BackgroundColor3 = theme.background,
-    TextColor3 = theme.text,
-    Text = "OFF",
-    Font = Enum.Font.GothamBold,
-    TextSize = 12,
-    AutoButtonColor = false,
-    BorderSizePixel = 0,
-}, mysteryRow)
-rounded(mysteryToggle, 2)
-local mysteryStroke = new("UIStroke", {
-    Color = theme.whiteLine, Thickness = 1,
-    Transparency = 0.22, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-}, mysteryToggle)
-local mysteryGlow = new("UIStroke", {
-    Color = theme.whiteLine, Thickness = 3,
-    Transparency = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-}, mysteryToggle)
-local mysteryActive = false
-local function refreshMystery()
-    mysteryToggle.Text = mysteryActive and "ON" or "OFF"
-    mysteryToggle.BackgroundColor3 = mysteryActive and theme.primary or theme.background
-    mysteryToggle.TextColor3 = mysteryActive and theme.background or theme.text
-    mysteryStroke.Transparency = mysteryActive and 0 or 0.22
-    mysteryGlow.Transparency = mysteryActive and 0.82 or 1
-end
-local function stopMystery()
-    if auxiliaryModules.pose_666 then
-        pcall(auxiliaryModules.pose_666.disable, auxiliaryModules.pose_666)
-    end
-    mysteryActive = false
-    refreshMystery()
-end
-stop666ForZombie = stopMystery
-mysteryToggle.Activated:Connect(function()
-    if mysteryActive then
-        stopMystery()
-        status("? desativado.")
-        return
-    end
-    -- The two R6 animation modules must never fight over Motor6D.Transform.
-    if zombieActive then
+    connect(player.CharacterAdded, function()
         if auxiliaryModules.zombie_r6 then
             pcall(auxiliaryModules.zombie_r6.disable, auxiliaryModules.zombie_r6)
         end
         zombieActive = false
         repaintZombie()
-    end
-    local ok, success, why = pcall(function()
-        return loadAuxiliary("pose_666"):enable()
     end)
-    mysteryActive = ok and success == true
-    refreshMystery()
-    if mysteryActive then
-        status("? ativado: postura e idle R6.")
-    else
-        status("Não foi possível ativar ?: " .. tostring(ok and why or success))
+
+    -- 666: one deliberately minimal R6-only toggle named "?".
+    -- The pose is procedural and local unless a separately published animation
+    -- is played through an authorized server-created Animator.
+    local mysteryPage = pages["666"]
+    title(mysteryPage, "666", "Postura R6")
+    local mysteryRow = card(mysteryPage, 59)
+    local mysteryName = new("TextLabel", {
+        Name = "MysteryLabel",
+        Position = UDim2.fromOffset(11, 8),
+        Size = UDim2.new(1, -112, 0, 24),
+        BackgroundTransparency = 1,
+        Text = "?",
+        Font = Enum.Font.GothamBold,
+        TextSize = 17,
+        TextColor3 = theme.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, mysteryRow)
+    local mysterySubtitle = new("TextLabel", {
+        Position = UDim2.fromOffset(11, 34),
+        Size = UDim2.new(1, -113, 0, 17),
+        BackgroundTransparency = 1,
+        Text = "R6  •  Animação local",
+        TextSize = 10,
+        Font = Enum.Font.GothamMedium,
+        TextColor3 = theme.muted,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, mysteryRow)
+    local mysteryToggle = new("TextButton", {
+        Name = "MysteryToggle",
+        Position = UDim2.new(1, -98, 0, 13),
+        Size = UDim2.fromOffset(86, 31),
+        BackgroundColor3 = theme.background,
+        TextColor3 = theme.text,
+        Text = "OFF",
+        Font = Enum.Font.GothamBold,
+        TextSize = 12,
+        AutoButtonColor = false,
+        BorderSizePixel = 0,
+    }, mysteryRow)
+    rounded(mysteryToggle, 2)
+    local mysteryStroke = new("UIStroke", {
+        Color = theme.whiteLine, Thickness = 1,
+        Transparency = 0.22, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, mysteryToggle)
+    local mysteryGlow = new("UIStroke", {
+        Color = theme.whiteLine, Thickness = 3,
+        Transparency = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, mysteryToggle)
+    local mysteryActive = false
+    local function refreshMystery()
+        mysteryToggle.Text = mysteryActive and "ON" or "OFF"
+        mysteryToggle.BackgroundColor3 = mysteryActive and theme.primary or theme.background
+        mysteryToggle.TextColor3 = mysteryActive and theme.background or theme.text
+        mysteryStroke.Transparency = mysteryActive and 0 or 0.22
+        mysteryGlow.Transparency = mysteryActive and 0.82 or 1
     end
-end)
-refreshMystery()
-connect(player.CharacterAdded, function()
-    stopMystery()
-end)
+    local function stopMystery()
+        if auxiliaryModules.pose_666 then
+            pcall(auxiliaryModules.pose_666.disable, auxiliaryModules.pose_666)
+        end
+        mysteryActive = false
+        refreshMystery()
+    end
+    stop666ForZombie = stopMystery
+    mysteryToggle.Activated:Connect(function()
+        if mysteryActive then
+            stopMystery()
+            status("? desativado.")
+            return
+        end
+        -- The two R6 animation modules must never fight over Motor6D.Transform.
+        if zombieActive then
+            if auxiliaryModules.zombie_r6 then
+                pcall(auxiliaryModules.zombie_r6.disable, auxiliaryModules.zombie_r6)
+            end
+            zombieActive = false
+            repaintZombie()
+        end
+        local ok, success, why = pcall(function()
+            return loadAuxiliary("pose_666"):enable()
+        end)
+        mysteryActive = ok and success == true
+        refreshMystery()
+        if mysteryActive then
+            status("? ativado: postura e idle R6.")
+        else
+            status("Não foi possível ativar ?: " .. tostring(ok and why or success))
+        end
+    end)
+    refreshMystery()
+    connect(player.CharacterAdded, function()
+        stopMystery()
+    end)
+
+
+end
+initializeEmoteTabs()
 
 local settingsPage = pages.Settings
 title(settingsPage, "Settings", "Preferências da interface e armazenamento.")
