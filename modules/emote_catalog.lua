@@ -60,14 +60,9 @@ local STATIC = {
 }
 local currentTrack
 local currentHumanoid
-local stoppedConnection
 local characterConnection
 
 local function releaseTrack()
-    if stoppedConnection then
-        stoppedConnection:Disconnect()
-        stoppedConnection = nil
-    end
     if currentTrack then
         local track = currentTrack
         currentTrack = nil
@@ -151,6 +146,10 @@ end
 
 function Catalog:disable()
     releaseTrack()
+    if characterConnection then
+        characterConnection:Disconnect()
+        characterConnection = nil
+    end
 end
 
 function Catalog:play(item)
@@ -209,7 +208,7 @@ function Catalog:play(item)
     end
     currentTrack = track
     currentHumanoid = humanoid
-    return true, "Emote iniciado. A replicação depende do jogo e do acesso ao asset."
+    return true, "Reprodução solicitada; disponibilidade e replicação dependem do jogo e do asset."
 end
 
 function Catalog:isPlaying()
