@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.8.5 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.8.6 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -2713,6 +2713,226 @@ local function bootMonarca()
         -- Emote: original procedural R6 zombie walk, no external animation asset.
         local emotePage = pages.Emote
         title(emotePage, "Emote", "Animações locais para seu personagem.")
+
+        -- Searchable Roblox emotes, separate from the R6 zombie emote.
+        -- Isolated function keeps the hub below Luau's 200-local-register cap.
+        local function initializeCatalogUI()
+            title(emotePage, "Catálogo de emotes",
+                "50 emotes de referência + emotes disponíveis no seu avatar · R15.")
+            local pickerRow = card(emotePage, 61)
+            cardText(pickerRow, "Selecionar emote", "Toque para buscar.", 176)
+            local pickerButton = button(pickerRow, "EMOTES  ▾",
+                UDim2.new(1, -172, 0, 14), UDim2.fromOffset(160, 32))
+            pickerButton.Name = "EmoteCatalogPicker"
+            pickerButton.TextSize = 12
+            pickerButton.TextTruncate = Enum.TextTruncate.AtEnd
+
+            local dropdown = ordered(emotePage, new("Frame", {
+                Name = "EmoteCatalogDropdown",
+                Size = UDim2.new(1, -2, 0, 0),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                ClipsDescendants = true,
+                Visible = false,
+            }, emotePage))
+            local searchBox = new("TextBox", {
+                Name = "EmoteSearch",
+                Position = UDim2.fromOffset(6, 5),
+                Size = UDim2.new(1, -12, 0, 33),
+                BackgroundColor3 = theme.card,
+                BackgroundTransparency = 0.08,
+                TextColor3 = theme.text,
+                PlaceholderColor3 = theme.muted,
+                PlaceholderText = "Buscar emote por nome ou ID...",
+                ClearTextOnFocus = false,
+                Text = "",
+                Font = Enum.Font.Gotham,
+                TextSize = 12,
+                TextXAlignment = Enum.TextXAlignment.Left,
+            }, dropdown)
+            rounded(searchBox, 6)
+            new("UIPadding", {
+                PaddingLeft = UDim.new(0, 9), PaddingRight = UDim.new(0, 9),
+            }, searchBox)
+            local emoteList = new("ScrollingFrame", {
+                Name = "EmoteSearchResults",
+                Position = UDim2.fromOffset(6, 43),
+                Size = UDim2.new(1, -12, 0, 172),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                ScrollBarThickness = 3,
+                ScrollBarImageColor3 = theme.accent,
+                ScrollingDirection = Enum.ScrollingDirection.Y,
+                CanvasSize = UDim2.fromOffset(0, 0),
+            }, dropdown)
+            new("UIListLayout", {
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Padding = UDim.new(0, 4),
+            }, emoteList)
+
+            local selected, choices, choiceButtons = nil, {}, {}
+            local opened, loading, playing = false, false, false
+            local selectionRow = card(emotePage, 46)
+            local selectedName = label(selectionRow,
+                "Nenhum emote selecionado.", 11, theme.muted, 27)
+            selectedName.Position = UDim2.fromOffset(10, 9)
+            selectedName.Size = UDim2.new(1, -20, 0, 26)
+            selectedName.TextTruncate = Enum.TextTruncate.AtEnd
+
+            local controlsRow = card(emotePage, 48)
+            local playButton = button(controlsRow, "REPRODUZIR",
+                UDim2.fromOffset(9, 9), UDim2.new(0.5, -15, 0, 31), nil, true)
+            playButton.Name = "EmotePlay"
+            local stopButton = button(controlsRow, "PARAR",
+                UDim2.new(0.5, 6, 0, 9), UDim2.new(0.5, -15, 0, 31))
+            stopButton.Name = "EmoteStop"
+            local countRow = card(emotePage, 39)
+            local countLabel = label(countRow,
+                "Carregando catálogo...", 11, theme.muted, 24)
+            countLabel.Position = UDim2.fromOffset(10, 6)
+            countLabel.Size = UDim2.new(1, -106, 0, 24)
+            local reloadButton = button(countRow, "ATUALIZAR",
+                UDim2.new(1, -101, 0, 4), UDim2.fromOffset(90, 28))
+            reloadButton.Name = "EmoteRefresh"
+            reloadButton.TextSize = 11
+            local feedback = label(emotePage,
+                "Emotes R15 usam o Animator existente. Alguns exigem posse, equipar ou permissão do jogo; FE não é garantido.",
+                11, theme.muted, 56)
+            feedback.TextWrapped = true
+
+            local function filterResults()
+                local term = string.lower(searchBox.Text)
+                local visibleCount = 0
+                for i, item in ipairs(choices) do
+                    local haystack = string.lower(item.name .. " " ..
+                        (item.aliases or "") .. " " .. (item.group or "") ..
+                        " " .. (item.id or ""))
+                    local shown = term == "" or string.find(haystack, term, 1, true) ~= nil
+                    choiceButtons[i].Visible = shown
+                    if shown then visibleCount = visibleCount + 1 end
+                end
+                emoteList.CanvasSize = UDim2.fromOffset(
+                    0, visibleCount > 0 and visibleCount * 37 + 5 or 0)
+                emoteList.CanvasPosition = Vector2.zero
+                if not loading then
+                    countLabel.Text = tostring(visibleCount) .. " / " ..
+                        tostring(#choices) .. " emotes"
+                end
+            end
+            connect(searchBox:GetPropertyChangedSignal("Text"), filterResults)
+
+            local function repaintPicker()
+                dropdown.Visible = opened
+                dropdown.Size = UDim2.new(1, -2, 0, opened and 222 or 0)
+                pickerButton.Text = selected and
+                    ((selected.name:sub(1, 15)) .. (opened and "  ▴" or "  ▾"))
+                    or (opened and "EMOTES  ▴" or "EMOTES  ▾")
+                pickerButton.BackgroundColor3 = opened and theme.primary or theme.card
+                pickerButton.TextColor3 = opened and theme.background or theme.text
+                selectedName.Text = selected and
+                    (selected.name .. "  ·  " .. selected.group .. "  ·  " .. selected.id)
+                    or "Nenhum emote selecionado."
+            end
+            local function refreshCatalog()
+                if loading then return end
+                loading = true
+                reloadButton.Text = "..."
+                countLabel.Text = "Carregando catálogo..."
+                task.spawn(function()
+                    local ok, result = pcall(function()
+                        return loadAuxiliary("emote_catalog"):getCatalog()
+                    end)
+                    if destroyed then return end
+                    loading = false
+                    reloadButton.Text = "ATUALIZAR"
+                    if not ok or type(result) ~= "table" then
+                        local err = tostring(result)
+                        countLabel.Text = "Não foi possível carregar."
+                        feedback.Text = "Emotes: " .. err
+                        status("Emotes: " .. err)
+                        return
+                    end
+                    local formerId = selected and selected.id
+                    choices = result
+                    selected = nil
+                    for _, b in ipairs(choiceButtons) do b:Destroy() end
+                    table.clear(choiceButtons)
+                    for i, item in ipairs(choices) do
+                        local rowButton = button(emoteList,
+                            item.name .. "  ·  " .. item.group,
+                            UDim2.new(), UDim2.new(1, -7, 0, 33))
+                        rowButton.LayoutOrder = i
+                        rowButton.Name = "EmoteChoice_" .. tostring(i)
+                        rowButton.TextSize = 12
+                        rowButton.TextXAlignment = Enum.TextXAlignment.Left
+                        rowButton.TextTruncate = Enum.TextTruncate.AtEnd
+                        new("UIPadding", {PaddingLeft = UDim.new(0, 9)}, rowButton)
+                        table.insert(choiceButtons, rowButton)
+                        rowButton.Activated:Connect(function()
+                            selected = item
+                            opened = false
+                            searchBox.Text = ""
+                            repaintPicker()
+                        end)
+                        if item.id == formerId and not selected then selected = item end
+                    end
+                    filterResults()
+                    repaintPicker()
+                    feedback.Text = "Escolha um emote e toque em REPRODUZIR. Alguns emotes exigem posse/equipamento ou permissão do jogo."
+                end)
+            end
+
+            pickerButton.Activated:Connect(function()
+                opened = not opened
+                if opened then searchBox.Text = "" end
+                repaintPicker()
+            end)
+            reloadButton.Activated:Connect(refreshCatalog)
+            playButton.Activated:Connect(function()
+                if playing then return end
+                if not selected then
+                    feedback.Text = "Selecione um emote na lista primeiro."
+                    return
+                end
+                playing = true
+                playButton.Text = "..."
+                local choice = selected
+                task.spawn(function()
+                    local ok, worked, reason = pcall(function()
+                        return loadAuxiliary("emote_catalog"):play(choice)
+                    end)
+                    if destroyed then
+                        if auxiliaryModules.emote_catalog then
+                            pcall(auxiliaryModules.emote_catalog.disable,
+                                auxiliaryModules.emote_catalog)
+                        end
+                        return
+                    end
+                    playing = false
+                    playButton.Text = "REPRODUZIR"
+                    if ok and worked then
+                        feedback.Text = "Emote: " .. choice.name ..
+                            ". Confira se aparece para outros jogadores."
+                        status("Emote: " .. choice.name .. " iniciado.")
+                    else
+                        local message = tostring(ok and reason or worked)
+                        feedback.Text = "Falha: " .. message
+                        status("Emote: " .. message)
+                    end
+                end)
+            end)
+            stopButton.Activated:Connect(function()
+                if playing then return end
+                local module = auxiliaryModules.emote_catalog
+                if module then pcall(module.stop, module) end
+                feedback.Text = "Emote interrompido."
+                status("Emote: reprodução interrompida.")
+            end)
+            repaintPicker()
+            task.defer(refreshCatalog)
+        end
+        initializeCatalogUI()
+
         local zombieRow = card(emotePage, 63)
         local zombieTitle = new("TextLabel", {
             Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -94, 0, 22),
@@ -4120,7 +4340,7 @@ local function bootMonarca()
         if auxiliaryModules.fling_touch then
             pcall(auxiliaryModules.fling_touch.shutdown, auxiliaryModules.fling_touch)
         end
-        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "antifling", "server_invisibility", "clone_invisibility", "anim_packs", "player_reverse"}) do
+        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "antifling", "emote_catalog", "server_invisibility", "clone_invisibility", "anim_packs", "player_reverse"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
             end
