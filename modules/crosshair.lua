@@ -17,7 +17,7 @@ function module:enable()
     root.BackgroundTransparency = 1
     root.Parent = overlay
 
-    local color = Color3.fromRGB(234, 185, 110)
+    local color = Color3.fromRGB(183, 140, 248)
     local function mark(pos, size)
         local item = Instance.new("Frame")
         item.BorderSizePixel = 0
