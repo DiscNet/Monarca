@@ -60,7 +60,6 @@ local function showOnCharacter(character, version)
         billboard.AlwaysOnTop = true
         billboard.MaxDistance = 225
         billboard.LightInfluence = 0
-        billboard.ResetOnSpawn = false
         billboard.Parent = parent
 
         nameLabel = Instance.new("TextLabel")
