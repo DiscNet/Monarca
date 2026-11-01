@@ -39,7 +39,11 @@ local function hide(instance, state)
     if not ok then return end
     state.original[instance] = {property = property, value = original}
     pcall(function()
-        instance[property] = property == "Enabled" and false or 1
+        if property == "Enabled" then
+            instance.Enabled = false
+        else
+            instance.Transparency = 1
+        end
     end)
 end
 
