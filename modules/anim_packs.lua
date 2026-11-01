@@ -1,4 +1,4 @@
--- Monarca / Anim v0.8.1: 17 official classic R15 locomotion packs.
+-- Monarca / Anim v0.8.1: 17 Creator Hub R15 packs + Oldschool (community IDs).
 -- Roblox official asset IDs: https://create.roblox.com/docs/animation/using
 -- Replication uses the EXISTING Animator in the local player's actual character.
 -- Do not create a client Animator or use a local fake character.
@@ -137,6 +137,20 @@ local PRESETS = {
             ["swimidle.SwimIdle"] = "656121397",
         },
     },
+    oldschool = {
+        title = "Oldschool Animation Pack",
+        slots = {
+            ["idle.Animation1"] = "5319828216",
+            ["idle.Animation2"] = "5319831086",
+            ["walk.WalkAnim"] = "5319847204",
+            ["run.RunAnim"] = "5319844329",
+            ["jump.JumpAnim"] = "5319841935",
+            ["fall.FallAnim"] = "5319839762",
+            ["climb.ClimbAnim"] = "5319816685",
+            ["swim.Swim"] = "5319850266",
+            ["swimidle.SwimIdle"] = "5319852613",
+        },
+    },
     pirate = {
         title = "Pirate Animation Pack",
         slots = {
@@ -250,7 +264,8 @@ local PRESETS = {
         },
     },
 }
--- 17 complete classic animation bundles listed by Roblox Creator Hub.
+-- 17 complete classic animation bundles documented by Roblox Creator Hub.
+-- Oldschool separately cross-checked with community source tables.
 -- Each has 9 assigned Animate slots; some official bundles offer a third
 -- idle variant, which is not used by this default two-idle controller.
 -- Source: https://create.roblox.com/docs/animation/using
