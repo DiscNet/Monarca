@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.6.7 — camera-direction Fly and hands-free target marker
+-- Monarca Script Hub v0.6.8 — owner-only overhead tag and idle Fly camera pitch
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -44,6 +44,12 @@ local function bootMonarca()
         jumpPower = 50,
         flySpeed = 40,
         zombieAnimationId = "",
+        ownerTagEnabled = false,
+        ownerTagText = "MONARCA",
+        ownerTagR = 180,
+        ownerTagG = 145,
+        ownerTagB = 255,
+        ownerTagRainbowFast = false,
     }
     local settings = {}
     for k, v in pairs(defaults) do settings[k] = v end
@@ -93,6 +99,9 @@ local function bootMonarca()
     settings.walkSpeed = math.clamp(settings.walkSpeed, 8, 160)
     settings.jumpPower = math.clamp(settings.jumpPower, 25, 500)
     settings.flySpeed = math.clamp(settings.flySpeed, 5, 160)
+    settings.ownerTagR = math.clamp(settings.ownerTagR, 0, 255)
+    settings.ownerTagG = math.clamp(settings.ownerTagG, 0, 255)
+    settings.ownerTagB = math.clamp(settings.ownerTagB, 0, 255)
     
     local function new(class, props, parent)
         local object = Instance.new(class)
@@ -466,7 +475,7 @@ local function bootMonarca()
         Position = UDim2.fromOffset(26, 26),
         Size = UDim2.new(1, -110, 0, 12),
         BackgroundTransparency = 1,
-        Text = "VISUAL HUB  /  V0.6.7",
+        Text = "VISUAL HUB  /  V0.6.8",
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextSize = 9,
@@ -1675,7 +1684,7 @@ local function bootMonarca()
     local auxiliaryModules = {}
     local function loadAuxiliary(name)
         if auxiliaryModules[name] then return auxiliaryModules[name] end
-        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.6.7-" .. tostring(os.time()))
+        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.6.8-" .. tostring(os.time()))
         if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
         local compiled, err = loadstring(source, "Monarca/" .. name)
         if not compiled then error(err or "Módulo inválido.") end
@@ -1789,6 +1798,185 @@ local function bootMonarca()
         save()
     end)
     
+    -- Owner-only personal label controls. Hidden from all other usernames.
+    -- This whitelist affects the local UI, not a permission granted by Roblox.
+    local function initializeOwnerTag()
+        if player.Name:lower() ~= "samulucas7419" then return end
+        title(playerPage, "Tag pessoal", "Somente @samulucas7419 · efeito local")
+
+        local function options()
+            return {
+                text = settings.ownerTagText,
+                red = settings.ownerTagR,
+                green = settings.ownerTagG,
+                blue = settings.ownerTagB,
+                rainbowFast = settings.ownerTagRainbowFast,
+            }
+        end
+        local function applyTag()
+            if not settings.ownerTagEnabled then
+                if auxiliaryModules.owner_tag then
+                    pcall(auxiliaryModules.owner_tag.disable, auxiliaryModules.owner_tag)
+                end
+                return true
+            end
+            local ok, success, reason = pcall(function()
+                local module = loadAuxiliary("owner_tag")
+                local configured, configReason = module:configure(options())
+                if not configured then return false, configReason end
+                return module:enable()
+            end)
+            if not ok or not success then
+                status("Erro na tag: " .. tostring(ok and reason or success))
+                return false
+            end
+            return true
+        end
+        toggle(playerPage, "Exibir tag", "Mostrar acima do personagem", settings.ownerTagEnabled, function(v)
+            settings.ownerTagEnabled = v
+            if not applyTag() then
+                settings.ownerTagEnabled = false
+            end
+            save()
+        end)
+
+        local textRow = card(playerPage, 71)
+        local nameLabel = label(textRow, "Texto da tag", 12, theme.text, 18)
+        nameLabel.Position = UDim2.fromOffset(10, 4)
+        nameLabel.Size = UDim2.new(1, -20, 0, 18)
+        local tagInput = new("TextBox", {
+            Name = "OwnerTagTextInput",
+            Position = UDim2.fromOffset(10, 28),
+            Size = UDim2.new(1, -20, 0, 29),
+            BackgroundColor3 = theme.surface,
+            Text = settings.ownerTagText,
+            TextColor3 = theme.text,
+            PlaceholderColor3 = theme.muted,
+            PlaceholderText = "Escreva sua tag...",
+            Font = Enum.Font.GothamMedium,
+            TextSize = 13,
+            ClearTextOnFocus = false,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            BorderSizePixel = 0,
+        }, textRow)
+        rounded(tagInput, 3)
+        new("UIStroke", {
+            Color = theme.whiteLine,
+            Thickness = 1,
+            Transparency = 0.78,
+        }, tagInput)
+        connect(tagInput.FocusLost, function()
+            local typed = tostring(tagInput.Text or "")
+            typed = typed:gsub("[%c]", " "):gsub("^%s+", ""):gsub("%s+$", "")
+            if typed == "" then typed = "MONARCA" end
+            local valid, pos = pcall(utf8.offset, typed, 33)
+            if valid and pos then typed = typed:sub(1, pos - 1) end
+            settings.ownerTagText = typed
+            tagInput.Text = typed
+            applyTag()
+            save()
+        end)
+
+        local previewRow = card(playerPage, 48)
+        local previewLabel = label(previewRow, "COR PERSONALIZADA", 11, theme.muted, 17)
+        previewLabel.Position = UDim2.fromOffset(10, 12)
+        previewLabel.Size = UDim2.new(1, -83, 0, 18)
+        local sample = new("Frame", {
+            Name = "TagColorPreview",
+            Position = UDim2.new(1, -70, 0, 9),
+            Size = UDim2.fromOffset(57, 28),
+            BackgroundColor3 = Color3.fromRGB(settings.ownerTagR,
+                settings.ownerTagG, settings.ownerTagB),
+            BorderSizePixel = 0,
+        }, previewRow)
+        rounded(sample, 3)
+        new("UIStroke", {
+            Color = theme.whiteLine,
+            Thickness = 1,
+            Transparency = 0.55,
+        }, sample)
+        local function previewColor()
+            if settings.ownerTagRainbowFast then
+                sample.BackgroundColor3 = Color3.fromHSV((os.clock() * 3.5) % 1, 0.92, 1)
+            else
+                sample.BackgroundColor3 = Color3.fromRGB(
+                    settings.ownerTagR, settings.ownerTagG, settings.ownerTagB
+                )
+            end
+        end
+        local function setChannel(channel, value)
+            settings[channel] = value
+            previewColor()
+            applyTag()
+            save()
+        end
+        slider(playerPage, "Vermelho (R)", 0, 255, settings.ownerTagR, function(v)
+            setChannel("ownerTagR", v)
+        end)
+        slider(playerPage, "Verde (G)", 0, 255, settings.ownerTagG, function(v)
+            setChannel("ownerTagG", v)
+        end)
+        slider(playerPage, "Azul (B)", 0, 255, settings.ownerTagB, function(v)
+            setChannel("ownerTagB", v)
+        end)
+
+        local rgbRow = card(playerPage, 53)
+        local rgbLabel = label(rgbRow, "RGB FAST", 13, theme.text, 21)
+        rgbLabel.Position = UDim2.fromOffset(10, 6)
+        rgbLabel.Size = UDim2.new(1, -102, 0, 22)
+        local rgbHint = label(rgbRow, "Cores animadas · 3,5 ciclos/s",
+            10, theme.muted, 18)
+        rgbHint.Position = UDim2.fromOffset(10, 28)
+        rgbHint.Size = UDim2.new(1, -105, 0, 18)
+        local rgbButton = new("TextButton", {
+            Position = UDim2.new(1, -91, 0, 10),
+            Size = UDim2.fromOffset(80, 29),
+            BackgroundColor3 = theme.background,
+            TextColor3 = theme.text,
+            TextSize = 11,
+            Font = Enum.Font.GothamBold,
+            AutoButtonColor = false,
+            BorderSizePixel = 0,
+        }, rgbRow)
+        rounded(rgbButton, 2)
+        local rgbOutline = new("UIStroke", {
+            Color = theme.whiteLine,
+            Thickness = 1,
+            Transparency = 0.28,
+        }, rgbButton)
+        local function repaintRgb()
+            local enabled = settings.ownerTagRainbowFast
+            rgbButton.Text = enabled and "ON" or "OFF"
+            rgbButton.BackgroundColor3 = enabled and theme.primary or theme.background
+            rgbButton.TextColor3 = enabled and theme.background or theme.text
+            rgbOutline.Transparency = enabled and 0 or 0.28
+            previewColor()
+        end
+        rgbButton.Activated:Connect(function()
+            settings.ownerTagRainbowFast = not settings.ownerTagRainbowFast
+            repaintRgb()
+            applyTag()
+            save()
+        end)
+        repaintRgb()
+        local previewClock = 0
+        connect(game:GetService("RunService").RenderStepped, function(dt)
+            if destroyed or not settings.ownerTagRainbowFast then return end
+            previewClock = previewClock + dt
+            if previewClock >= 1/25 then
+                previewClock = 0
+                previewColor()
+            end
+        end)
+        if settings.ownerTagEnabled then
+            task.defer(function()
+                if not destroyed then applyTag() end
+            end)
+        end
+    end
+    initializeOwnerTag()
+
     -- R6/R15 is a real server-side respawn operation. These buttons send a request
     -- ONLY if the experience explicitly installs a supported RemoteEvent.
     local rigStatus = ordered(playerPage, new("TextLabel", {
@@ -2623,7 +2811,7 @@ local function bootMonarca()
         if destroyed then return end
         stopAlvo()
         cleanupTargetTool()
-        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg"}) do
+        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
             end
