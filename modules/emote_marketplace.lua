@@ -1,6 +1,7 @@
--- Monarca / Live Marketplace emote discovery v0.8.9
+-- Monarca / Live Marketplace emote discovery v0.9.0
 -- Finds Roblox AND UGC EmoteAnimation catalog assets, with on-demand pages.
--- Discovery never bypasses asset ownership, permissions or publishing rules.
+-- EmoteAnimation IDs here identify catalog Animation objects, NOT playable sequence IDs.
+-- Playback must use HumanoidDescription:AddEmote + Humanoid:PlayEmoteAsync.
 local AvatarEditorService = game:GetService("AvatarEditorService")
 
 local Marketplace = {}
