@@ -1,4 +1,4 @@
--- Monarca / 666 / Fling: Roblox private-server opt-in gameplay.
+-- Monarca / 666 / Fling: Roblox public/private-server opt-in gameplay.
 -- Requires server/MonarcaTouchBounce.server.lua in YOUR experience.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Bounce = {}
