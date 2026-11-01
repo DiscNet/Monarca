@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.7.7 CORE — loaded by small diagnostic launcher
+-- Monarca Script Hub v0.7.8 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -124,7 +124,7 @@ local function bootMonarca()
         local ok, moduleOrError = pcall(function()
             if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
             local source = game:HttpGet(repository .. "modules/" .. name
-                .. ".lua?v=0.7.7-" .. tostring(os.time()))
+                .. ".lua?v=0.7.8-" .. tostring(os.time()))
             if type(source) ~= "string" or #source < 20 then
                 error("Resposta vazia ao carregar " .. name)
             end
@@ -2093,9 +2093,13 @@ local function bootMonarca()
     end
 
     bootStage = "Construindo aba Player"
+    -- Export only the controls used by Settings or late startup.
+    -- All other Player/Emote locals die at the end of this lexical scope.
+    local applyPlayer, playerAdjusted, paintFov, paintWalk, paintJump
+    do
     local playerPage = pages.Player
     title(playerPage, "Player", "Movimento, câmera e aparência do personagem.")
-    local function applyPlayer()
+    applyPlayer = function()
         local cam = workspace.CurrentCamera
         if cam then pcall(function() cam.FieldOfView = settings.fieldOfView end) end
         local character = player.Character
@@ -2108,22 +2112,22 @@ local function bootMonarca()
             end)
         end
     end
-    local playerAdjusted = settings.playerCustomized
-    local _, paintFov = slider(playerPage, "Campo de visão (FOV)", 60, 110, settings.fieldOfView, function(v)
+    playerAdjusted = settings.playerCustomized
+    local unusedFov; unusedFov, paintFov = slider(playerPage, "Campo de visão (FOV)", 60, 110, settings.fieldOfView, function(v)
         settings.fieldOfView = v
         settings.playerCustomized = true
         playerAdjusted = true
         applyPlayer()
         save()
     end)
-    local _, paintWalk = slider(playerPage, "Velocidade (até 10×)", 8, 160, settings.walkSpeed, function(v)
+    local unusedWalk; unusedWalk, paintWalk = slider(playerPage, "Velocidade (até 10×)", 8, 160, settings.walkSpeed, function(v)
         settings.walkSpeed = v
         settings.playerCustomized = true
         playerAdjusted = true
         applyPlayer()
         save()
     end)
-    local _, paintJump = slider(playerPage, "Pulo (até 10×)", 25, 500, settings.jumpPower, function(v)
+    local unusedJump; unusedJump, paintJump = slider(playerPage, "Pulo (até 10×)", 25, 500, settings.jumpPower, function(v)
         settings.jumpPower = v
         settings.playerCustomized = true
         playerAdjusted = true
@@ -3177,8 +3181,12 @@ local function bootMonarca()
     end
     bootStage = "Construindo Emote e 666"
     initializeEmoteTabs()
-    
+    end -- Player/Emote/666 block: release its many UI locals.
+
     bootStage = "Construindo Settings e Visual"
+    -- Keep only the functions needed by the final destroy/intro sequence.
+    local disableAll, refresh
+    do
     local settingsPage = pages.Settings
     title(settingsPage, "Settings", "Preferências da interface e armazenamento.")
     toggle(settingsPage, "Animações", "Transições suaves na interface", settings.animations, function(v)
@@ -3251,7 +3259,7 @@ local function bootMonarca()
         end
         activeModules[id] = nil
     end
-    local function disableAll()
+    disableAll = function()
         for id in pairs(activeModules) do disableModule(id) end
         timeMode = "Padrão"
     end
@@ -3446,7 +3454,7 @@ local function bootMonarca()
         end)
     end
     
-    local function refresh()
+    refresh = function()
         status("Buscando opções visuais no GitHub...")
         updateButton.Text = "CARREGANDO..."
         local ok, value = pcall(function()
@@ -3491,7 +3499,10 @@ local function bootMonarca()
         renderModules()
         status("Visual restaurado para o padrão do mapa.")
     end)
-    
+    end -- Settings + Visual block: release temporary UI registers.
+
+    -- Dragging has its own scope; no 4 persistent locals leaked into boot.
+    do
     local dragging, dragInput, dragStart, offsetStart = false, nil, nil, nil
     header.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
@@ -3517,6 +3528,7 @@ local function bootMonarca()
             dragging, dragInput = false, nil
         end
     end)
+    end -- drag-only locals
     local function destroy()
         if destroyed then return end
         stopAlvo()
