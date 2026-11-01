@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.6.9 — fixed-size nameplate and smooth rainbow-wave text
+-- Monarca Script Hub v0.7.0 — avatar-relative tag and radioactive ground trail
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -475,7 +475,7 @@ local function bootMonarca()
         Position = UDim2.fromOffset(26, 26),
         Size = UDim2.new(1, -110, 0, 12),
         BackgroundTransparency = 1,
-        Text = "VISUAL HUB  /  V0.6.9",
+        Text = "VISUAL HUB  /  V0.7.0",
         Font = Enum.Font.Gotham,
         TextColor3 = theme.muted,
         TextSize = 9,
@@ -1684,7 +1684,7 @@ local function bootMonarca()
     local auxiliaryModules = {}
     local function loadAuxiliary(name)
         if auxiliaryModules[name] then return auxiliaryModules[name] end
-        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.6.9-" .. tostring(os.time()))
+        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.7.0-" .. tostring(os.time()))
         if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
         local compiled, err = loadstring(source, "Monarca/" .. name)
         if not compiled then error(err or "Módulo inválido.") end
@@ -2483,6 +2483,88 @@ local function bootMonarca()
         end)
         paintKorblox()
 
+        -- Fourth 666 option: radioactive footsteps / ground contamination.
+        -- Client-only visual effect, with no permanent world modification.
+        local radioactiveRow = card(mysteryPage, 64)
+        new("TextLabel", {
+            Name = "RadioactiveTrailTitle",
+            Position = UDim2.fromOffset(11, 7),
+            Size = UDim2.new(1, -113, 0, 23),
+            BackgroundTransparency = 1,
+            Text = "Rastro radioativo",
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            TextColor3 = theme.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+        }, radioactiveRow)
+        new("TextLabel", {
+            Name = "RadioactiveTrailHint",
+            Position = UDim2.fromOffset(11, 32),
+            Size = UDim2.new(1, -113, 0, 22),
+            BackgroundTransparency = 1,
+            Text = "Chão verde · brilho · partículas",
+            Font = Enum.Font.GothamMedium,
+            TextSize = 10,
+            TextColor3 = theme.muted,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        }, radioactiveRow)
+        local radioactiveButton = new("TextButton", {
+            Name = "RadioactiveTrailToggle",
+            Position = UDim2.new(1, -98, 0, 15),
+            Size = UDim2.fromOffset(86, 32),
+            Text = "OFF",
+            Font = Enum.Font.GothamBold,
+            TextSize = 12,
+            TextColor3 = theme.text,
+            BackgroundColor3 = theme.background,
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+        }, radioactiveRow)
+        rounded(radioactiveButton, 2)
+        local radioactiveBorder = new("UIStroke", {
+            Color = theme.whiteLine,
+            Thickness = 1, Transparency = 0.22,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        }, radioactiveButton)
+        local radioactiveGlow = new("UIStroke", {
+            Color = theme.whiteLine,
+            Thickness = 3, Transparency = 1,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        }, radioactiveButton)
+        local radioactiveActive = false
+        local function paintRadioactive()
+            radioactiveButton.Text = radioactiveActive and "ON" or "OFF"
+            radioactiveButton.BackgroundColor3 = radioactiveActive
+                and theme.primary or theme.background
+            radioactiveButton.TextColor3 = radioactiveActive
+                and theme.background or theme.text
+            radioactiveBorder.Transparency = radioactiveActive and 0 or 0.22
+            radioactiveGlow.Transparency = radioactiveActive and 0.82 or 1
+        end
+        radioactiveButton.Activated:Connect(function()
+            if radioactiveActive then
+                if auxiliaryModules.radioactive_trail then
+                    pcall(auxiliaryModules.radioactive_trail.disable,
+                        auxiliaryModules.radioactive_trail)
+                end
+                radioactiveActive = false
+                status("Rastro radioativo desativado; chão restaurado.")
+            else
+                local ok, success, reason = pcall(function()
+                    return loadAuxiliary("radioactive_trail"):enable()
+                end)
+                radioactiveActive = ok and success == true
+                if radioactiveActive then
+                    status("Rastro radioativo ativado: caminhe pelo mapa.")
+                else
+                    status("Falha no rastro: " .. tostring(ok and reason or success))
+                end
+            end
+            paintRadioactive()
+        end)
+        paintRadioactive()
+
     end
     bootStage = "Construindo Emote e 666"
     initializeEmoteTabs()
@@ -2830,7 +2912,7 @@ local function bootMonarca()
         if destroyed then return end
         stopAlvo()
         cleanupTargetTool()
-        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag"}) do
+        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
             end
