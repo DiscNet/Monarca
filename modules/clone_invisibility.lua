@@ -1,4 +1,4 @@
--- Monarca X? / Invisible by local character proxy (EXPERIMENTAL) v0.7.2
+-- Monarca X? / stable viewpoint and root-aligned proxy (EXPERIMENTAL) v0.7.5
 -- Inspired by the publicly documented RealCharacter/FakeCharacter pattern.
 -- No exploit APIs, no remote code, no forced respawn, no permanent modification.
 -- IMPORTANT: The server may reject position updates or correct the character.
@@ -15,6 +15,9 @@ local fakeHumanoid, savedCameraSubject, savedArchivable
 local savedPivot, remotePivot
 local heartbeatConnection, characterConnection, diedConnection
 local accumulator = 0
+local savedRootCFrame
+local cameraEpoch = 0
+local CAMERA_BIND = "MonarcaInvisibleCameraSwitch_" .. tostring(player.UserId)
 local CHECK_INTERVAL = 1 / 25
 local OWNER = "samulucas7419"
 
@@ -30,6 +33,77 @@ local function validRig(character)
         return nil
     end
     return hum, root
+end
+
+
+-- Align the root of a cloned model exactly with the original root.
+-- Model:GetPivot() may differ from HumanoidRootPart.CFrame, notably on R15.
+local function alignRoot(model, modelRoot, destination)
+    if not model or not modelRoot or not destination then return end
+    model:PivotTo(destination * modelRoot.CFrame:Inverse() * model:GetPivot())
+end
+
+-- Roblox's default camera reads CameraSubject every frame. Temporarily put
+-- it in Scriptable mode during the swap, then preserve world-space CFrame
+-- and Focus at Camera+1 for a short transition. No forced avatar-facing angle.
+local function changeCharacterWithCamera(targetCharacter, targetSubject, operation)
+    local camera = workspace.CurrentCamera
+    local view = camera and camera.CFrame
+    local focus = camera and camera.Focus
+    local previousType = camera and camera.CameraType
+    cameraEpoch = cameraEpoch + 1
+    local epoch = cameraEpoch
+    pcall(function() RunService:UnbindFromRenderStep(CAMERA_BIND) end)
+    if camera then camera.CameraType = Enum.CameraType.Scriptable end
+    local ok, err = pcall(function()
+        operation()
+        if camera and targetSubject and targetSubject.Parent then
+            camera.CameraSubject = targetSubject
+        end
+    end)
+    if camera and view then
+        camera.CFrame = view
+        camera.Focus = focus
+        -- Original mode may be Custom, Follow, etc. Never force a new angle.
+        local frames = 0
+        local function complete()
+            if epoch ~= cameraEpoch then return end
+            pcall(function() RunService:UnbindFromRenderStep(CAMERA_BIND) end)
+            if workspace.CurrentCamera == camera then
+                camera.CameraType = previousType
+                camera.CFrame = view
+                camera.Focus = focus
+            end
+        end
+        if ok then
+            -- The camera module may update its own transform immediately after
+            -- Character is replaced. Reapply the pre-toggle view post-camera.
+            camera.CameraType = previousType
+            RunService:BindToRenderStep(
+                CAMERA_BIND, Enum.RenderPriority.Camera.Value + 1,
+                function()
+                    if epoch ~= cameraEpoch then return end
+                    if workspace.CurrentCamera ~= camera then
+                        complete()
+                        return
+                    end
+                    camera.CFrame = view
+                    camera.Focus = focus
+                    frames = frames + 1
+                    if frames >= 2 then
+                        pcall(function() RunService:UnbindFromRenderStep(CAMERA_BIND) end)
+                    end
+                end
+            )
+            -- Safety fallback if the render loop stops before 2 frames.
+            task.delay(0.20, function()
+                if epoch == cameraEpoch and frames < 2 then complete() end
+            end)
+        else
+            complete()
+        end
+    end
+    return ok, err
 end
 
 local function makeProxy(real)
@@ -73,40 +147,39 @@ local function restoreWorldCharacter()
     local real = realCharacter
     local proxy = fakeCharacter
     local realRootPart = realRoot
-    local camera = workspace.CurrentCamera
-    local returnPivot = savedPivot
-    if proxy and proxy.Parent then
-        pcall(function() returnPivot = proxy:GetPivot() end)
+    local fakeRootPart = proxy and proxy:FindFirstChild("HumanoidRootPart")
+    local destination = savedRootCFrame
+    if fakeRootPart and fakeRootPart.Parent then
+        destination = fakeRootPart.CFrame
+    end
+    local cameraSubject = real and real:FindFirstChildOfClass("Humanoid")
+    if not cameraSubject and savedCameraSubject and savedCameraSubject.Parent then
+        cameraSubject = savedCameraSubject
     end
 
-    -- Unbind the proxy before it is removed; restore at the proxy's last
-    -- position so users do not remain stuck in the remote holding area.
-    if real and real.Parent then
-        pcall(function()
-            if player.Character == proxy then player.Character = real end
-        end)
-        if realRootPart and realRootPart.Parent and returnPivot then
-            pcall(function() real:PivotTo(returnPivot) end)
-        end
-    end
-    if camera then
-        pcall(function()
-            if real and real.Parent then
-                local hum = real:FindFirstChildOfClass("Humanoid")
-                camera.CameraSubject = hum or savedCameraSubject
-            elseif savedCameraSubject and savedCameraSubject.Parent then
-                camera.CameraSubject = savedCameraSubject
+    local ok = changeCharacterWithCamera(real, cameraSubject, function()
+        if real and real.Parent then
+            if realRootPart and realRootPart.Parent and destination then
+                -- Prevent vertical fling caused by the real body falling while
+                -- kept far away. The proxy's ROOT position is the destination.
+                realRootPart.AssemblyLinearVelocity = Vector3.zero
+                realRootPart.AssemblyAngularVelocity = Vector3.zero
+                alignRoot(real, realRootPart, destination)
+                realRootPart.AssemblyLinearVelocity = Vector3.zero
+                realRootPart.AssemblyAngularVelocity = Vector3.zero
             end
-        end)
-    end
-    if proxy then pcall(function() proxy:Destroy() end) end
+            if player.Character == proxy then player.Character = real end
+        end
+    end)
+    -- Do not destroy the proxy if the character rebind failed: avoid leaving
+    -- the player with no locally controlled character.
+    if ok and proxy then pcall(function() proxy:Destroy() end) end
     if real and real.Parent and savedArchivable ~= nil then
         pcall(function() real.Archivable = savedArchivable end)
     end
-
     realCharacter, fakeCharacter, realRoot, realHumanoid = nil, nil, nil, nil
     fakeHumanoid, savedCameraSubject, savedArchivable = nil, nil, nil
-    savedPivot, remotePivot = nil, nil
+    savedPivot, remotePivot, savedRootCFrame = nil, nil, nil
     restoring = false
 end
 
@@ -138,17 +211,19 @@ function CloneInvisible:enable()
     realRoot, realHumanoid, fakeHumanoid = root, hum, cloneHum
     savedArchivable = real.Archivable
     savedPivot = real:GetPivot()
+    savedRootCFrame = root.CFrame
     savedCameraSubject = camera.CameraSubject
-    -- Chosen relative to current position, far from the playable area.
-    remotePivot = CFrame.new(savedPivot.Position + Vector3.new(2500, 1000, 2500))
-        * savedPivot.Rotation
+    -- Preserve root orientation, independent of Model pivot offset.
+    remotePivot = savedRootCFrame + Vector3.new(2500, 1000, 2500)
 
     local ok, err = pcall(function()
         hum:UnequipTools()
         proxy.Parent = workspace
-        proxy:PivotTo(savedPivot)
-        player.Character = proxy
-        camera.CameraSubject = cloneHum
+        alignRoot(proxy, cloneRoot, savedRootCFrame)
+        local changed, reason = changeCharacterWithCamera(
+            proxy, cloneHum, function() player.Character = proxy end
+        )
+        if not changed then error(reason) end
         -- Roblox player scripts generally rebind movement on Character swap.
         -- Only Animate runs from the cloned character, not arbitrary scripts.
         local animate = proxy:FindFirstChild("Animate")
@@ -170,7 +245,9 @@ function CloneInvisible:enable()
         diedConnection = hum.Died:Connect(function()
             task.defer(restoreWorldCharacter)
         end)
-        real:PivotTo(remotePivot)
+        alignRoot(real, root, remotePivot)
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
 
         heartbeatConnection = RunService.Heartbeat:Connect(function(dt)
             if not active then return end
@@ -188,7 +265,9 @@ function CloneInvisible:enable()
             accumulator = accumulator % CHECK_INTERVAL
             -- Client-side repositioning may replicate or be corrected by the
             -- server, depending on network ownership and game protections.
-            real:PivotTo(remotePivot)
+            alignRoot(real, root, remotePivot)
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
             -- Mirror basic state, without promising other clients will see it.
             if cloneHum.Jump then
                 pcall(function() hum.Jump = true end)
