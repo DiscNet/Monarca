@@ -132,7 +132,19 @@ jobs:
           assert '"antifling", "emote_catalog", "server_invisibility"' in core
           catalog = Path('modules/emote_catalog.lua').read_text(encoding='utf-8')
           import re
-          entries = re.findall(r'^    \{name = ".+?", id = "(\d+)", group = ".+?", aliases = ".+?"\},
+          raw_catalog = catalog.split("local STATIC = {", 1)[1].split("\n}\n", 1)[0]
+          ids = re.findall('id = "([0-9]+)"', raw_catalog)
+          assert len(ids) == 50, f'Expected 50 curated emotes, got {len(ids)}'
+          assert len(set(ids)) == len(ids), 'Duplicate catalog emote ID'
+          for feature in ('function Catalog:getCatalog()', 'function Catalog:play(item)',
+                          'function Catalog:stop()', 'function Catalog:disable()',
+                          'humanoid:GetAppliedDescription()', 'description:GetEmotes()',
+                          'humanoid:PlayEmoteAsync(item.nativeName)',
+                          'animator:LoadAnimation(animation)', 'Enum.HumanoidRigType.R15',
+                          'characterConnection:Disconnect()'):
+              assert feature in catalog, f'Missing emote behavior: {feature}'
+          assert 'Instance.new("Animator")' not in catalog, 'Must use server-created Animator'
+          assert 'restoreButton:Activate()' not in core
           anim = Path('modules/anim_packs.lua').read_text(encoding='utf-8')
           import re
           expected = (
