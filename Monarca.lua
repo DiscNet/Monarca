@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.7.4 — 60-second Reverse flashback with tactile HUD icon
+-- Monarca Script Hub v0.7.5 — stable invisibility camera, compact eye HUD, immediate Reverse history
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -105,6 +105,33 @@ local function bootMonarca()
     settings.ownerTagG = math.clamp(settings.ownerTagG, 0, 255)
     settings.ownerTagB = math.clamp(settings.ownerTagB, 0, 255)
     
+    -- Start the Flashback recorder immediately after settings and the previous
+    -- Monarca instance have been processed; do not wait for intro, tabs, or HUD.
+    local auxiliaryModules = {}
+    local function loadAuxiliary(name)
+        if auxiliaryModules[name] then return auxiliaryModules[name] end
+        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.7.5-" .. tostring(os.time()))
+        if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
+        local compiled, err = loadstring(source, "Monarca/" .. name)
+        if not compiled then error(err or "Módulo inválido.") end
+        local module = compiled()
+        assert(type(module) == "table" and type(module.enable) == "function"
+            and type(module.disable) == "function", "Módulo incompleto.")
+        auxiliaryModules[name] = module
+        return module
+    end
+
+    local reverseEarlyError = nil
+    do
+        local ok, started, reason = pcall(function()
+            return loadAuxiliary("player_reverse"):enable()
+        end)
+        if not ok or not started then
+            reverseEarlyError = tostring(ok and reason or started)
+            warn("[Monarca] Reverse startup: " .. reverseEarlyError)
+        end
+    end
+
     local function new(class, props, parent)
         local object = Instance.new(class)
         for property, value in pairs(props or {}) do
@@ -1683,19 +1710,6 @@ local function bootMonarca()
         thumbVersion=thumbVersion+1
     end
     
-    local auxiliaryModules = {}
-    local function loadAuxiliary(name)
-        if auxiliaryModules[name] then return auxiliaryModules[name] end
-        local source = game:HttpGet(repository .. "modules/" .. name .. ".lua?v=0.7.4-" .. tostring(os.time()))
-        if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
-        local compiled, err = loadstring(source, "Monarca/" .. name)
-        if not compiled then error(err or "Módulo inválido.") end
-        local module = compiled()
-        assert(type(module) == "table" and type(module.enable) == "function"
-            and type(module.disable) == "function", "Módulo incompleto.")
-        auxiliaryModules[name] = module
-        return module
-    end
     -- X? is deliberately separate from the purely client-only Visual tab.
     -- A successful result needs a remote installed by the game's OWNER.
     local function initializeXPage()
@@ -1848,29 +1862,42 @@ local function bootMonarca()
         -- Separate, fixed-position HUD button, independent of the main panel.
         -- Never use the draggable floating launcher for this control.
         local hudButton = nil
+        local hudShadow = nil
         local hudStroke = nil
         local hudGlow = nil
+        local hudEyeStrokes = {}
+        local hudSlash = nil
         if player.Name:lower() == "samulucas7419" then
+            hudShadow = new("Frame", {
+                Name = "MonarcaInvisibleHUDShadow",
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -18, 0.38, 4),
+                Size = UDim2.fromOffset(48, 48),
+                BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+                BackgroundTransparency = 0.42,
+                BorderSizePixel = 0,
+                Active = false,
+                Visible = settings.invisibilityHudEnabled,
+                ZIndex = 39,
+            }, gui)
+            rounded(hudShadow, 11)
             hudButton = new("TextButton", {
                 Name = "MonarcaInvisibleHUD",
                 AnchorPoint = Vector2.new(1, 0.5),
-                Position = UDim2.new(1, -14, 0.38, 0),
-                Size = UDim2.fromOffset(94, 38),
-                BackgroundColor3 = theme.surface,
-                BackgroundTransparency = 0.08,
-                Text = "INVIS  OFF",
-                TextColor3 = theme.text,
-                Font = Enum.Font.GothamBold,
-                TextSize = 11,
+                Position = UDim2.new(1, -18, 0.38, 0),
+                Size = UDim2.fromOffset(48, 48),
+                BackgroundColor3 = theme.card,
+                BackgroundTransparency = 0.02,
+                Text = "", -- vector eye, never a letter
                 BorderSizePixel = 0,
                 AutoButtonColor = false,
                 Active = true,
                 Visible = settings.invisibilityHudEnabled,
                 ZIndex = 40,
             }, gui)
-            rounded(hudButton, 8)
+            rounded(hudButton, 11)
             hudStroke = new("UIStroke", {
-                Color = theme.whiteLine, Thickness = 1,
+                Color = theme.whiteLine, Thickness = 1.25,
                 Transparency = 0.36,
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
             }, hudButton)
@@ -1879,6 +1906,63 @@ local function bootMonarca()
                 Transparency = 1,
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
             }, hudButton)
+            local bevel = new("Frame", {
+                Name = "EyeBevel",
+                Position = UDim2.fromOffset(9, 4),
+                Size = UDim2.new(1, -18, 0, 1),
+                BackgroundColor3 = theme.whiteLine,
+                BackgroundTransparency = 0.65,
+                BorderSizePixel = 0,
+                ZIndex = 41,
+            }, hudButton)
+            local eye = new("Frame", {
+                Name = "EyeVector",
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = UDim2.fromOffset(30, 30),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                ZIndex = 42,
+            }, hudButton)
+            local function eyeLine(ax, ay, bx, by, thick)
+                local dx, dy = bx - ax, by - ay
+                local part = new("Frame", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.fromOffset((ax + bx) / 2, (ay + by) / 2),
+                    Size = UDim2.fromOffset(math.sqrt(dx * dx + dy * dy), thick),
+                    Rotation = math.deg(math.atan2(dy, dx)),
+                    BackgroundColor3 = theme.text,
+                    BorderSizePixel = 0,
+                    ZIndex = 43,
+                }, eye)
+                rounded(part, 2)
+                table.insert(hudEyeStrokes, part)
+                return part
+            end
+            local top = {
+                {2,15}, {8,10}, {15,8}, {22,10}, {28,15}
+            }
+            local bottom = {
+                {2,15}, {8,20}, {15,22}, {22,20}, {28,15}
+            }
+            for _, arc in ipairs({top, bottom}) do
+                for i = 1, #arc - 1 do
+                    eyeLine(arc[i][1], arc[i][2],
+                        arc[i + 1][1], arc[i + 1][2], 2.4)
+                end
+            end
+            local pupil = new("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromOffset(15, 15),
+                Size = UDim2.fromOffset(7, 7),
+                BackgroundColor3 = theme.text,
+                BorderSizePixel = 0,
+                ZIndex = 43,
+            }, eye)
+            rounded(pupil, 7)
+            table.insert(hudEyeStrokes, pupil)
+            hudSlash = eyeLine(5, 26, 26, 4, 2.8)
+            hudSlash.Visible = false
         end
         local function repaintExperimental()
             experimentButton.Text = experimentBusy and "..." or
@@ -1891,14 +1975,19 @@ local function bootMonarca()
             experimentGlow.Transparency = experimentEnabled and 0.82 or 1
             if hudButton then
                 hudButton.Visible = settings.invisibilityHudEnabled and not destroyed
-                hudButton.Text = experimentBusy and "INVIS  ..." or
-                    (experimentEnabled and "INVIS  ON" or "INVIS  OFF")
+                hudShadow.Visible = hudButton.Visible
+                hudButton.Position = UDim2.new(1, -18, 0.38,
+                    experimentBusy and 3 or 0)
                 hudButton.BackgroundColor3 = experimentEnabled
-                    and theme.primary or theme.surface
-                hudButton.TextColor3 = experimentEnabled
+                    and theme.primary or theme.card
+                local strokeColor = experimentEnabled
                     and theme.background or theme.text
-                hudStroke.Transparency = experimentEnabled and 0 or 0.36
-                hudGlow.Transparency = experimentEnabled and 0.78 or 1
+                for _, eyePart in ipairs(hudEyeStrokes) do
+                    eyePart.BackgroundColor3 = strokeColor
+                end
+                hudSlash.Visible = experimentEnabled
+                hudStroke.Transparency = experimentEnabled and 0.02 or 0.36
+                hudGlow.Transparency = experimentEnabled and 0.66 or 1
             end
         end
         local function toggleExperimentalMode()
@@ -2197,8 +2286,8 @@ local function bootMonarca()
         -- The deferred startup load and a quick HUD tap can overlap. Serialize
         -- module loading so no orphan Heartbeat/input listeners are created.
         while reverseInitBusy and not destroyed do task.wait(0.04) end
-        if destroyed or not settings.reverseHudEnabled then
-            return false, "Reverse desativado."
+        if destroyed then
+            return false, "Monarca encerrado."
         end
         reverseInitBusy = true
         local ok, success, message = pcall(function()
@@ -2273,9 +2362,8 @@ local function bootMonarca()
                     end
                 end)
             else
+                -- Only hide the HUD; keep recording history and keyboard E.
                 releaseReverse()
-                local module = auxiliaryModules.player_reverse
-                if module then pcall(module.disable, module) end
             end
             repaintReverse()
             save()
