@@ -355,62 +355,120 @@ local function reloadAnimate(animate, slots, values)
     return true
 end
 
-local function restoreCurrent()
-    if not originalAnimations or not watchedCharacter then
-        originalAnimations, watchedCharacter = nil, nil
-        return
+-- A movement may override just one part of the base package. Idle applies
+-- to both weighted idle clips, preserving the natural idle variation.
+local GROUPS = {
+    {id = "idle", title = "Idle", paths = {"idle.Animation1", "idle.Animation2"}},
+    {id = "walk", title = "Walk", paths = {"walk.WalkAnim"}},
+    {id = "run", title = "Run", paths = {"run.RunAnim"}},
+    {id = "jump", title = "Jump", paths = {"jump.JumpAnim"}},
+    {id = "fall", title = "Fall", paths = {"fall.FallAnim"}},
+    {id = "climb", title = "Climb", paths = {"climb.ClimbAnim"}},
+    {id = "swim", title = "Swim", paths = {"swim.Swim"}},
+    {id = "swimidle", title = "Swim Idle", paths = {"swimidle.SwimIdle"}},
+}
+local VALID_GROUPS, PATH_TO_GROUP = {}, {}
+for _, group in ipairs(GROUPS) do
+    VALID_GROUPS[group.id] = true
+    for _, path in ipairs(group.paths) do PATH_TO_GROUP[path] = group.id end
+end
+
+local currentOverrides = {}
+local lastAppliedIds = {}
+
+local function copyOverrides(overrides)
+    local copy = {}
+    for id, preset in pairs(overrides) do copy[id] = preset end
+    return copy
+end
+
+local function resolvedSlots(base, overrides, originals)
+    local values = {}
+    for _, path in ipairs(SLOT_PATHS) do
+        local chosen = overrides[PATH_TO_GROUP[path]] or base
+        values[path] = chosen == "default"
+            and originals[path]
+            or ("rbxassetid://" .. PRESETS[chosen].slots[path])
     end
-    local character = watchedCharacter
-    local animate = character:FindFirstChild("Animate")
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
-    if animate then
-        local slots = readSlots(animate)
-        if slots then
-            local ids = {}
-            local previous = PRESETS[currentPreset]
-            if previous then
-                for _, id in pairs(previous.slots) do ids[id] = true end
+    return values
+end
+
+local function trackIds(values)
+    local ids = {}
+    for _, animationId in pairs(values) do
+        local id = tostring(animationId):match("(%d+)$")
+        if id then ids[id] = true end
+    end
+    return ids
+end
+
+local function restoreCurrent()
+    if originalAnimations and watchedCharacter then
+        local character = watchedCharacter
+        local animate = character:FindFirstChild("Animate")
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+        if animate then
+            local slots = readSlots(animate)
+            if slots then
+                stopTracksUsing(animator, lastAppliedIds)
+                reloadAnimate(animate, slots, originalAnimations)
             end
-            stopTracksUsing(animator, ids)
-            reloadAnimate(animate, slots, originalAnimations)
         end
     end
     originalAnimations, watchedCharacter = nil, nil
+    lastAppliedIds = {}
 end
 
 local function applyCurrent(character)
-    local preset = PRESETS[currentPreset]
-    if not preset then return false, "Pacote desconhecido." end
     local rig, why = getCharacterRig(character)
     if not rig then return false, why end
     local slots, reason = readSlots(rig.animate)
     if not slots then return false, reason end
 
-    if watchedCharacter ~= character then
-        originalAnimations, watchedCharacter = nil, nil
+    if watchedCharacter ~= character or not originalAnimations then
         local snapshot = {}
         for path, animation in pairs(slots) do snapshot[path] = animation.AnimationId end
         originalAnimations = snapshot
         watchedCharacter = character
+        lastAppliedIds = {}
     end
-    local previouslyPlaying = {}
-    for _, animationId in pairs(preset.slots) do previouslyPlaying[animationId] = true end
-    stopTracksUsing(rig.animator, previouslyPlaying)
-    local newIds = {}
-    for path, id in pairs(preset.slots) do newIds[path] = "rbxassetid://" .. id end
-    return reloadAnimate(rig.animate, slots, newIds)
+
+    local newValues = resolvedSlots(currentPreset, currentOverrides, originalAnimations)
+    local previousValues = {}
+    for path, animation in pairs(slots) do previousValues[path] = animation.AnimationId end
+    -- Only stop tracks whose source clip is being replaced. This prevents
+    -- an unrelated emote from being interrupted by a partial edit.
+    local changedIds = {}
+    local changed = false
+    for path, previous in pairs(previousValues) do
+        if previous ~= newValues[path] then
+            changed = true
+            local id = previous:match("(%d+)$")
+            if id then changedIds[id] = true end
+        end
+    end
+    if changed then
+        stopTracksUsing(rig.animator, changedIds)
+        local ok, errorText = reloadAnimate(rig.animate, slots, newValues)
+        if not ok then
+            reloadAnimate(rig.animate, slots, previousValues)
+            return false, errorText
+        end
+    end
+    lastAppliedIds = trackIds(newValues)
+    return true
 end
 
 local function onRespawn(character)
     originalAnimations, watchedCharacter = nil, nil
+    lastAppliedIds = {}
     if not active then return end
     task.spawn(function()
         if not character then return end
         character:WaitForChild("Animate", 8)
         local humanoid = character:WaitForChild("Humanoid", 8)
         if not humanoid then return end
-        -- Allow built-in Animate to initialize its default clips first.
         task.wait(0.25)
         if active and player.Character == character then
             local ok, reason = applyCurrent(character)
@@ -419,29 +477,52 @@ local function onRespawn(character)
     end)
 end
 
-function AnimPacks:enable(presetName)
-    if presetName == "default" then return self:disable() end
-    if not PRESETS[presetName] then
-        return false, "Pacote desconhecido: " .. tostring(presetName)
+function AnimPacks:enableMixed(basePreset, overrides)
+    if type(basePreset) ~= "string" or (basePreset ~= "default" and not PRESETS[basePreset]) then
+        return false, "Pacote base desconhecido: " .. tostring(basePreset)
     end
-    if active and currentPreset == presetName and watchedCharacter == player.Character then
-        return true, "Pacote já aplicado."
+    if type(overrides) ~= "table" then
+        return false, "Configuração de movimentos inválida."
     end
-    if active then restoreCurrent() end
-    local previousPreset = currentPreset
-    currentPreset = presetName
+    local cleaned = {}
+    for movement, preset in pairs(overrides) do
+        if not VALID_GROUPS[movement] then
+            return false, "Movimento desconhecido: " .. tostring(movement)
+        end
+        if type(preset) ~= "string" or (preset ~= "default" and not PRESETS[preset]) then
+            return false, "Animação desconhecida para " .. movement .. "."
+        end
+        cleaned[movement] = preset
+    end
+
+    if basePreset == "default" and next(cleaned) == nil then
+        return self:disable()
+    end
+
+    local previousBase, previousOverrides, previouslyActive =
+        currentPreset, currentOverrides, active
+    currentPreset, currentOverrides = basePreset, cleaned
     local ok, reason = applyCurrent(player.Character)
     if not ok then
-        currentPreset = previousPreset
-        active = false
-        restoreCurrent()
+        currentPreset, currentOverrides = previousBase, previousOverrides
+        active = previouslyActive
+        if previouslyActive then
+            -- Keep the previously selected mix when a new one fails.
+            pcall(applyCurrent, player.Character)
+        else
+            restoreCurrent()
+        end
         return false, reason
     end
     active = true
     if not characterConnection then
         characterConnection = player.CharacterAdded:Connect(onRespawn)
     end
-    return true, PRESETS[presetName].title .. " aplicado ao Animate R15. Confirme FE com outro jogador."
+    return true, "Mistura aplicada ao Animate R15. Confirme a visibilidade com outro jogador."
+end
+
+function AnimPacks:enable(presetName)
+    return self:enableMixed(presetName, {})
 end
 
 function AnimPacks:disable()
@@ -450,10 +531,9 @@ function AnimPacks:disable()
         characterConnection:Disconnect()
         characterConnection = nil
     end
-    -- Keep currentPreset until restoreCurrent() finishes, so it can stop
-    -- the active preset's own tracks, not only the Vampire tracks.
     restoreCurrent()
     currentPreset = "default"
+    currentOverrides = {}
     return true, "Animações originais restauradas."
 end
 
@@ -463,6 +543,18 @@ end
 
 function AnimPacks:getPreset()
     return currentPreset
+end
+
+function AnimPacks:getConfig()
+    return {base = currentPreset, overrides = copyOverrides(currentOverrides)}
+end
+
+function AnimPacks:getGroups()
+    local result = {}
+    for _, group in ipairs(GROUPS) do
+        table.insert(result, {id = group.id, title = group.title})
+    end
+    return result
 end
 
 function AnimPacks:getPresets()
