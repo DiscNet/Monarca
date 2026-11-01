@@ -1,10 +1,9 @@
--- Monarca: consensual touch knockback for private test sessions.
+-- Monarca: consensual touch knockback for experiences you control.
+-- Public and private sessions supported when this server integration is installed.
 -- Put this Script in ServerScriptService of a Roblox experience you control.
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local REMOTE_NAME = "MonarcaTouchBounce"
-local ALLOW_STUDIO = RunService:IsStudio()
 local SPEED, LIFT, COOLDOWN = 32, 15, 1.5
 
 local remote = RS:FindFirstChild(REMOTE_NAME)
@@ -14,10 +13,6 @@ if not remote then
     remote.Parent = RS
 end
 local states = {}
-
-local function validSession()
-    return ALLOW_STUDIO or game.PrivateServerId ~= ""
-end
 
 local function getState(player)
     if states[player] then return states[player] end
@@ -37,7 +32,7 @@ local function vectorAway(source, destination)
 end
 
 local function hit(player, state, touched)
-    if not state.sending or not validSession() or not touched:IsA("BasePart") then return end
+    if not state.sending or not touched:IsA("BasePart") then return end
     local own = player.Character
     local root = own and own:FindFirstChild("HumanoidRootPart")
     local ownHuman = own and own:FindFirstChildOfClass("Humanoid")
@@ -88,9 +83,6 @@ end
 remote.OnServerInvoke = function(player, action, desired)
     if (action ~= "sending" and action ~= "receiving") or type(desired) ~= "boolean" then
         return false, "Pedido inválido."
-    end
-    if desired and not validSession() then
-        return false, "Use Roblox Studio ou servidor privado do seu jogo."
     end
     local state = getState(player)
     state[action] = desired
