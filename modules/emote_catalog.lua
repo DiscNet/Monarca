@@ -1,4 +1,4 @@
--- Monarca / Emote catalog v0.8.9
+-- Monarca / Emote catalog v0.9.0
 -- Curated R15 animation sequence IDs (not Marketplace item IDs).
 -- Catalog IDs from earlier versions are kept in catalogId for search only.
 -- Non-classic animation IDs cross-checked against Eazvy/Public-Scripts.
@@ -63,6 +63,25 @@ local STATIC = {
 local currentTrack
 local currentHumanoid
 local characterConnection
+-- UGC catalog items are Animation wrappers, not raw animation clips.
+-- Track ONLY our temporary emote name, so stop/close cannot erase player emotes.
+local temporaryEmote
+
+local function restoreTemporary()
+    local saved = temporaryEmote
+    temporaryEmote = nil
+    if not saved then return end
+    local description = saved.description
+    if not description or not description.Parent then return end
+    if saved.changedEquipped and saved.equipped then
+        pcall(function()
+            description:SetEquippedEmotes(saved.equipped)
+        end)
+    end
+    pcall(function()
+        description:RemoveEmote(saved.name)
+    end)
+end
 
 local function releaseTrack()
     if currentTrack then
@@ -72,6 +91,7 @@ local function releaseTrack()
         pcall(function() track:Destroy() end)
     end
     currentHumanoid = nil
+    restoreTemporary()
 end
 
 local function usableRig()
@@ -164,6 +184,106 @@ function Catalog:enable()
     return true
 end
 
+
+-- Marketplace returns an EmoteAnimation asset (Animation object) whose
+-- AnimationId points to the underlying CurveAnimation. Sending the outer
+-- asset id to Animator:LoadAnimation leaves the track Length at zero.
+-- Instead register the emote as an emote asset and ask the Humanoid to play it.
+local function playMarketplaceEmote(humanoid, animator, item, id)
+    local description = humanoid:FindFirstChildOfClass("HumanoidDescription")
+    if not description then
+        return false, "HumanoidDescription não disponível no personagem deste jogo."
+    end
+
+    -- Avoid altering the avatar if this UGC emote is already present.
+    local existingName
+    local got, equipped = pcall(function() return description:GetEmotes() end)
+    if got and type(equipped) == "table" then
+        for name, ids in pairs(equipped) do
+            if type(name) == "string" and type(ids) == "table" then
+                for _, asset in ipairs(ids) do
+                    if tostring(asset) == id then
+                        existingName = name
+                        break
+                    end
+                end
+            end
+            if existingName then break end
+        end
+    end
+
+    local emoteName = existingName or ("MonarcaUGC_" .. id)
+    if not existingName then
+        local added, addError = pcall(function()
+            description:AddEmote(emoteName, tonumber(id))
+        end)
+        if not added then
+            return false, "O jogo não permitiu registrar este emote UGC: " ..
+                tostring(addError)
+        end
+        temporaryEmote = {description = description, name = emoteName}
+    end
+
+    local alreadyPlaying = {}
+    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+        alreadyPlaying[track] = true
+    end
+    local function tryNative()
+        return pcall(function()
+            return humanoid:PlayEmoteAsync(emoteName)
+        end)
+    end
+    local ok, playedOrError = tryNative()
+
+    -- Some avatar implementations need the emote equipped in a free wheel slot.
+    -- Never displace any of the player's original eight emotes.
+    if (not ok or playedOrError ~= true) and temporaryEmote then
+        local gotEquipped, original = pcall(function()
+            return description:GetEquippedEmotes()
+        end)
+        if gotEquipped and type(original) == "table" and #original < 8 then
+            local temporarySlot = #original + 1
+            for _, entry in ipairs(original) do
+                if type(entry) == "table" and type(entry.Slot) == "number" then
+                    temporarySlot = math.max(temporarySlot, entry.Slot + 1)
+                end
+            end
+            if temporarySlot <= 8 then
+                local replacement = {}
+                for _, entry in ipairs(original) do
+                    table.insert(replacement, entry)
+                end
+                table.insert(replacement, {Slot = temporarySlot, Name = emoteName})
+                local changed = pcall(function()
+                    description:SetEquippedEmotes(replacement)
+                end)
+                if changed then
+                    temporaryEmote.equipped = original
+                    temporaryEmote.changedEquipped = true
+                    ok, playedOrError = tryNative()
+                end
+            end
+        end
+    end
+
+    if not ok or playedOrError ~= true then
+        restoreTemporary()
+        return false, "Roblox recusou este emote UGC. Ele pode exigir posse, " ..
+            "estar indisponível ou ter seu uso bloqueado pelo jogo. Detalhe: " ..
+            tostring(playedOrError)
+    end
+
+    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+        if not alreadyPlaying[track] then
+            currentTrack = track
+            break
+        end
+    end
+    currentHumanoid = humanoid
+    return true, "Emote UGC iniciado pela API oficial. Visibilidade para outros " ..
+        "jogadores depende da experiência."
+end
+
 function Catalog:play(item)
     if type(item) ~= "table" then return false, "Escolha um emote da lista." end
     local id = tostring(item.id or "")
@@ -174,6 +294,10 @@ function Catalog:play(item)
     if not humanoid then return false, issue end
     self:enable()
     releaseTrack()
+
+    if item.marketplace == true then
+        return playMarketplaceEmote(humanoid, animator, item, id)
+    end
 
     if type(item.nativeName) == "string" then
         -- Avatar-equipped emotes have the canonical API as first choice.
@@ -233,9 +357,6 @@ function Catalog:play(item)
     end
     if track.Length <= 0 then
         releaseTrack()
-        if item.marketplace then
-            return false, "Emote encontrado no Marketplace, mas o ID do item UGC não fornece uma sequência reproduzível aqui. Equipe o emote no seu avatar ou use-o em uma experiência com acesso ao ativo."
-        end
         return false, "Animação não carregada pelo Roblox. O ativo pode não estar disponível ou autorizado neste jogo."
     end
     return true, "Emote carregado. A replicação ainda depende do jogo."
