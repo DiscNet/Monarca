@@ -32,6 +32,8 @@ O layout de Monarca v0.3 foi alinhado aos princípios do `kxlynn666/SkyNetApi`, 
 
 A tipografia usa Gotham, disponível no Roblox, como aproximação da hierarquia do site, que usa IBM Plex Sans. Não existe dependência entre os dois projetos: a referência é somente visual. A imagem roxa personalizada continua exclusiva do ícone flutuante e a abertura com barra de carregamento permanece.
 
+Na revisão **v0.4.1**, Headsit e Backpack passaram a usar attachments e constraints físicos, a orientação de Headsit foi corrigida e View passou à terceira pessoa, com restauração da câmera original. A interface da aba Alvo foi preservada.
+
 Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de aba ativa complementam os detalhes roxos. Os botões de ação principal também passam a usar branco. Somente **Visual, Player e Settings** receberam controles tipográficos menores, divisórias leves e mais espaço entre opções e categorias; o layout do **Home permanece inalterado**. A interface geral continua com janela compacta e raio de 8 px.
 
 
@@ -42,12 +44,12 @@ Na revisão **v0.3.1**, linhas finas brancas translúcidas e indicador branco de
 - Áudio **Arise** reproduzido uma vez ao executar, quando o ambiente oferecer `writefile` e `getcustomasset`/`getsynasset`. Se o executor bloquear áudio local, a interface inicia normalmente sem som; não toca ao reabrir o ícone flutuante.
 - Ícone oficial **exclusivamente no botão flutuante**. Quando disponíveis `writefile` e `getcustomasset` ou `getsynasset`, o Hub baixa e guarda automaticamente a imagem do repositório. Sem essas APIs, exibe a letra **M** como alternativa.
 - Aba **Alvo**: pesquisa outros jogadores por **Nick/Username**, **DisplayName/apelido**, prefixos, trechos do nome e aproximação ortográfica; oferece quatro sugestões selecionáveis, avatar compacto, Nick, apelido, ID e distância.
-- **Headsit**: posicionamento local acima da cabeça do jogador selecionado, atualizado a cada frame visível; **Backpack**: posição local nas costas, voltada para trás.
+- **Headsit**: acompanha o jogador acima da cabeça, com **mesma direção do rosto** do alvo; **Backpack**: mantém a posição nas costas, voltado para trás. Ambos usam `AlignPosition`/`AlignOrientation` entre attachments e não reposicionam mais o `HumanoidRootPart` manualmente a cada frame. Colisões do personagem local são temporariamente desligadas e restauradas ao desativar.
 - **Follow**: movimentação com `Humanoid:MoveTo` atualizada continuamente enquanto estiver habilitada; pode ser impedida por obstáculos.
-- **View**: câmera local presa ao ponto de vista aproximado da cabeça do alvo; não permite ler a câmera real ou os comandos de visão de outro jogador. A câmera anterior é restaurada ao desativar.
+- **View**: usa `CameraType.Custom` e `CameraSubject` no Humanoid do alvo, com `CameraMode.Classic` e zoom de terceira pessoa entre 7 e 18 studs. Não reproduz a câmera particular do outro jogador; ao desativar, restaura câmera, foco, modo e limites de zoom anteriores.
 - **TP**: teletransporte pontual para perto do alvo. O botão conserva o estado ligado até ser desativado, mas não acompanha o jogador.
 - Estados dos botões de Alvo: fundo preto e contorno branco quando desligados; branco com texto preto e halo discreto quando ligados; cantos de 2 px. Headsit/Follow/Backpack são mutuamente exclusivos. Trocar ou perder o alvo desativa os modos e restaura a câmera.
-- **Limitações físicas**: movimentos e posicionamentos são locais e podem sofrer correções de física ou replicação do servidor. Não há garantia de ausência de latência ou de resultado idêntico em todos os jogos.
+- **Limitações físicas**: os novos constraints reduzem a oscilação causada pelo teletransporte a cada frame, mas a replicação do servidor e a latência ainda podem causar correções. O sistema desativa os modos ao trocar o alvo, quando ele sai ou quando o personagem reaparece.
 - Aba **Visual** com controles organizados por Personagens, Iluminação, Interface e Desempenho.
 - **X-Ray**: destaca personagens de outros jogadores através de obstáculos; **ESP**: exibe apelido e distância.
 - **Horário**: opções Padrão/Dia/Noite, com restauração ao desligar; Fullbright e Sem neblina são independentes.
