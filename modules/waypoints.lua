@@ -1,4 +1,4 @@
--- Monarca / Waypoints v0.9.1
+-- Monarca / Waypoints v0.9.2
 -- Named, per-place saved positions and optional draggable teleport shortcuts.
 -- CRITICAL: touch/mouse use InputBegan/InputChanged/InputEnded; NEVER Activated
 -- for pointer activation. A release after movement must not teleport.
@@ -11,7 +11,7 @@ local Waypoints = {}
 local MAX_POINTS = 30
 local DRAG_THRESHOLD = 9 -- screen pixels; any movement >= threshold permanently cancels tap
 local MAX_TAP_SECONDS = 0.75
-local BUTTON_W, BUTTON_H = 112, 34
+local BUTTON_W, BUTTON_H = 40, 40
 local FILE = "Monarca/waypoints_" .. tostring(game.PlaceId) .. ".json"
 
 local points = {}
@@ -54,6 +54,35 @@ end
 local function cleanName(text)
     text = tostring(text or ""):gsub("[%c]", ""):match("^%s*(.-)%s*$") or ""
     return text:sub(1, 30)
+end
+
+-- Display a single uppercase letter, never the entire saved name or an emoji.
+-- UTF-8 codepoints matter for names such as Árvore, Éden and Órbita.
+local ACCENT_INITIALS = {
+    ["á"] = "Á", ["à"] = "À", ["â"] = "Â", ["ã"] = "Ã", ["ä"] = "Ä",
+    ["é"] = "É", ["ê"] = "Ê", ["è"] = "È", ["ë"] = "Ë",
+    ["í"] = "Í", ["ì"] = "Ì", ["î"] = "Î",
+    ["ó"] = "Ó", ["ô"] = "Ô", ["õ"] = "Õ", ["ò"] = "Ò", ["ö"] = "Ö",
+    ["ú"] = "Ú", ["ù"] = "Ù", ["û"] = "Û", ["ü"] = "Ü",
+    ["ç"] = "Ç",
+}
+local function firstLetter(name)
+    local success, initial = pcall(function()
+        for _, codepoint in utf8.codes(name) do
+            if (codepoint >= 65 and codepoint <= 90)
+                or (codepoint >= 97 and codepoint <= 122) then
+                return string.upper(utf8.char(codepoint))
+            end
+            if codepoint >= 48 and codepoint <= 57 then
+                return utf8.char(codepoint)
+            end
+            local char = utf8.char(codepoint)
+            if ACCENT_INITIALS[char] then return ACCENT_INITIALS[char] end
+            if codepoint >= 192 and codepoint <= 255 then return char end
+        end
+        return "W"
+    end)
+    return success and initial or "W"
 end
 
 local function freshId()
@@ -259,7 +288,14 @@ local function action(parent, titleText, name, position, size, callback, highlig
         AutoButtonColor = false,
         BorderSizePixel = 0,
     }, parent)
-    corner(b, 5)
+    corner(b, 6)
+    if not highlighted then
+        make("UIStroke", {
+            Color = theme.whiteLine, Thickness = 1, Transparency = 0.88,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        }, b)
+        b.BackgroundTransparency = 0.28
+    end
     if callback then b.Activated:Connect(callback) end
     return b
 end
@@ -314,10 +350,11 @@ end
 
 local function defaultXY(index)
     local vp = viewportSize()
-    local availableRows = math.max(1, math.floor((vp.Y - 100) / 40))
+    local availableRows = math.max(1, math.floor((vp.Y - 100) / 48))
     local col = math.floor((index - 1) / availableRows)
     local row = (index - 1) % availableRows
-    return clampXY(vp.X - 120 - col * 120, 68 + row * 40)
+    return clampXY(vp.X - BUTTON_W - 12 - col * (BUTTON_W + 8),
+        68 + row * 48)
 end
 
 local function movedPointer(input)
@@ -382,19 +419,29 @@ local function drawFloat(point, index)
         BackgroundTransparency = 0.10,
         BorderSizePixel = 0,
         TextColor3 = theme.text,
-        Text = "⌖ " .. point.name,
-        TextSize = 11,
+        Text = firstLetter(point.name),
+        TextSize = 18,
         Font = Enum.Font.GothamBold,
         TextTruncate = Enum.TextTruncate.AtEnd,
         AutoButtonColor = false,
         Active = true,
         ZIndex = 45,
     }, gui)
-    corner(b, 6)
+    corner(b, 8)
     make("UIStroke", {
-        Color = theme.whiteLine, Thickness = 1, Transparency = 0.46,
+        Color = theme.whiteLine, Thickness = 1, Transparency = 0.73,
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
     }, b)
+    -- Small indicator: a UI Frame, not an emoji or appended character.
+    local dot = make("Frame", {
+        Name = "WaypointDot",
+        Position = UDim2.new(1, -10, 0, 5),
+        Size = UDim2.fromOffset(5, 5),
+        BackgroundColor3 = theme.accent,
+        BorderSizePixel = 0,
+        ZIndex = 46,
+    }, b)
+    corner(dot, 5)
     -- Activated only handles keyboard/gamepad. Touch and mouse are handled
     -- exclusively after pointerEnded confirms a non-drag tap.
     b.Activated:Connect(function(input)
@@ -438,7 +485,7 @@ function Waypoints:mount(scroller, screenGui, palette, onStatus)
         Size = UDim2.new(1, -112, 0, 34),
         BackgroundColor3 = theme.card,
         TextColor3 = theme.text,
-        PlaceholderText = "Nome do ponto (ex.: Casa)",
+        PlaceholderText = "Nome do local",
         PlaceholderColor3 = theme.muted,
         Text = "",
         TextSize = 12,
@@ -461,22 +508,22 @@ function Waypoints:mount(scroller, screenGui, palette, onStatus)
     local countLabel = message(globalBar, "", 11, 27, "WaypointCount")
     countLabel.Position = UDim2.fromOffset(0, 4)
     countLabel.Size = UDim2.new(1, -132, 0, 27)
-    local visibility = action(globalBar, "OCULTAR BOTÕES", "WaypointVisibility",
+    local visibility = action(globalBar, "OCULTAR", "WaypointVisibility",
         UDim2.new(1, -131, 0, 2), UDim2.fromOffset(131, 30))
     visibility.TextSize = 10
     persistInfo = pageMessage(
         persistent and "Os pontos são salvos por jogo neste dispositivo."
             or "Sem readfile/writefile: pontos disponíveis só durante esta execução.",
         36, "WaypointStorage")
-    pageMessage("Toque no nome de um ponto para renomear. Criar botão é opcional; arraste o flutuante sem ativar teleporte.", 38)
-    local listTitle = pageMessage("LOCAIS SALVOS", 24, "WaypointListHeading")
+    pageMessage("Edite o nome diretamente na lista. Um toque no atalho teleporta; arrastar só reposiciona.", 38)
+    local listTitle = pageMessage("LOCAIS", 24, "WaypointListHeading")
     listTitle.TextColor3 = theme.text
     listTitle.Font = Enum.Font.GothamBold
 
     refreshHeader = function()
         if not mounted then return end
         countLabel.Text = tostring(#points) .. " / " .. tostring(MAX_POINTS) .. " pontos"
-        visibility.Text = globalVisible and "OCULTAR BOTÕES" or "MOSTRAR BOTÕES"
+        visibility.Text = globalVisible and "OCULTAR" or "MOSTRAR"
     end
     refreshFloats = function()
         if not mounted then return end
@@ -537,32 +584,36 @@ function Waypoints:mount(scroller, screenGui, palette, onStatus)
                 Position = UDim2.fromOffset(7, 26),
                 Size = UDim2.new(1, -14, 0, 18),
                 BackgroundTransparency = 1,
-                Text = string.format("X %.1f  ·  Y %.1f  ·  Z %.1f",
+                Text = string.format("X: %.1f    Y: %.1f    Z: %.1f",
                     point.cf[1], point.cf[2], point.cf[3]),
                 TextColor3 = theme.muted,
                 TextSize = 10,
                 Font = Enum.Font.Gotham,
                 TextXAlignment = Enum.TextXAlignment.Left,
             }, row)
-            action(row, "IR", "WaypointTeleport_" .. point.id,
-                UDim2.new(0, 7, 0, 49), UDim2.new(0.24, -9, 0, 30),
+            -- Three typography-only actions: no emoji, icon glyph or verbose labels.
+            local goButton = action(row, "IR", "WaypointTeleport_" .. point.id,
+                UDim2.new(0, 7, 0, 49), UDim2.new(0.20, -5, 0, 30),
                 function()
                     local _, result = Waypoints:teleport(point.id)
                     report(result)
                 end, true)
-            action(row, point.floating and "REMOVER BOTÃO" or "CRIAR BOTÃO",
+            goButton.TextSize = 11
+            local floatToggle = action(row, point.floating and "OCULTAR" or "MOSTRAR",
                 "WaypointFloating_" .. point.id,
-                UDim2.new(0.24, 2, 0, 49), UDim2.new(0.51, -13, 0, 30),
+                UDim2.new(0.20, 6, 0, 49), UDim2.new(0.47, -11, 0, 30),
                 function()
                     local _, result = Waypoints:setFloating(point.id, not point.floating)
                     report(result)
                 end)
-            local removeButton = action(row, "×", "WaypointDelete_" .. point.id,
-                UDim2.new(0.75, 2, 0, 49), UDim2.new(0.25, -11, 0, 30),
+            floatToggle.TextSize = 10
+            local removeButton = action(row, "APAGAR", "WaypointDelete_" .. point.id,
+                UDim2.new(0.67, 2, 0, 49), UDim2.new(0.33, -9, 0, 30),
                 function()
                     local _, result = Waypoints:remove(point.id)
                     report(result)
                 end)
+            removeButton.TextSize = 10
             removeButton.TextColor3 = theme.danger
         end
     end
