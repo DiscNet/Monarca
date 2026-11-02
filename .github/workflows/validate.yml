@@ -136,8 +136,8 @@ jobs:
           assert 'loadAuxiliary("emote_catalog"):getCatalog()' in core
           assert 'loadAuxiliary("emote_catalog"):play(choice)' in core
           assert '(item.catalogId or "")' in core, 'Search must include original Marketplace IDs'
-          assert '".lua?v=0.9.0-" .. tostring(os.time())' in core, 'Auxiliary module cache was not bumped'
-          assert '"antifling", "emote_catalog", "emote_marketplace", "server_invisibility"' in core
+          assert '".lua?v=0.9.1-" .. tostring(os.time())' in core, 'Auxiliary module cache was not bumped'
+          assert '"antifling", "waypoints", "emote_catalog", "emote_marketplace", "server_invisibility"' in core
           catalog = Path('modules/emote_catalog.lua').read_text(encoding='utf-8')
           import re
           raw_catalog = catalog.split("local STATIC = {", 1)[1].split("\n}\n", 1)[0]
