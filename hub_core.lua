@@ -1,4 +1,4 @@
--- Monarca Script Hub v0.9.0 CORE — scoped Player/Visual builders below 200 local registers
+-- Monarca Script Hub v0.9.1 CORE — scoped Player/Visual builders below 200 local registers
 -- This entrypoint guards startup separately from user-selected modules.
 local bootStage = "Criando interface"
 local function bootMonarca()
@@ -124,7 +124,7 @@ local function bootMonarca()
         local ok, moduleOrError = pcall(function()
             if type(loadstring) ~= "function" then error("Ambiente sem loadstring.") end
             local source = game:HttpGet(repository .. "modules/" .. name
-                .. ".lua?v=0.9.0-" .. tostring(os.time()))
+                .. ".lua?v=0.9.1-" .. tostring(os.time()))
             if type(source) ~= "string" or #source < 20 then
                 error("Resposta vazia ao carregar " .. name)
             end
@@ -695,7 +695,7 @@ local function bootMonarca()
     local function page(name)
         -- Home retains its compact profile layout, while Player/Emote use tighter lists.
         local isHome = name == "Home"
-        local compactList = name == "Player" or name == "Emote" or name == "Anim" or name == "666" or name == "X?"
+        local compactList = name == "Player" or name == "Waypoints" or name == "Emote" or name == "Anim" or name == "666" or name == "X?"
         local scroller = new("ScrollingFrame", {
             Name = name,
             BackgroundTransparency = 1,
@@ -745,7 +745,7 @@ local function bootMonarca()
             }, 0.22)
         end
     end
-    for index, name in ipairs({"Home", "Alvo", "Visual", "X?", "Player", "Emote", "Anim", "666", "Settings"}) do
+    for index, name in ipairs({"Home", "Alvo", "Visual", "X?", "Player", "Waypoints", "Emote", "Anim", "666", "Settings"}) do
         page(name)
         local b = new("TextButton", {
             Name = "Tab" .. name,
@@ -4085,6 +4085,34 @@ local function bootMonarca()
         end)
     end -- Anim page: release temporary UI locals.
 
+    -- Waypoints use their own module/scoped UI to avoid the Luau 200-local cap.
+    bootStage = "Construindo Waypoints"
+    do
+        local waypointPage = pages.Waypoints
+        title(waypointPage, "Waypoints",
+            "Salve vários locais e crie atalhos flutuantes arrastáveis.")
+        local loadingText = label(waypointPage,
+            "Carregando locais e atalhos...",
+            11, theme.muted, 32)
+        task.spawn(function()
+            local ok, worked, reason = pcall(function()
+                local module = loadAuxiliary("waypoints")
+                if destroyed then return false, "Monarca encerrado." end
+                return module:mount(waypointPage, gui, theme, function(message)
+                    status(message)
+                end)
+            end)
+            if destroyed then return end
+            if ok and worked then
+                if loadingText.Parent then loadingText:Destroy() end
+            else
+                local detail = tostring(ok and reason or worked)
+                loadingText.Text = "Waypoints não pôde carregar: " .. detail
+                status("Waypoints: " .. detail)
+            end
+        end)
+    end
+
     bootStage = "Construindo Settings e Visual"
     -- Keep only the functions needed by the final destroy/intro sequence.
     local disableAll, refresh
@@ -4438,7 +4466,7 @@ local function bootMonarca()
         if auxiliaryModules.fling_touch then
             pcall(auxiliaryModules.fling_touch.shutdown, auxiliaryModules.fling_touch)
         end
-        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "antifling", "emote_catalog", "emote_marketplace", "server_invisibility", "clone_invisibility", "anim_packs", "player_reverse"}) do
+        for _, name in ipairs({"player_fly", "zombie_r6", "pose_666", "headless_local", "korblox_right_leg", "owner_tag", "radioactive_trail", "antifling", "waypoints", "emote_catalog", "emote_marketplace", "server_invisibility", "clone_invisibility", "anim_packs", "player_reverse"}) do
             if auxiliaryModules[name] then
                 pcall(auxiliaryModules[name].disable, auxiliaryModules[name])
             end
