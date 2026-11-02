@@ -1,6 +1,20 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.9.0**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Waypoints/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.9.1**.
+
+## Nova aba Waypoints — v0.9.1
+
+A aba **Waypoints** permite registrar **até 30 localizações nomeadas por jogo**. Digite um nome (por exemplo, Casa, Loja ou Fazenda) e toque em **SALVAR** para guardar a posição e a orientação atuais do personagem. É possível usar **IR** para se mover até o ponto, tocar no nome para renomear ou **×** para remover. O sistema não altera automaticamente sua posição ao salvar.
+
+Cada ponto tem **CRIAR BOTÃO** para adicionar um atalho flutuante independente sobre a tela Roblox. Os atalhos podem ser arrastados para qualquer posição dentro dos limites visíveis, e são exibidos mesmo com o painel principal minimizado. É possível remover o atalho individualmente (**REMOVER BOTÃO**) e ocultar/exibir todos (**OCULTAR BOTÕES / MOSTRAR BOTÕES**) sem apagar as localizações.
+
+**Toque versus arrasto (crítico):** o módulo não usa o evento genérico \`GuiButton.Activated\` para toques nem cliques do mouse, porque esse evento também pode ocorrer após soltar um botão arrastado. Os atalhos utilizam \`InputBegan\`, \`UserInputService.InputChanged\` e \`UserInputService.InputEnded\`; ao detectar deslocamento de **9 pixels ou mais**, classificam o gesto irreversivelmente como arrasto. Soltar após arrastar **só salva a posição do botão, sem teletransportar**. Apenas um toque/clique genuíno, curto e encerrado sobre o botão executa o teleporte. Teclado e gamepad usam \`Activated\` separadamente.
+
+**Persistência:** cada experiência usa \`Monarca/waypoints_<PlaceId>.json\`; salva nome, CFrame (12 componentes), preferências de exibição e posição dos atalhos. O arquivo existe apenas nos ambientes com \`readfile\` e \`writefile\`; sem essas APIs, os locais duram apenas até fechar a execução. As localizações não são enviadas a servidores externos e não são compartilhadas com outros jogadores.
+
+**Limitações:** \`character:PivotTo(CFrame)\` move apenas o próprio personagem; o servidor ou as regras do jogo podem corrigir, bloquear ou reverter o movimento. Pontos de outro mapa dentro da mesma experiência não são transferidos automaticamente. Não há teleporte entre servidores nem proteção contra paredes/obstáculos.
+
+Documentação Roblox: https://create.roblox.com/docs/reference/engine/classes/PVInstance#PivotTo e https://create.roblox.com/docs/reference/engine/classes/GuiButton#Activated.
 
 ## Correção da reprodução de emotes UGC — v0.9.0
 
