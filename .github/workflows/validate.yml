@@ -62,7 +62,7 @@ jobs:
           assert main.index('gui.Parent = parent') < main.index('game:HttpGet(repository')
           assert 'local ok, failure = xpcall(bootMonarca' in core
           assert core.strip().endswith('return ok, failure')
-          assert 'hub_core.lua?v=0.9.1-' in main, 'Old core can be cached'
+          assert 'hub_core.lua?v=0.9.2-' in main, 'Old core can be cached'
           for marker in (
               'end -- Player/Emote/666 block: release its many UI locals.',
               'end -- Settings + Visual block: release temporary UI registers.',
@@ -136,7 +136,7 @@ jobs:
           assert 'loadAuxiliary("emote_catalog"):getCatalog()' in core
           assert 'loadAuxiliary("emote_catalog"):play(choice)' in core
           assert '(item.catalogId or "")' in core, 'Search must include original Marketplace IDs'
-          assert '".lua?v=0.9.1-" .. tostring(os.time())' in core, 'Auxiliary module cache was not bumped'
+          assert '".lua?v=0.9.2-" .. tostring(os.time())' in core, 'Auxiliary module cache was not bumped'
           assert '"antifling", "waypoints", "emote_catalog", "emote_marketplace", "server_invisibility"' in core
           catalog = Path('modules/emote_catalog.lua').read_text(encoding='utf-8')
           import re
@@ -236,6 +236,23 @@ jobs:
               'input.UserInputType == Enum.UserInputType.Keyboard',
           ):
               assert marker in waypoints, f'Missing waypoint functionality: {marker}'
+          # Compact shortcut design: one initial and one physical dot, never a name or emoji.
+          assert 'BUTTON_W, BUTTON_H = 40, 40' in waypoints
+          assert 'local function firstLetter(name)' in waypoints
+          assert 'Text = firstLetter(point.name)' in waypoints
+          assert 'Name = "WaypointDot"' in waypoints
+          assert 'Size = UDim2.fromOffset(5, 5)' in waypoints
+          assert 'Position = UDim2.new(1, -10, 0, 5)' in waypoints
+          assert 'Name = "WaypointFloat_" .. point.id' in waypoints
+          assert 'Text = "⌖ " .. point.name' not in waypoints
+          assert 'action(row, "×"' not in waypoints
+          assert '"CRIAR BOTÃO"' not in waypoints and '"REMOVER BOTÃO"' not in waypoints
+          assert 'point.floating and "OCULTAR" or "MOSTRAR"' in waypoints
+          assert 'action(row, "APAGAR", "WaypointDelete_" .. point.id' in waypoints
+          # Ensure the movement cancellation and the tap-only pointer handler remain intact.
+          assert 'gesture.moved = true' in waypoints
+          assert 'if active.moved then' in waypoints
+          assert 'return -- Drag always cancels click' in waypoints
           # A Roblox touch/mouse Activated handler fires on release even after a drag:
           # all pointer teleports MUST happen in pointerEnded, never Activated.
           activated_start = waypoints.index('b.Activated:Connect(function(input)')
