@@ -1,12 +1,20 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Waypoints/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.9.1**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Waypoints/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.9.2**.
+
+## Refinamento visual de Waypoints — v0.9.2
+
+Os atalhos flutuantes agora são **quadrados compactos de 40 × 40 px**, com cantos discretos (8 px), **apenas a primeira letra** do nome salvo, centralizada, e um **ponto violeta de 5 px no canto superior direito**. Por exemplo, `Casa` aparece como `C` e `Base` como `B`. O sistema procura uma letra ou número no nome, ignora símbolos iniciais e suporta iniciais acentuadas. Nomes completos continuam disponíveis na lista de gerenciamento. O posicionamento padrão e os limites de arrasto foram adaptados ao tamanho menor; posições previamente salvas continuam sendo utilizadas.
+
+O gerenciamento foi simplificado: o botão de teleporte é **IR**, o atalho individual é alternado por **MOSTRAR/OCULTAR** e a exclusão usa **APAGAR** em texto discreto, sem o caractere de cruz ou marcador de localização. A barra global usa **MOSTRAR/OCULTAR**. As ações secundárias têm borda sutil e contraste reduzido, enquanto **IR** permanece destacado. Não foram adicionados ícones de emoji.
+
+**Gesto preservado:** para toque ou mouse, somente uma pressão curta com deslocamento inferior a 9 px e soltura sobre o botão aciona o teletransporte. Qualquer arrasto classificado como movimento cancela definitivamente o acionamento naquela interação. Soltar depois de arrastar apenas salva a posição do botão. Os atalhos continuam independentes e podem ser usados com o painel minimizado.
 
 ## Nova aba Waypoints — v0.9.1
 
-A aba **Waypoints** permite registrar **até 30 localizações nomeadas por jogo**. Digite um nome (por exemplo, Casa, Loja ou Fazenda) e toque em **SALVAR** para guardar a posição e a orientação atuais do personagem. É possível usar **IR** para se mover até o ponto, tocar no nome para renomear ou **×** para remover. O sistema não altera automaticamente sua posição ao salvar.
+A aba **Waypoints** permite registrar **até 30 localizações nomeadas por jogo**. Digite um nome (por exemplo, Casa, Loja ou Fazenda) e toque em **SALVAR** para guardar a posição e a orientação atuais do personagem. É possível usar **IR** para se mover até o ponto, tocar no nome para renomear ou **APAGAR** para remover. O sistema não altera automaticamente sua posição ao salvar.
 
-Cada ponto tem **CRIAR BOTÃO** para adicionar um atalho flutuante independente sobre a tela Roblox. Os atalhos podem ser arrastados para qualquer posição dentro dos limites visíveis, e são exibidos mesmo com o painel principal minimizado. É possível remover o atalho individualmente (**REMOVER BOTÃO**) e ocultar/exibir todos (**OCULTAR BOTÕES / MOSTRAR BOTÕES**) sem apagar as localizações.
+Cada ponto tem **MOSTRAR/OCULTAR** para adicionar ou retirar um atalho flutuante independente sobre a tela Roblox. Os atalhos podem ser arrastados para qualquer posição dentro dos limites visíveis, e são exibidos mesmo com o painel principal minimizado. É possível ocultar o atalho individualmente ou ocultar/exibir todos pela barra superior, sem apagar as localizações.
 
 **Toque versus arrasto (crítico):** o módulo não usa o evento genérico \`GuiButton.Activated\` para toques nem cliques do mouse, porque esse evento também pode ocorrer após soltar um botão arrastado. Os atalhos utilizam \`InputBegan\`, \`UserInputService.InputChanged\` e \`UserInputService.InputEnded\`; ao detectar deslocamento de **9 pixels ou mais**, classificam o gesto irreversivelmente como arrasto. Soltar após arrastar **só salva a posição do botão, sem teletransportar**. Apenas um toque/clique genuíno, curto e encerrado sobre o botão executa o teleporte. Teclado e gamepad usam \`Activated\` separadamente.
 
