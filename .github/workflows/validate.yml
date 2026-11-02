@@ -220,9 +220,9 @@ jobs:
               'type(readfile) == "function" and type(writefile) == "function"',
               'writefile(FILE, HttpService:JSONEncode(data))',
               'HttpService:JSONDecode(readfile(FILE))',
-              'Name = "WaypointSave"',
-              'Name = "WaypointTeleport_" .. point.id',
-              'Name = "WaypointFloating_" .. point.id',
+              '"WaypointSave"',
+              '"WaypointTeleport_" .. point.id',
+              '"WaypointFloating_" .. point.id',
               'Name = "WaypointFloat_" .. point.id',
               'UserInputService.InputChanged, movedPointer',
               'UserInputService.InputEnded, pointerEnded',
@@ -250,7 +250,7 @@ jobs:
               'Waypoints:teleport(active.id)'), 'Dragging can teleport'
           assert pointer_end.index('distance >= DRAG_THRESHOLD') < pointer_end.index(
               'Waypoints:teleport(active.id)'), 'Out-of-threshold release can teleport'
-          assert 'Name = "WaypointDelete_" .. point.id' in waypoints
+          assert '"WaypointDelete_" .. point.id' in waypoints
           assert 'gesture = nil' in waypoints
           assert 'restoreButton:Activate()' not in core
           anim = Path('modules/anim_packs.lua').read_text(encoding='utf-8')
