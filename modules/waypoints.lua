@@ -18,6 +18,7 @@ local points = {}
 local nextId = 1
 local globalVisible = true
 local enabled = false
+local loadedOnce = false
 local mounted = false
 local persistent = type(readfile) == "function" and type(writefile) == "function"
 local gui, page, theme, notify
@@ -26,7 +27,7 @@ local pageRows = {}
 local connections = {}
 local gesture = nil
 local refreshRows, refreshFloats, refreshHeader
-local localTitle, counter, persistInfo
+local counter, persistInfo
 
 local function report(message)
     if notify then pcall(notify, "Waypoints: " .. tostring(message)) end
@@ -134,7 +135,10 @@ end
 function Waypoints:enable()
     if enabled then return true end
     enabled = true
-    loadSaved()
+    if not loadedOnce then
+        loadedOnce = true
+        loadSaved()
+    end
     return true
 end
 
@@ -454,11 +458,9 @@ function Waypoints:mount(scroller, screenGui, palette, onStatus)
         Size = UDim2.new(1, -2, 0, 38),
         BackgroundTransparency = 1,
     })
-    counter = message(globalBar, "", 11, 27, "WaypointCount")
-    counter.Position = UDim2.fromOffset(0, 4)
-    counter.Size = UDim2.new(1, -132, 0, 27)
-    local countLabel = counter
-    counter = 1002
+    local countLabel = message(globalBar, "", 11, 27, "WaypointCount")
+    countLabel.Position = UDim2.fromOffset(0, 4)
+    countLabel.Size = UDim2.new(1, -132, 0, 27)
     local visibility = action(globalBar, "OCULTAR BOTÕES", "WaypointVisibility",
         UDim2.new(1, -131, 0, 2), UDim2.fromOffset(131, 30))
     visibility.TextSize = 10
