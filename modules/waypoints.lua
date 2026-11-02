@@ -58,7 +58,7 @@ end
 
 local function freshId()
     local id = tostring(nextId)
-    nextId += 1
+    nextId = nextId + 1
     return id
 end
 
@@ -279,7 +279,7 @@ local function message(parent, text, size, height, name)
 end
 
 local function pageElement(class, properties)
-    counter += 1
+    counter = counter + 1
     properties.LayoutOrder = counter
     local object = make(class, properties, page)
     table.insert(pageRows, object)
@@ -487,7 +487,7 @@ function Waypoints:mount(scroller, screenGui, palette, onStatus)
         local index = 0
         for _, point in ipairs(points) do
             if point.floating then
-                index += 1
+                index = index + 1
                 drawFloat(point, index)
             end
         end
