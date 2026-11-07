@@ -1,6 +1,14 @@
 # Monarca — Roblox Script Hub
 
-Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Waypoints/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.9.2**.
+Script Hub em **Luau**, com interface escura, abas **Home/Alvo/Visual/X?/Player/Waypoints/Emote/Anim/666/Settings** e layout adaptável ao Android. Versão atual: **0.9.3**.
+
+## Atalhos de teclado para Waypoints — v0.9.3
+
+Em PCs, cada waypoint salvo pode receber uma **tecla própria** para teletransporte imediato, mesmo que o painel Monarca esteja minimizado ou que o botão flutuante daquele ponto esteja oculto. Na aba **Waypoints**, clique em **DEFINIR TECLA** na linha do ponto e pressione uma tecla do teclado para atribuí-la. O botão passa a mostrar **TECLA: G**, por exemplo. Para alterar, clique novamente e pressione a nova tecla. **LIMPAR**, Backspace ou Delete removem a atribuição; **Esc** cancela a captura sem alterar o atalho anterior.
+
+O módulo rejeita **teclas já usadas por outro waypoint** e algumas teclas reservadas (como Tab, Enter, Escape e teclas modificadoras). Ele também desativa os atalhos durante a digitação em TextBoxes, quando o Roblox já consumiu a entrada ou enquanto Ctrl/Alt/Meta está pressionado, reduzindo teletransportes acidentais. A tecla usada para configurar um keybind **não provoca o teletransporte no momento da configuração**. Outros atalhos nativos do jogo ainda podem conflitar com teclas escolhidas pelo usuário; prefira teclas livres ou F1–F12 conforme a experiência.
+
+Os atalhos são salvos junto dos demais dados de cada waypoint no arquivo existente `Monarca/waypoints_<PlaceId>.json`, quando o executor suporta `readfile` e `writefile`; perfis antigos são compatíveis e carregam sem keybinds predefinidos. A interface flutuante compacta (inicial e ponto violeta) e a regra **arrastar não teletransporta** permanecem inalteradas.
 
 ## Refinamento visual de Waypoints — v0.9.2
 
