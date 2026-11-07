@@ -1,4 +1,4 @@
--- Monarca / Waypoints v0.9.2
+-- Monarca / Waypoints v0.9.3
 -- Named, per-place saved positions and optional draggable teleport shortcuts.
 -- CRITICAL: touch/mouse use InputBegan/InputChanged/InputEnded; NEVER Activated
 -- for pointer activation. A release after movement must not teleport.
@@ -28,6 +28,52 @@ local connections = {}
 local gesture = nil
 local refreshRows, refreshFloats, refreshHeader
 local counter, persistInfo
+local captureId, captureButton = nil, nil
+local lastHotkeyAt = 0
+
+-- Single-key PC shortcuts. Navigation/chat/modifier keys are deliberately
+-- excluded to prevent accidental shortcuts while using the Roblox client.
+local RESERVED_KEYS = {
+    Unknown = true, Escape = true, Tab = true, Return = true,
+    KeypadEnter = true, Backspace = true, Delete = true, Slash = true,
+    LeftControl = true, RightControl = true, LeftAlt = true, RightAlt = true,
+    LeftShift = true, RightShift = true, LeftMeta = true, RightMeta = true,
+    CapsLock = true,
+}
+local NUMBER_KEYS = {
+    Zero = "0", One = "1", Two = "2", Three = "3", Four = "4",
+    Five = "5", Six = "6", Seven = "7", Eight = "8", Nine = "9",
+}
+local function validKeyName(name)
+    if type(name) ~= "string" or #name == 0 or #name > 30 or RESERVED_KEYS[name] then
+        return nil
+    end
+    local code = Enum.KeyCode[name]
+    if not code or code == Enum.KeyCode.Unknown then return nil end
+    return name
+end
+local function displayKey(name)
+    if not name then return "DEFINIR TECLA" end
+    return "TECLA: " .. (NUMBER_KEYS[name] or name:upper())
+end
+local function ctrlAltMetaHeld()
+    return UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
+        or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
+        or UserInputService:IsKeyDown(Enum.KeyCode.LeftAlt)
+        or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt)
+        or UserInputService:IsKeyDown(Enum.KeyCode.LeftMeta)
+        or UserInputService:IsKeyDown(Enum.KeyCode.RightMeta)
+end
+local function cancelCapture()
+    if captureButton and captureButton.Parent then
+        local point
+        for _, saved in ipairs(points) do
+            if saved.id == captureId then point = saved; break end
+        end
+        captureButton.Text = point and displayKey(point.keybind) or "DEFINIR TECLA"
+    end
+    captureId, captureButton = nil, nil
+end
 
 local function report(message)
     if notify then pcall(notify, "Waypoints: " .. tostring(message)) end
@@ -127,7 +173,7 @@ local function loadSaved()
     nextId = math.clamp(math.floor(tonumber(data.nextId) or 1), 1, 100000000)
     globalVisible = data.visible ~= false
     if type(data.points) ~= "table" then return end
-    local used = {}
+    local used, usedKeys = {}, {}
     for _, point in ipairs(data.points) do
         if #points >= MAX_POINTS then break end
         if type(point) == "table" and validComponents(point.cf) then
@@ -136,11 +182,15 @@ local function loadSaved()
             if name ~= "" and id:match("^%d+$") and not used[id] then
                 used[id] = true
                 nextId = math.max(nextId, math.min(tonumber(id) + 1, 100000000))
+                local shortcut = validKeyName(point.keybind)
+                if shortcut and usedKeys[shortcut] then shortcut = nil end
+                if shortcut then usedKeys[shortcut] = true end
                 table.insert(points, {
                     id = id,
                     name = name,
                     cf = point.cf,
                     floating = point.floating == true,
+                    keybind = shortcut,
                     x = isNumber(point.x) and point.x or nil,
                     y = isNumber(point.y) and point.y or nil,
                 })
@@ -176,7 +226,7 @@ function Waypoints:list()
     for _, item in ipairs(points) do
         table.insert(result, {id = item.id, name = item.name,
             position = Vector3.new(item.cf[1], item.cf[2], item.cf[3]),
-            floating = item.floating})
+            floating = item.floating, keybind = item.keybind})
     end
     return result
 end
@@ -204,6 +254,31 @@ function Waypoints:add(name)
         name .. (saved and "" or (" · " .. note)), point
 end
 
+function Waypoints:setKeybind(id, keyName)
+    self:enable()
+    local point = findPoint(id)
+    if not point then return false, "Localização não encontrada." end
+    if keyName ~= nil then
+        keyName = validKeyName(keyName)
+        if not keyName then
+            return false, "Tecla inválida ou reservada. Escolha outra tecla."
+        end
+        for _, other in ipairs(points) do
+            if other.id ~= point.id and other.keybind == keyName then
+                return false, "Essa tecla já pertence ao waypoint " .. other.name .. "."
+            end
+        end
+    end
+    point.keybind = keyName
+    local saved, note = persist()
+    if refreshRows then refreshRows() end
+    if keyName then
+        return true, displayKey(keyName) .. " atribuída a " .. point.name ..
+            (saved and "." or (" (temporário: " .. note .. ")"))
+    end
+    return true, "Keybind removido de " .. point.name .. "."
+end
+
 function Waypoints:rename(id, name)
     local point = findPoint(id)
     if not point then return false, "Localização não encontrada." end
@@ -220,6 +295,7 @@ function Waypoints:remove(id)
     local point, index = findPoint(id)
     if not point then return false, "Localização não encontrada." end
     if gesture and gesture.id == point.id then gesture = nil end
+    if captureId == point.id then cancelCapture() end
     table.remove(points, index)
     persist()
     if refreshRows then refreshRows() end
@@ -334,6 +410,57 @@ local function pageMessage(text, height, name)
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
     })
+end
+
+local function beginKeyCapture(point, keyButton)
+    if captureId == point.id then
+        cancelCapture()
+        report("Captura de tecla cancelada.")
+        return
+    end
+    cancelCapture()
+    captureId, captureButton = point.id, keyButton
+    keyButton.Text = "PRESSIONE..."
+    report("Pressione uma tecla. ESC cancela; Backspace ou Delete remove.")
+end
+
+local function handleKeyInput(input, gameProcessed)
+    if not enabled or not mounted or input.UserInputType ~= Enum.UserInputType.Keyboard then
+        return
+    end
+    -- Chat, search, renaming and other TextBoxes never trigger a waypoint.
+    if UserInputService:GetFocusedTextBox() then return end
+    local key = input.KeyCode.Name
+    if captureId then
+        local target = captureId
+        if key == "Escape" then
+            cancelCapture()
+            report("Captura cancelada.")
+        elseif key == "Backspace" or key == "Delete" then
+            cancelCapture()
+            local _, messageText = Waypoints:setKeybind(target, nil)
+            report(messageText)
+        elseif ctrlAltMetaHeld() then
+            report("Use uma única tecla sem Ctrl ou Alt.")
+        elseif not validKeyName(key) then
+            report("Tecla reservada. Pressione outra tecla ou ESC para cancelar.")
+        else
+            cancelCapture()
+            local _, messageText = Waypoints:setKeybind(target, key)
+            report(messageText)
+        end
+        return -- The capture key must never teleport on its own.
+    end
+    if gameProcessed or ctrlAltMetaHeld() or RESERVED_KEYS[key] then return end
+    if os.clock() - lastHotkeyAt < 0.25 then return end
+    for _, point in ipairs(points) do
+        if point.keybind == key then
+            lastHotkeyAt = os.clock()
+            local _, detail = Waypoints:teleport(point.id)
+            report(detail)
+            break
+        end
+    end
 end
 
 local function viewportSize()
@@ -516,6 +643,7 @@ function Waypoints:mount(scroller, screenGui, palette, onStatus)
             or "Sem readfile/writefile: pontos disponíveis só durante esta execução.",
         36, "WaypointStorage")
     pageMessage("Edite o nome diretamente na lista. Um toque no atalho teleporta; arrastar só reposiciona.", 38)
+    pageMessage("PC: defina uma tecla diferente para cada ponto. ESC cancela a captura; Delete limpa.", 37, "WaypointKeybindHelp")
     local listTitle = pageMessage("LOCAIS", 24, "WaypointListHeading")
     listTitle.TextColor3 = theme.text
     listTitle.Font = Enum.Font.GothamBold
@@ -541,6 +669,7 @@ function Waypoints:mount(scroller, screenGui, palette, onStatus)
     end
     refreshRows = function()
         if not mounted then return end
+        cancelCapture()
         for _, object in ipairs(pageRows) do
             if object.Name:sub(1, 12) == "WaypointItem" then object:Destroy() end
         end
@@ -556,7 +685,7 @@ function Waypoints:mount(scroller, screenGui, palette, onStatus)
         for _, point in ipairs(points) do
             local row = pageElement("Frame", {
                 Name = "WaypointItem_" .. point.id,
-                Size = UDim2.new(1, -2, 0, 85),
+                Size = UDim2.new(1, -2, 0, 121),
                 BackgroundTransparency = 1,
             })
             local renameBox = make("TextBox", {
@@ -615,11 +744,41 @@ function Waypoints:mount(scroller, screenGui, palette, onStatus)
                 end)
             removeButton.TextSize = 10
             removeButton.TextColor3 = theme.danger
+
+            local bindLabel = make("TextLabel", {
+                Name = "WaypointBindLabel_" .. point.id,
+                Position = UDim2.fromOffset(7, 89),
+                Size = UDim2.new(0.30, -6, 0, 26),
+                BackgroundTransparency = 1,
+                Text = "KEYBIND",
+                Font = Enum.Font.GothamMedium,
+                TextSize = 10,
+                TextColor3 = theme.muted,
+                TextXAlignment = Enum.TextXAlignment.Left,
+            }, row)
+            local keyButton = action(row, displayKey(point.keybind),
+                "WaypointBind_" .. point.id,
+                UDim2.new(0.30, 1, 0, 86), UDim2.new(0.47, -8, 0, 29),
+                nil)
+            keyButton.TextSize = 10
+            keyButton.Activated:Connect(function()
+                beginKeyCapture(point, keyButton)
+            end)
+            local clearButton = action(row, "LIMPAR",
+                "WaypointClearBind_" .. point.id,
+                UDim2.new(0.77, 2, 0, 86), UDim2.new(0.23, -9, 0, 29),
+                function()
+                    cancelCapture()
+                    local _, messageText = Waypoints:setKeybind(point.id, nil)
+                    report(messageText)
+                end)
+            clearButton.TextSize = 10
         end
     end
 
     track(UserInputService.InputChanged, movedPointer)
     track(UserInputService.InputEnded, pointerEnded)
+    track(UserInputService.InputBegan, handleKeyInput)
     track(workspace:GetPropertyChangedSignal("CurrentCamera"), function()
         if refreshFloats then refreshFloats() end
     end)
@@ -644,6 +803,7 @@ function Waypoints:mount(scroller, screenGui, palette, onStatus)
 end
 
 function Waypoints:disable()
+    cancelCapture()
     gesture = nil
     mounted = false
     for _, connection in ipairs(connections) do connection:Disconnect() end
