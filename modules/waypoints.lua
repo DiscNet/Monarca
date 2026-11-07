@@ -38,7 +38,7 @@ local RESERVED_KEYS = {
     KeypadEnter = true, Backspace = true, Delete = true, Slash = true,
     LeftControl = true, RightControl = true, LeftAlt = true, RightAlt = true,
     LeftShift = true, RightShift = true, LeftMeta = true, RightMeta = true,
-    CapsLock = true,
+    LeftSuper = true, RightSuper = true, CapsLock = true, None = true,
 }
 local NUMBER_KEYS = {
     Zero = "0", One = "1", Two = "2", Three = "3", Four = "4",
@@ -49,7 +49,9 @@ local function validKeyName(name)
         return nil
     end
     local code = Enum.KeyCode[name]
-    if not code or code == Enum.KeyCode.Unknown then return nil end
+    if not code or code == Enum.KeyCode.Unknown or code.Value >= 1000 then
+        return nil -- keyboard shortcuts only, never gamepad codes from saved JSON
+    end
     return name
 end
 local function displayKey(name)
@@ -63,6 +65,8 @@ local function ctrlAltMetaHeld()
         or UserInputService:IsKeyDown(Enum.KeyCode.RightAlt)
         or UserInputService:IsKeyDown(Enum.KeyCode.LeftMeta)
         or UserInputService:IsKeyDown(Enum.KeyCode.RightMeta)
+        or UserInputService:IsKeyDown(Enum.KeyCode.LeftSuper)
+        or UserInputService:IsKeyDown(Enum.KeyCode.RightSuper)
 end
 local function cancelCapture()
     if captureButton and captureButton.Parent then
